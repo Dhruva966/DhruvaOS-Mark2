@@ -29,7 +29,7 @@
                    ▼
 ╔══════════════════════════════╗   ╔══════════════════════════════════╗
 ║  GBRAIN MCP SERVER            ║   ║  EXTERNAL TOOLS                  ║
-║  (Bun 1.x, gbrain serve)      ║   ║                                  ║
+║  (Bun 1.x, HTTP mode :3131)   ║   ║                                  ║
 ║                              ║   ║  Ollama → phi4-mini (Tier 0)     ║
 ║  ┌──────────────────────────┐ ║   ║    RTX 2060, 2.5 GB VRAM        ║
 ║  │  PGLite                  │ ║   ║                                  ║

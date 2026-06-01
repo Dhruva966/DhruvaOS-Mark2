@@ -55,8 +55,8 @@ HP Omen 15 (Ubuntu)
 │   │   └── calls Ollama via localhost:11434
 │   │   └── calls OpenAI/Anthropic/OpenRouter via HTTPS
 │   │
-│   ├── GBrain MCP server (pm2 process)
-│   │   └── serves stdio MCP to Hermes
+│   ├── GBrain MCP server (pm2 process, HTTP mode port 3131)
+│   │   └── serves HTTP MCP to Hermes (localhost:3131)
 │   │   └── reads/writes ~/.gbrain/brain.db (PGLite)
 │   │   └── reads/writes ~/brain/ (markdown)
 │   │
@@ -90,8 +90,12 @@ sudo apt install -y git curl build-essential python3.11 python3.11-venv python3.
 ### 2. Create dedicated user
 ```bash
 sudo useradd -m -s /bin/bash dhruvaos
-sudo usermod -aG sudo dhruvaos
+sudo usermod -aG sudo dhruvaos    # temporary — remove after setup completes
 sudo su - dhruvaos
+```
+**After all setup steps complete**, remove sudo (run as admin user):
+```bash
+sudo deluser dhruvaos sudo
 ```
 
 ### 3. Python tooling
@@ -127,8 +131,11 @@ ollama run phi4-mini "say: ready"
 ```bash
 git clone https://github.com/NousResearch/hermes-agent ~/.hermes-src
 cd ~/.hermes-src
+python3.11 -m venv .venv        # venv required before uv pip install
+source .venv/bin/activate
 uv pip install -e .
 python -c "import hermes; print('hermes ok')"
+echo 'source ~/.hermes-src/.venv/bin/activate' >> ~/.bashrc
 ```
 
 ### 8. GBrain
@@ -199,8 +206,10 @@ sudo systemctl enable cloudflared && sudo systemctl start cloudflared
 ### 15. Start services
 ```bash
 source ~/.config/dhruvaos/.env
-pm2 start "gbrain serve" --name gbrain-mcp
-pm2 start "python ~/.hermes-src/run_agent.py" --name hermes
+# GBrain runs in HTTP mode — PM2 daemonizes it; Hermes connects on port 3131
+pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131" --name gbrain-mcp
+# Hermes uses venv python
+pm2 start "~/.hermes-src/.venv/bin/python ~/.hermes-src/run_agent.py" --name hermes
 pm2 startup    # follow output command
 pm2 save
 ```
@@ -224,7 +233,7 @@ gbrain onboard --check --json
 ```bash
 crontab -e
 # Add:
-# 0 2 * * * /home/dhruvaos/.bun/bin/gbrain sync --repo ~/brain && /home/dhruvaos/.bun/bin/gbrain embed --stale
+# 0 2 * * * /home/dhruvaos/.bun/bin/gbrain embed --stale
 # 0 3 * * * /home/dhruvaos/.bun/bin/gbrain dream
 ```
 

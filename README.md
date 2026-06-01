@@ -64,7 +64,7 @@ flowchart TD
 | [VISION.md](VISION.md) | Jarvis north star — why this exists |
 | [HANDOFF.md](HANDOFF.md) | Hermes↔GBrain data contracts |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Omen setup runbook, VPS migration |
-| [AGENTS.md](AGENTS.md) | Codex mirror + skill catalog |
+| [AGENTS.md](AGENTS.md) | Thin adapter for Codex, OpenCode, Antigravity — read CLAUDE.md first |
 
 ## Subsystem Docs
 

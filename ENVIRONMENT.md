@@ -31,8 +31,13 @@ Run as `dhruvaos` user unless noted otherwise.
 ### 1. Create dedicated user (run as your regular Ubuntu user)
 ```bash
 sudo useradd -m -s /bin/bash dhruvaos
-sudo usermod -aG sudo dhruvaos    # needed for initial setup only
+sudo usermod -aG sudo dhruvaos    # needed for initial setup only — remove after setup
 sudo su - dhruvaos
+```
+
+After all setup steps complete, **remove sudo from dhruvaos** (run as admin user):
+```bash
+sudo deluser dhruvaos sudo    # non-root agents do not need sudo
 ```
 
 ### 2. Python 3.11+
@@ -73,9 +78,13 @@ ollama run phi4-mini "respond with: ok"
 ```bash
 git clone https://github.com/NousResearch/hermes-agent ~/.hermes-src
 cd ~/.hermes-src
+python3.11 -m venv .venv            # create venv first — uv requires it
+source .venv/bin/activate
 uv pip install -e .
 # Verify:
 python -c "import hermes; print('ok')"
+# Add activation to ~/.bashrc so Hermes always runs in venv:
+echo 'source ~/.hermes-src/.venv/bin/activate' >> ~/.bashrc
 ```
 
 ### 7. GBrain
@@ -120,16 +129,30 @@ chmod 600 ~/.config/dhruvaos/.env
 ## Service Orchestration
 
 ### PM2 process list (initial setup)
-```bash
-# Start GBrain MCP server (stdio mode — Hermes connects directly)
-pm2 start "gbrain serve" --name gbrain-mcp --interpreter none
 
-# Start Hermes
-pm2 start "python ~/.hermes-src/run_agent.py" --name hermes --interpreter none
+GBrain must run in **HTTP mode** when daemonized under PM2. Stdio mode requires Hermes to
+spawn GBrain as a child process with a live stdin/stdout pipe — a PM2 daemon has no such
+pipe, so all Hermes→GBrain MCP calls would silently fail even though `pm2 list` shows
+`gbrain-mcp` as online.
+
+```bash
+# Start GBrain in HTTP mode (Hermes connects to localhost:3131 over HTTP)
+pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131" --name gbrain-mcp
+
+# Start Hermes (runs inside venv — full path avoids activation dependency)
+pm2 start "~/.hermes-src/.venv/bin/python ~/.hermes-src/run_agent.py" --name hermes
 
 # Persist across reboots
-pm2 startup    # follow the output command (usually: sudo env PATH=... pm2 startup)
+pm2 startup    # follow the output command
 pm2 save
+```
+
+In `~/.hermes/config.yaml`, point Hermes at the HTTP GBrain endpoint:
+```yaml
+mcp:
+  servers:
+    gbrain:
+      url: "http://localhost:3131"
 ```
 
 ### Check status
@@ -207,9 +230,7 @@ id    # should show: uid=1001(dhruvaos)
 ```bash
 chmod 600 ~/.config/dhruvaos/.env
 ls -la ~/.config/dhruvaos/.env    # should show: -rw------- dhruvaos
-# Add to .gitignore (from project root):
-echo ".env" >> .gitignore
-echo "*.env" >> .gitignore
+# .gitignore already committed in the repo — covers .env, *.env, brain.db
 ```
 
 **3. Discord allowlist in Hermes config**

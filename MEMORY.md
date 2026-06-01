@@ -270,7 +270,7 @@ The dream cycle is what makes GBrain compound. Run nightly without fail.
 ```bash
 crontab -e
 # Add these two lines:
-0 2 * * * /home/dhruvaos/.bun/bin/gbrain sync --repo ~/brain && /home/dhruvaos/.bun/bin/gbrain embed --stale
+0 2 * * * /home/dhruvaos/.bun/bin/gbrain embed --stale
 0 3 * * * /home/dhruvaos/.bun/bin/gbrain dream
 ```
 

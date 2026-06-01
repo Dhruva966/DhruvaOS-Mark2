@@ -1,0 +1,39 @@
+# Secrets — never commit
+.env
+*.env
+.env.*
+
+# GBrain database (PGLite — contains embedded brain content)
+brain.db
+*.db
+.gbrain/brain.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Node / Bun
+node_modules/
+.bun/
+
+# Runtime state
+.pm2/
+*.log
+*.pid
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# Codex session state
+.context/codex-session-id

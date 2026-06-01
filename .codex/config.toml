@@ -3,7 +3,7 @@
 
 [context]
 primary = "CLAUDE.md"
-secondary = ["AGENTS.md", "ARCHITECTURE.md"]
+secondary = ["ARCHITECTURE.md"]
 
 [agents]
 default_model = "codex-1"

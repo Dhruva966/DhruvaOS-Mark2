@@ -27,7 +27,7 @@ acting on anything high-stakes.
 ```
 DhruvaOS Mark 2/
 ├── CLAUDE.md              # This file — root context for all agents
-├── AGENTS.md              # Codex mirror + skill catalog
+├── AGENTS.md              # Thin adapter for Codex / OpenCode / Antigravity
 ├── ARCHITECTURE.md        # System design, layer diagram, component mapping
 ├── ENVIRONMENT.md         # Omen setup, runtimes, security hardening
 ├── MODEL_ROUTING.md       # 4-tier routing spec, quality firewall, config
