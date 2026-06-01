@@ -1,150 +1,271 @@
 # DhruvaOS Mark 2
 
-A 24/7 autonomous personal AI OS. Hermes Agent + GBrain. Jarvis-style. Runs on your Omen.
+> A 24/7 autonomous personal AI operating system engineered by **Dhruva Vutukury**.
+> Built to handle the operational layer of a human life — inbox, calendar, research,
+> outbound communication — while compounding knowledge every night.
 
-## System Flow
+[![Status](https://img.shields.io/badge/status-Phase_0-orange?style=flat-square)](https://github.com/Dhruva966/DhruvaOS-Mark2)
+[![Runtime](https://img.shields.io/badge/Hermes_Agent-v1.0.0-blueviolet?style=flat-square)](https://github.com/NousResearch/hermes-agent)
+[![Memory](https://img.shields.io/badge/GBrain-v0.42.1-blue?style=flat-square)](https://github.com/garrytan/gbrain)
+[![Model](https://img.shields.io/badge/Claude_Sonnet_4.6-outbound_writing-red?style=flat-square)](#model-routing)
+[![Infrastructure](https://img.shields.io/badge/infra_cost-%240%2Fmonth-brightgreen?style=flat-square)](#cost)
+[![Host](https://img.shields.io/badge/host-HP_Omen_RTX_2060_Ubuntu-222?style=flat-square)](#)
+
+---
+
+## What this is
+
+Mark 2 is the complete rebuild of DhruvaOS — a personal AI OS that runs locally on
+Dhruva's HP Omen, costs $0/month in infrastructure, and handles the operational overhead
+of a high-output life: inbox triage, calendar management, research synthesis, task
+prioritization, and outbound communication — all with a hard quality gate before anything
+reaches another human.
+
+**Mark 1** was a planned-from-scratch architecture (custom Python orchestrator, Mem0,
+Qdrant, Graphify, FastAPI). **Mark 2** achieves the same goals in a fraction of the time
+by building on [Hermes Agent](https://github.com/NousResearch/hermes-agent) (self-improving
+runtime with a skill loop) and [GBrain](https://github.com/garrytan/gbrain) (a compounding
+memory layer that consolidates knowledge nightly). The hard infrastructure is installed,
+not built. The build effort concentrates on what matters: the skill layer and the knowledge base.
+
+The architecture is designed for a single operator — Dhruva Vutukury — running solo,
+maintaining this himself as a freshman at UCLA.
+
+---
+
+## What it actually does
+
+| Scenario | Behavior |
+|----------|----------|
+| Wake up at 8am | Morning briefing posted to Discord: today's calendar, email action items, priority tasks, research digest |
+| Recruiter email arrives | Triaged and classified automatically; reply draft available for review on request |
+| *"Research LLM agent architectures"* | Web research + brain knowledge combined into a structured synthesis, filed to memory |
+| *"Draft a LinkedIn post about this project"* | Sonnet-level draft posted to `#corrections` — sends only after explicit approval |
+| *"How has my thinking on X changed?"* | GBrain entity trajectory across all notes, conversations, and corrections over time |
+| Novel task with no prior skill | Hermes executes → succeeds → writes and promotes a reusable skill for future runs |
+| Every night at 3am | Dream cycle consolidates conversations, auto-links entities, repairs the knowledge graph |
+
+---
+
+## System architecture
 
 ```mermaid
 flowchart TD
-    Discord["Discord\n#briefings #tasks #research\n#alerts #charlie #corrections"]
-    Hermes["Hermes Agent\nPython 3.11+"]
-    SkillRouter["Skill Router\n8 seeds + runtime-authored"]
-    ModelRouter["4-Tier Model Router\n+ Quality Firewall"]
-    Scheduler["APScheduler\n8am briefing, 9pm recap"]
-    GBrain["GBrain MCP\nPGLite + pgvector"]
-    Brain["~/brain/\nMarkdown knowledge base"]
-    DreamCycle["Dream Cycle\nNightly 3am"]
+    Dhruva(["Dhruva Vutukury"])
 
-    Ollama["Ollama\nphi4-mini • Tier 0 • Free"]
-    OpenAI["OpenAI API\ngpt-4o-mini • Tier 1\nPlatform credits"]
-    Anthropic["Anthropic API\nSonnet 4.6 • Tier 2\nOpus 4.8 • Tier 3"]
-    OpenRouter["OpenRouter\nDeepSeek V3 • Tier 1 fallback"]
+    Discord["Discord\n#briefings · #tasks · #research\n#alerts · #corrections · #charlie"]
 
+    Hermes["Hermes Agent  Python 3.11+\nSelf-improving skill loop\nAPScheduler · Subagent pool"]
+
+    subgraph Routing ["4-Tier Model Routing + Quality Firewall"]
+        T0["Tier 0  phi4-mini via Ollama\nLocal · Free · Internal triage only"]
+        T1["Tier 1  GPT-4o-mini\nDirect OpenAI API · Platform credits"]
+        T2["Tier 2  Claude Sonnet 4.6\nAll outbound writing · Approval required"]
+        T3["Tier 3  Claude Opus 4.8\nOrchestration · High-stakes decisions"]
+    end
+
+    GBrain["GBrain  Bun 1.x\nPGLite + pgvector · Hybrid FTS + vector\nEntity graph · Trajectory tracking"]
+
+    Brain["~/brain/\nMarkdown knowledge base\nPeople · Projects · UCLA · Goals"]
+
+    Dream["Dream Cycle  nightly 3am\n8-phase consolidation\nEntity sweep · Auto-link · Gap analysis"]
+
+    Firewall["Quality Firewall\nOutbound text → Tier 2+ → #corrections\nDhruva approval before every send"]
+
+    Dhruva -->|"commands"| Discord
     Discord --> Hermes
-    Hermes --> SkillRouter
-    Hermes --> ModelRouter
-    Hermes --> Scheduler
-    Hermes <--> GBrain
+    Hermes <-->|"HTTP MCP  :3131/mcp"| GBrain
     GBrain <--> Brain
-    GBrain --> DreamCycle
-
-    ModelRouter --> Ollama
-    ModelRouter --> OpenAI
-    ModelRouter --> Anthropic
-    ModelRouter --> OpenRouter
+    GBrain --> Dream
+    Hermes --> Routing
+    Hermes --> Firewall
+    Firewall -->|"preview"| Discord
 ```
 
-## Key Numbers
+---
 
-| Metric | Value |
-|--------|-------|
-| Infrastructure cost | $0/month (Omen local) |
-| Year 1 total | ~$32-68/month (mostly Anthropic) |
-| Tier 0 VRAM | 2.5 GB (3.5 GB free on RTX 2060) |
-| OpenAI credits | ~$1,000 → estimated 2-3 years at moderate usage |
-| Starting skills | 8 seeds |
-| GBrain bundled skills | 43 |
-| Hermes iteration cap | 90 per run |
-| Max concurrent subagents | 3 (depth 2) |
-| Brain persistence | `~/.gbrain/brain.db` (PGLite) |
-| Dream cycle | Nightly 3am |
+## Model routing
 
-## Documents
+| Tier | Model | Provider | Cost/1M tokens | Use case |
+|------|-------|----------|----------------|----------|
+| 0 | phi4-mini | Ollama (local) | $0 | Internal triage, formatting, parsing — never outbound |
+| 1 | gpt-4o-mini-2024-07-18 | OpenAI direct | $0.15 in / $0.60 out | Research, planning, mid-complexity |
+| 1 fallback | deepseek/deepseek-v3 | OpenRouter | $0.23 in / $0.34 out | Activates when OpenAI credits < $50 |
+| 2 | claude-sonnet-4-6 | Anthropic | $3 in / $15 out | **All outbound text** — email, LinkedIn, GitHub |
+| 3 | claude-opus-4-8 | Anthropic | $15 in / $75 out | Orchestration, architecture, corrections |
 
-| File | Purpose |
-|------|---------|
-| [CLAUDE.md](CLAUDE.md) | Root context — all agents read this first |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, layer diagram, component mapping |
-| [ENVIRONMENT.md](ENVIRONMENT.md) | Omen setup, runtimes, security hardening |
-| [MODEL_ROUTING.md](MODEL_ROUTING.md) | 4-tier routing, quality firewall, config.yaml |
-| [SKILLS.md](SKILLS.md) | Starting skills, trust model, authoring pattern |
-| [MEMORY.md](MEMORY.md) | GBrain setup, Obsidian ingest, braindump guide |
-| [BUILD_PLAN.md](BUILD_PLAN.md) | Phased rollout (P0–P6), parallel task safety |
-| [COST.md](COST.md) | Year 1/2 cost model, credit burn rate |
-| [VISION.md](VISION.md) | Jarvis north star — why this exists |
-| [HANDOFF.md](HANDOFF.md) | Hermes↔GBrain data contracts |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Omen setup runbook, VPS migration |
-| [AGENTS.md](AGENTS.md) | Thin adapter for Codex, OpenCode, Antigravity — read CLAUDE.md first |
+**Quality firewall** — absolute, no cost override:
+```
+Any text a human other than Dhruva will read
+  → must use Tier 2+ (Sonnet minimum)
+  → must preview in #corrections
+  → blocks until 👍 or /approve from Dhruva
+  → logs approval with timestamp
 
-## Subsystem Docs
+No exception. No shortcut.
+```
 
-| File | Purpose |
-|------|---------|
-| [hermes/CLAUDE.md](hermes/CLAUDE.md) | Hermes skill development patterns |
-| [gbrain/CLAUDE.md](gbrain/CLAUDE.md) | GBrain ingest, search, memory patterns |
-| [skills/CLAUDE.md](skills/CLAUDE.md) | Skill authoring rules + trust gate |
-| [brain/CLAUDE.md](brain/CLAUDE.md) | Brain content structure + writing conventions |
-| [discord/CLAUDE.md](discord/CLAUDE.md) | Discord channel purposes + routing |
+---
 
-## Quick Start (Phase 0)
+## Self-improving skill loop
+
+```
+Dhruva issues a task Hermes has never seen →
+  Hermes reasons through it and executes using built-in tools →
+  Task succeeds →
+  Hermes writes ~/.hermes/skills/<name>.yaml:
+    - frontmatter: tier, outbound flag, gbrain reads/writes
+    - implementation: ordered steps
+    - tests: mocked tool calls
+  Quality gate: pytest passes →
+  Trust gate:
+    read-only  → auto-promoted, no approval needed
+    write/shell → Discord DM to Dhruva, code preview, awaits /approve
+  Skill lives permanently in the library →
+  Next invocation: direct execution, no re-reasoning
+```
+
+After Phase 4, any task Dhruva performs more than once becomes a skill. The system
+accelerates its own capability over time without any manual engineering.
+
+---
+
+## Compounding memory
+
+GBrain runs an 8-phase nightly consolidation cycle at 3am. After one month of usage, the
+brain has typed entity relationships, a timeline of events, and cross-session pattern
+detection. After one year, trajectory queries (*"how has my career thinking evolved?"*)
+return substantive chronological analysis backed by every note, conversation, and
+correction in the system.
+
+```
+New content → signal-detector captures entities in real time
+         ↓
+Nightly: dream cycle consolidates + auto-links + detects patterns
+         ↓
+Query: gbrain search "X"    →  hybrid FTS + vector retrieval + synthesis
+       gbrain think "X"     →  entity trajectory + temporal graph traversal
+```
+
+The brain is not a note-taking system. It is a queryable, compounding model of
+Dhruva's knowledge, context, and reasoning — built automatically from daily interaction.
+
+---
+
+## Cost
+
+| Year | Infrastructure | Anthropic (Tier 2/3) | OpenAI credits | Total |
+|------|--------------|---------------------|---------------|-------|
+| Year 1 | $0 (Omen local) | ~$25–50/mo | ~$1–3/mo (burns platform credits) | **~$32–68/mo** |
+| Year 2 | $0 | ~$25–50/mo | ~$3–8/mo (OpenRouter fallback) | **~$35–70/mo** |
+
+~$1,000 in OpenAI platform credits at moderate usage (500 req/day) lasts approximately
+2–3 years. Prompt caching on Anthropic system prompts reduces Tier 2/3 spend by ~40–50%.
+
+---
+
+## Build phases
+
+| Phase | Name | Milestone | State |
+|-------|------|-----------|-------|
+| 0 | Infrastructure | Hermes + GBrain wired, Discord live, security hardened | **Next** |
+| 1 | Alive | Responds in Discord with GBrain context | ○ |
+| 2 | Inbox | Email triage, calendar, morning briefing with real data | ○ |
+| 3 | Menial tasks | Research, corrections, quality firewall verified end-to-end | ○ |
+| 4 | Self-improving | Dream cycle running, novel task → skill authored + promoted | ○ |
+| 5 | Network | LinkedIn, GitHub, personal site — all through quality firewall | ○ |
+| 6 | Voice + mobile | TTS, STT, iPhone geofencing | ○ Future |
+
+Phase 4 is the architectural milestone. Before it, DhruvaOS runs the skills it was given.
+After it, it authors new skills from experience. The system becomes qualitatively different.
+
+---
+
+## Quick start
 
 ```bash
-# 1. Create dedicated user
+# Create dedicated non-root user
 sudo useradd -m -s /bin/bash dhruvaos && sudo su - dhruvaos
 
-# 2. Install runtimes
-sudo apt install -y python3.11 python3.11-venv && pip install uv
-curl -fsSL https://bun.sh/install | bash
-curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-nvm install 24 && npm install -g pm2
+# Install Hermes Agent (official installer handles Python 3.11, venv, uv, Node.js)
+curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+source ~/.bashrc
 
-# 3. Install Ollama + phi4-mini (Tier 0)
+# Install GBrain
+curl -fsSL https://bun.sh/install | bash && source ~/.bashrc
+bun install -g github:garrytan/gbrain && gbrain upgrade
+
+# Install Ollama + phi4-mini (Tier 0 — local, free)
 curl -fsSL https://ollama.com/install.sh | sh
 ollama pull phi4-mini
 
-# 4. Install Hermes Agent
-git clone https://github.com/NousResearch/hermes-agent ~/.hermes-src
-cd ~/.hermes-src && uv pip install -e .
-
-# 5. Install GBrain
-bun install -g github:garrytan/gbrain && gbrain upgrade
-
-# 6. Initialize brain
+# Initialize brain
 mkdir -p ~/brain/{people,companies,concepts,projects,daily,resources,UCLA,goals,charlie}
-gbrain apply-migrations --yes
-gbrain onboard --check --json
+gbrain init
 
-# 7. Start services
-pm2 start "gbrain serve" --name gbrain-mcp
-pm2 start "python ~/.hermes-src/run_agent.py" --name hermes
+# Start services (GBrain runs in HTTP mode — required for PM2 daemonization)
+pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131" --name gbrain-mcp
+pm2 start "hermes" --name hermes
 pm2 startup && pm2 save
+
+# Verify integration
+hermes mcp test gbrain    # expect: tools discovered at http://localhost:3131/mcp
 ```
 
-Full setup: see [ENVIRONMENT.md](ENVIRONMENT.md) and [BUILD_PLAN.md](BUILD_PLAN.md).
+Complete setup with security hardening → [ENVIRONMENT.md](ENVIRONMENT.md)
+Step-by-step install runbook → [DEPLOYMENT.md](DEPLOYMENT.md)
+Phase-by-phase build guide with exact commands → [BUILD_PLAN.md](BUILD_PLAN.md)
 
-## Useful Commands
+---
+
+## Reference docs
+
+| Document | Contents |
+|----------|----------|
+| [CLAUDE.md](CLAUDE.md) | Root context — read by all agents |
+| [AGENTS.md](AGENTS.md) | Thin adapter for Codex, OpenCode, and other agent systems |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Layer diagram, Mark 1→Mark 2 component mapping |
+| [MODEL_ROUTING.md](MODEL_ROUTING.md) | Full 4-tier config, quality firewall, credit watchdog |
+| [SKILLS.md](SKILLS.md) | Starting skill specs, trust model, runtime authoring pattern |
+| [MEMORY.md](MEMORY.md) | GBrain setup, Obsidian ingest, braindump questionnaire |
+| [BUILD_PLAN.md](BUILD_PLAN.md) | Per-phase tasks with exact commands and verification gates |
+| [COST.md](COST.md) | Year 1/2 cost model, credit burn rate, VPS migration math |
+| [VISION.md](VISION.md) | Design philosophy and north star |
+| [ENVIRONMENT.md](ENVIRONMENT.md) | Ubuntu runtime setup, security hardening checklist |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Full runbook, VPS migration path |
+| [HANDOFF.md](HANDOFF.md) | Hermes↔GBrain integration contracts |
+| [decisions/](decisions/README.md) | Architecture Decision Records |
+
+---
+
+## Operational commands
 
 ```bash
-# Status
+# Process status
 pm2 list
 pm2 logs hermes --lines 50
+pm2 logs gbrain-mcp --lines 20
 
 # GBrain
-gbrain search "query"
-gbrain think "trajectory query"
-gbrain dream                        # run dream cycle manually
-gbrain onboard --check --json      # health check
+gbrain search "query"                          # fact retrieval
+gbrain think "trajectory query"                # temporal analysis
+gbrain dream                                   # run consolidation cycle manually
+gbrain onboard --check --json                  # health check
+gbrain doctor --json | jq .score               # brain health score (target ≥70)
+gbrain stats                                   # entity and link counts
 
-# Brain ingest
+# Ingest
 gbrain import ~/path --no-embed && gbrain embed --stale
 
-# Skill management
-ls ~/.hermes/skills/               # list all skills
-pm2 restart hermes                 # reload skills after changes
+# Hermes skill management
+ls ~/.hermes/skills/                           # all skills (seeded + runtime-authored)
+hermes mcp list                                # registered MCP servers
+hermes mcp test gbrain                         # verify GBrain connection
 
 # Security
-auditctl -l                        # check audit rules
-ufw status                         # check firewall rules
-aa-status                          # check AppArmor status
+ufw status && aa-status && auditctl -l
 ```
 
-## Discord Channels
+---
 
-| Channel | Purpose |
-|---------|---------|
-| `#briefings` | Morning/evening briefings, proactive updates |
-| `#tasks` | Task list, prioritization, status |
-| `#research` | Research synthesis outputs |
-| `#alerts` | Urgent notifications |
-| `#charlie` | Charlie's Cleaners (stub — future) |
-| `#corrections` | **Outbound approval gate** — all outbound previews appear here |
+*Engineered by [Dhruva Vutukury](https://github.com/Dhruva966) — UCLA CS, building systems that compound.*
