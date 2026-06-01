@@ -75,16 +75,21 @@ ollama run phi4-mini "respond with: ok"
 ```
 
 ### 6. Hermes Agent
+The official installer handles Python 3.11, venv creation, uv, Node.js, ripgrep, and ffmpeg:
+```bash
+curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+source ~/.bashrc    # reload PATH
+hermes --version    # verify install
+```
+
+If the one-liner fails or you need a pinned version, manual path:
 ```bash
 git clone https://github.com/NousResearch/hermes-agent ~/.hermes-src
 cd ~/.hermes-src
-python3.11 -m venv .venv            # create venv first — uv requires it
-source .venv/bin/activate
-uv pip install -e .
-# Verify:
-python -c "import hermes; print('ok')"
-# Add activation to ~/.bashrc so Hermes always runs in venv:
-echo 'source ~/.hermes-src/.venv/bin/activate' >> ~/.bashrc
+# Installer creates venv automatically; if not:
+python3.11 -m venv .venv && source .venv/bin/activate
+uv sync    # preferred (uses uv.lock for determinism)
+# or: uv pip install -e ".[all]"
 ```
 
 ### 7. GBrain
@@ -94,10 +99,9 @@ gbrain upgrade    # ensure latest (≥0.42.1.0)
 gbrain --version
 ```
 
-### 8. Scaffold brain repo + GBrain config
+### 8. Scaffold brain repo + GBrain init
 ```bash
 mkdir -p ~/brain/{people,companies,concepts,projects,daily,resources,UCLA,goals,charlie}
-
 mkdir -p ~/.gbrain
 cat > ~/.gbrain/config.json << 'EOF'
 {
@@ -108,6 +112,7 @@ cat > ~/.gbrain/config.json << 'EOF'
   "brain_path": "~/brain"
 }
 EOF
+gbrain init    # initialize PGLite schema
 ```
 
 ### 9. Hermes config
@@ -147,12 +152,18 @@ pm2 startup    # follow the output command
 pm2 save
 ```
 
-In `~/.hermes/config.yaml`, point Hermes at the HTTP GBrain endpoint:
+In `~/.hermes/config.yaml`, point Hermes at the HTTP GBrain endpoint.
+Key is `mcp_servers:` (verified from Hermes cli-config.yaml.example):
 ```yaml
-mcp:
-  servers:
-    gbrain:
-      url: "http://localhost:3131"
+mcp_servers:
+  gbrain:
+    url: "http://localhost:3131/mcp"
+```
+
+Verify connection after Hermes starts:
+```bash
+hermes mcp list          # shows registered MCP servers
+hermes mcp test gbrain   # confirms tools discovered
 ```
 
 ### Check status

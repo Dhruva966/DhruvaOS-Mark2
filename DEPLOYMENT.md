@@ -129,13 +129,10 @@ ollama run phi4-mini "say: ready"
 
 ### 7. Hermes Agent
 ```bash
-git clone https://github.com/NousResearch/hermes-agent ~/.hermes-src
-cd ~/.hermes-src
-python3.11 -m venv .venv        # venv required before uv pip install
-source .venv/bin/activate
-uv pip install -e .
-python -c "import hermes; print('hermes ok')"
-echo 'source ~/.hermes-src/.venv/bin/activate' >> ~/.bashrc
+# Official installer — handles Python 3.11 venv, uv, Node.js, ripgrep, ffmpeg
+curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+source ~/.bashrc
+hermes --version    # verify
 ```
 
 ### 8. GBrain
@@ -152,8 +149,9 @@ mkdir -p ~/.gbrain
 cat > ~/.gbrain/config.json << 'EOF'
 {"engine":"pglite","search_mode":"balanced","embedding_provider":"zeroentropy","query_expansion":false,"brain_path":"~/brain"}
 EOF
-gbrain apply-migrations --yes
-gbrain onboard --check --json
+gbrain init                     # initializes PGLite schema
+gbrain apply-migrations --yes   # apply any pending migrations
+gbrain onboard --check --json   # verify all checks green
 ```
 
 ### 10. Hermes config
