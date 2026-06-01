@@ -1,0 +1,33 @@
+# DhruvaOS Mark 2 — Codex configuration
+# Mirror of .claude/settings.json for Codex agent compatibility
+
+[context]
+primary = "CLAUDE.md"
+secondary = ["AGENTS.md", "ARCHITECTURE.md"]
+
+[agents]
+default_model = "codex-1"
+
+[agents.implementer]
+description = "Implement a single skill or task from the build plan"
+model = "codex-1"
+context = ["CLAUDE.md", "SKILLS.md", "MODEL_ROUTING.md"]
+
+[agents.spec-reviewer]
+description = "Verify implementation matches spec — read code, do not trust self-report"
+model = "codex-1"
+context = ["CLAUDE.md", "BUILD_PLAN.md"]
+
+[agents.quality-reviewer]
+description = "Verify implementation is clean, tested, maintainable"
+model = "codex-1"
+context = ["SKILLS.md", "CLAUDE.md"]
+
+[agents.gbrain-ops]
+description = "Run GBrain ingest, embed, or dream — sequential only, never parallel"
+model = "codex-1"
+context = ["MEMORY.md"]
+sequential = true
+
+[security]
+never_commit = [".env", "*.env", "brain.db", "*.db"]

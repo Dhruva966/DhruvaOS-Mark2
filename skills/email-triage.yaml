@@ -1,0 +1,30 @@
+name: email-triage
+version: 1.0.0
+tier: 1
+outbound: false
+requires_approval: false
+description: "Classify inbox, summarize threads, surface action items"
+schedule: null
+gbrain:
+  reads: ["people/*", "projects/*"]
+  writes: []
+tests: tests/email-triage/
+---
+# Email Triage — Implementation
+
+Steps:
+  1. Connect to email via Gmail MCP (OAuth configured in Hermes)
+  2. Fetch unread threads (max 50, last 48 hours)
+  3. For each thread:
+     - Check sender against ~/brain/people/ for context
+     - Classify: ACTION_REQUIRED / FYI / NEWSLETTER / SPAM / UNKNOWN
+     - Estimate urgency (high/medium/low) from sender + subject + body scan
+  4. Group by classification and urgency
+  5. Post digest to Discord #tasks:
+     - Section: Action Required (sorted by urgency)
+     - Section: FYI
+     - Section: Auto-archived (newsletters, spam)
+  6. For threads needing replies: flag with /reply command hint
+
+Note: Email REPLIES are a separate skill (email-reply) with outbound: true and tier: 2.
+This skill only reads and triages — never sends.

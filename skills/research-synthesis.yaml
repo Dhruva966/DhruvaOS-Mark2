@@ -1,0 +1,33 @@
+name: research-synthesis
+version: 1.0.0
+tier: 2
+outbound: false
+requires_approval: false
+description: "Deep-dive a topic, synthesize from web + brain, write to resources/"
+schedule: null
+gbrain:
+  reads: ["concepts/*", "resources/*"]
+  writes: ["resources/research-{{topic}}-{{date}}.md"]
+tests: tests/research-synthesis/
+---
+# Research Synthesis — Implementation
+
+Triggered by: /research <topic> in Discord #research
+
+Steps:
+  1. Parse topic from command
+  2. Search GBrain for existing knowledge (gbrain search "<topic>")
+     - If GBrain returns high-confidence answer with citations → skip web search, summarize brain only
+     - If brain has gaps → proceed to web search
+  3. Run Exa search for current sources (top 10)
+  4. Use Firecrawl to extract full content from top 5 sources
+  5. Synthesize using claude-sonnet-4-6 (Tier 2):
+     - What's known (from brain)
+     - What's new (from web)
+     - Key takeaways
+     - Open questions / gaps
+     - Citations (source URLs + brain references)
+  6. Write synthesis to ~/brain/resources/research-{{topic}}-{{date}}.md
+  7. Post formatted summary to Discord #research
+
+Brain-first principle: always check GBrain before calling web. Avoids redundant searches.

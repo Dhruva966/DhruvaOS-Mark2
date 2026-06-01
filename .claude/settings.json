@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gbrain:*)",
+      "Bash(pm2:*)",
+      "Bash(ollama:*)",
+      "Bash(pytest:*)",
+      "Bash(python3.11:*)",
+      "Bash(bun:*)"
+    ]
+  },
+  "env": {
+    "DHRUVAOS_ENV_FILE": "~/.config/dhruvaos/.env"
+  }
+}

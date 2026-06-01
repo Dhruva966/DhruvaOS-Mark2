@@ -1,0 +1,27 @@
+name: evening-briefing
+version: 1.0.0
+tier: 1
+outbound: false
+requires_approval: false
+description: "Evening recap and next-day prep"
+schedule: "0 21 * * *"
+gbrain:
+  reads: ["daily/briefing-{{date}}.md", "projects/*"]
+  writes: ["daily/recap-{{date}}.md"]
+tests: tests/evening-briefing/
+---
+# Evening Briefing — Implementation (STUB: Phase 2)
+
+Steps when implemented:
+  1. Load today's morning briefing from GBrain
+  2. Load current task list from GBrain
+  3. Assess what was accomplished vs planned (compare tasks vs completions)
+  4. Identify unfinished tasks to carry forward tomorrow
+  5. Compose recap using gpt-4o-mini (Tier 1, internal):
+     - Done today
+     - Carried to tomorrow
+     - One observation or insight
+  6. Post recap to Discord #briefings
+  7. Write recap to ~/brain/daily/recap-{{date}}.md
+
+Status: STUB — scaffold only. Fill in implementation in Phase 2.

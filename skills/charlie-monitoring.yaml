@@ -1,0 +1,32 @@
+name: charlie-monitoring
+version: 0.0.0
+status: STUB_NOT_IMPLEMENTED
+tier: 1
+outbound: false
+requires_approval: false
+description: "FUTURE: Monitor Charlie's Cleaners business metrics"
+schedule: null
+gbrain:
+  reads: ["charlie/*"]
+  writes: ["charlie/metrics-{{date}}.md"]
+tests: null
+---
+# Charlie's Cleaners Monitoring — STUB
+
+DO NOT IMPLEMENT until:
+  1. Charlie's Cleaners monitoring requirements are explicitly scoped
+  2. Data source is identified (POS system, booking platform, spreadsheet, API)
+  3. Specific metrics are defined (revenue, bookings, employees, etc.)
+  4. #charlie Discord channel integration is tested
+
+This stub exists to:
+  - Reserve the extension point in the skill library
+  - Define the GBrain read/write contract (charlie/* directories)
+  - Prevent other skills from writing to charlie/* prematurely
+
+When ready to implement:
+  1. Delete this STUB_NOT_IMPLEMENTED flag
+  2. Define monitoring targets in comments below
+  3. Implement data source connection
+  4. Set appropriate schedule
+  5. Test against real data before enabling

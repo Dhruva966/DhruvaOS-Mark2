@@ -1,0 +1,34 @@
+name: correction-handler
+version: 1.0.0
+tier: 3
+outbound: false
+requires_approval: false
+description: "Receive behavioral correction, write as permanent GBrain fact"
+schedule: null
+gbrain:
+  reads: ["concepts/corrections.md"]
+  writes: ["concepts/corrections.md"]
+tests: tests/correction-handler/
+---
+# Correction Handler — Implementation
+
+Triggered by: /correct <text> in Discord #corrections
+
+Steps:
+  1. Parse correction text from command
+  2. Use claude-opus-4-8 (Tier 3) to interpret the correction accurately:
+     - What behavior is being corrected?
+     - What should the new behavior be?
+     - Is this a factual update, a preference, or a behavioral rule?
+  3. Classify correction type: BEHAVIOR / FACT / PREFERENCE / FORMAT
+  4. Format as structured correction entry:
+     ## <date> — <brief title>
+     **Type:** <BEHAVIOR|FACT|PREFERENCE|FORMAT>
+     **Original behavior:** <what DhruvaOS did>
+     **Corrected behavior:** <what it should do>
+     **Rule:** <imperative statement of the new rule>
+  5. Append to ~/brain/concepts/corrections.md (read first to preserve existing entries)
+  6. Post acknowledgment to #corrections: "Understood. [brief summary of correction]."
+
+Note: Uses Tier 3 (Opus) to ensure corrections are interpreted precisely.
+Misinterpreting a correction and writing it wrong is worse than no correction at all.

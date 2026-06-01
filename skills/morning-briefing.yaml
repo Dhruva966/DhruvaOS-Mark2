@@ -1,0 +1,29 @@
+name: morning-briefing
+version: 1.0.0
+tier: 2
+outbound: false
+requires_approval: false
+description: "Full daily briefing: calendar + email digest + tasks + news/research"
+schedule: "0 8 * * *"
+gbrain:
+  reads: ["projects/*", "goals/*", "daily/*"]
+  writes: ["daily/briefing-{{date}}.md"]
+tests: tests/morning-briefing/
+---
+# Morning Briefing — Implementation (STUB: Phase 2)
+
+Steps when implemented:
+  1. Load ~/brain/projects/tasks.md from GBrain (gbrain search "current tasks")
+  2. Fetch today's calendar events (Google Calendar MCP)
+  3. Fetch top 5 unread emails, classify by action-required / FYI / spam
+  4. Load ongoing project context (gbrain search "active projects status")
+  5. Fetch curated news/research digest (Exa search on tracked topics from goals/)
+  6. Compose briefing using claude-sonnet-4-6:
+     - Section 1: Today (calendar events)
+     - Section 2: Inbox (top 5 emails needing action)
+     - Section 3: Tasks (priority-ranked list)
+     - Section 4: Research/News (if applicable)
+  7. Post to Discord #briefings
+  8. Write briefing summary to ~/brain/daily/briefing-{{date}}.md
+
+Status: STUB — scaffold only. Fill in implementation in Phase 2.

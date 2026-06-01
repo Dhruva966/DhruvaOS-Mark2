@@ -1,0 +1,26 @@
+name: task-prioritization
+version: 1.0.0
+tier: 1
+outbound: false
+requires_approval: false
+description: "Load task list, rank by urgency+importance, update GBrain"
+schedule: null
+gbrain:
+  reads: ["projects/*", "goals/*"]
+  writes: ["projects/tasks.md"]
+tests: tests/task-prioritization/
+---
+# Task Prioritization — Implementation
+
+Steps:
+  1. Load current tasks from GBrain (gbrain search "current tasks projects/tasks.md")
+  2. Load goals for context (gbrain search "goals")
+  3. Fetch calendar for deadline context (Google Calendar MCP, next 7 days)
+  4. Score each task on two dimensions:
+     - Urgency (0-10): days until deadline or explicit urgency marker
+     - Importance (0-10): alignment with current goals
+  5. Sort by urgency × importance (high × high first)
+  6. Write updated ranked list to ~/brain/projects/tasks.md
+  7. Post ranked list to Discord #tasks
+
+Note: Only this skill writes to projects/tasks.md. No other skill should write that file.
