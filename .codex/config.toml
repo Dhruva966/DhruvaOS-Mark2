@@ -2,9 +2,6 @@
 primary = "CLAUDE.md"
 secondary = ["ARCHITECTURE.md"]
 
-[agents]
-default_model = "codex-1"
-
 [agents.implementer]
 description = "Implement a single skill or task from the build plan"
 model = "codex-1"
