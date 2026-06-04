@@ -33,9 +33,10 @@ All tasks sequential. No parallelism. Phase 1 cannot start until P0.18 is green.
 | P0.13 | Create Discord bot + 6 channels | Bot token obtained, channels exist |
 | P0.14 | Create `~/.config/dhruvaos/.env` (chmod 600) | permissions 600 |
 | P0.15 | Write `~/.hermes/config.yaml` | see MODEL_ROUTING.md + MCP section below |
-| P0.16 | Start GBrain HTTP server via PM2 | `pm2 list` shows `gbrain-mcp` online |
-| P0.17 | Start Hermes via PM2 | `pm2 list` shows `hermes` online |
-| P0.18 | Security hardening complete | AppArmor, UFW, auditd, YOLO=false, sudo removed from dhruvaos |
+| P0.16 | Install Lightpanda binary | `lightpanda --version` returns; PM2 shows `lightpanda` online at :9222 |
+| P0.17 | Start GBrain HTTP server via PM2 | `pm2 list` shows `gbrain-mcp` online |
+| P0.18 | Start Hermes via PM2 | `pm2 list` shows `hermes` online |
+| P0.19 | Security hardening complete | AppArmor, UFW, auditd, YOLO=false, sudo removed from dhruvaos |
 
 ### P0.8 — Hermes install (current method, verified June 2026)
 
@@ -77,9 +78,32 @@ mcp_servers:
 
 Full config structure also needs provider + model routing sections from MODEL_ROUTING.md.
 
-### P0.16-17 — PM2 startup
+### P0.16 — Lightpanda install
 
 ```bash
+# Ubuntu/Omen — prebuilt binary (glibc, works on Ubuntu natively)
+curl -LO https://github.com/lightpanda-io/browser/releases/latest/download/lightpanda-x86_64-linux
+chmod +x lightpanda-x86_64-linux
+sudo mv lightpanda-x86_64-linux /usr/local/bin/lightpanda
+lightpanda --version   # verify install
+
+# Hermes config — tell Hermes to use Lightpanda as browser backend
+# Add to ~/.hermes/config.yaml (already written in P0.15, append this section):
+# browser:
+#   backend: lightpanda
+#   endpoint: "ws://127.0.0.1:9222"
+#   fallback_backend: browserbase
+```
+
+**Beta caveat:** Lightpanda is production-capable for scraping but may crash on heavy JS pages.
+Skills must handle retry. Critical outbound skills use Browserbase fallback.
+
+### P0.17-18 — PM2 startup
+
+```bash
+# Lightpanda CDP server (Hermes connects via WebSocket)
+pm2 start "lightpanda --host 127.0.0.1 --port 9222" --name lightpanda
+
 # GBrain HTTP mode — PM2 daemon is safe because HTTP (not stdio pipe)
 pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131 --host 127.0.0.1" --name gbrain-mcp
 
@@ -282,18 +306,45 @@ write is running concurrently on GBrain.
 ### P3 Tasks
 
 ```
-P3.1  [parallel] research-synthesis skill: implement + test
+P3.0  [SEQUENTIAL first] AgentQL setup: install SDK, get API key, verify
+P3.1  [parallel] research-synthesis skill: implement + test (uses AgentQL)
 P3.2  [parallel] correction-handler skill: implement + test
 P3.3  [SEQUENTIAL] Quality firewall end-to-end test (gate — must pass before Phase 4)
 P3.4  [after P3.3] All 8 starting skills verified working
 ```
 
+### P3.0 — AgentQL setup
+
+AgentQL replaces raw HTML extraction in all browser-reading skills. Prevents 10k-50k token
+page dumps from reaching Sonnet.
+
+```bash
+# Install in Hermes venv
+source ~/.hermes-src/.venv/bin/activate
+pip install agentql
+
+# Add to .env
+AGENTQL_API_KEY=...   # sign up at agentql.com — free tier: 50 calls/mo, then $0.02/call
+```
+
+Verify:
+```python
+import agentql
+# Should import without error; no API call at import time
+print(agentql.__version__)
+```
+
+**Token math:** 1 research run (5 pages) without AgentQL → ~$0.45 Sonnet cost.
+With AgentQL → ~$0.10 total. Pays for itself at >3 research runs/week.
+
 ### P3.1 — Research synthesis implementation detail
 
-Uses Exa + Firecrawl. Exa is built into Hermes tools. Add to `.env`:
+Uses Exa + AgentQL. Exa finds sources; AgentQL extracts structured content from each page.
+Add to `.env`:
 ```bash
 EXA_API_KEY=...
-FIRECRAWL_API_KEY=...   # optional — Exa alone covers most cases
+AGENTQL_API_KEY=...   # required for structured extraction (see P3.0)
+# FIRECRAWL_API_KEY no longer needed — AgentQL replaces it for article extraction
 ```
 
 Brain-first check before any web search:
@@ -302,7 +353,29 @@ Brain-first check before any web search:
 brain_result = await hermes.tools.gbrain.search(query)
 if brain_result.confidence > 0.8:
     return brain_result  # skip web search
-# else: proceed to Exa
+# else: proceed to Exa + AgentQL extraction
+```
+
+AgentQL extraction pattern (used inside research-synthesis):
+```python
+import agentql
+from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    # Lightpanda CDP endpoint — fast, low RAM
+    browser = p.chromium.connect_over_cdp("ws://127.0.0.1:9222")
+    page = agentql.wrap(browser.new_page())
+    page.goto(article_url)
+    data = page.query_data("""
+    {
+        title
+        author
+        published_date
+        key_points[]
+        summary
+    }
+    """)
+    # data is a dict — send to Sonnet as JSON, not raw HTML
 ```
 
 ### P3.3 — Quality firewall mandatory test
@@ -750,11 +823,12 @@ Parallel-safe: yes (skill file is independent)
 
 ```bash
 # Phase 0 → Phase 1
-pm2 list                              # hermes + gbrain-mcp both online
+pm2 list                              # hermes + gbrain-mcp + lightpanda all online
 hermes mcp list                       # gbrain registered
 hermes mcp test gbrain                # GBrain tools discovered
 ollama list                           # phi4-mini present
 gbrain onboard --check --json         # all green
+lightpanda --version                  # binary present
 
 # Phase 1 → Phase 2
 # Send "hello" in Discord #briefings → Hermes responds with GBrain context

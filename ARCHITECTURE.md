@@ -44,8 +44,9 @@
 ║                              ║   ║    DeepSeek V3 post-credits      ║
 ║  ┌──────────────────────────┐ ║   ║                                  ║
 ║  │  Think                   │ ║   ║  Exa (web search)               ║
-║  │  temporal + entity graph ║   ║  Firecrawl (extraction)         ║
-║  └──────────────────────────┘ ║   ║  Browserbase (cloud browser)    ║
+║  │  temporal + entity graph ║   ║  AgentQL (structured extraction)║
+║  └──────────────────────────┘ ║   ║  Lightpanda (local browser)     ║
+║                              ║   ║  Browserbase (cloud browser)    ║
 ║                              ║   ║  Calendar / Email / GitHub MCP   ║
 ║  ┌──────────────────────────┐ ║   ╚══════════════════════════════════╝
 ║  │  Dream Cycle             │ ║
@@ -62,6 +63,67 @@
 ║  people/  companies/  concepts/  projects/  UCLA/  goals/        ║
 ╚══════════════════════════════════════════════════════════════════╝
 ```
+
+---
+
+## Three-Layer Browser Stack (ADR-010)
+
+Every Hermes skill that touches the web routes through one of three layers based on cost and complexity.
+Rule: **never pass raw HTML to a Tier 2+ model.** Always extract structured data first.
+
+```
+Task needs web content
+        │
+        ├── Auth-required / CAPTCHA / stealth / LinkedIn?
+        │       └── Browserbase (cloud, $0.12/hr)
+        │
+        ├── Local page fetch / monitoring / scraping (no auth needed)?
+        │       └── Lightpanda (local, $0, 9x faster than Chrome, 16x less RAM)
+        │
+        └── Either browser → page loaded
+                └── AgentQL structured query
+                        └── Returns JSON (200 tokens) → Sonnet
+                            NOT raw HTML (30k tokens) → Sonnet
+```
+
+### Why each layer
+
+| Layer | Tool | Status | Cost | Use cases |
+|---|---|---|---|---|
+| Local browser | Lightpanda | Beta (stable enough for scraping) | $0 | Research scraping, Charlie monitoring, health checks |
+| Structured extraction | AgentQL | Production | ~$0.02/call | All browser reads — wraps whichever browser ran |
+| Cloud browser | Browserbase | Production, YC W24 | $20/mo (Developer) | LinkedIn, Gmail web, auth-walled sites, CAPTCHA |
+
+### Token math — why AgentQL pays for itself
+
+Without AgentQL: 5 article pages → Sonnet = 5 × 30k tokens × $3/1M = **$0.45 per research run**
+With AgentQL: 5 API calls × $0.02 + 5 × 2k structured tokens × $3/1M = **$0.11 per research run**
+Break-even: >3 research synthesis runs/week. Typical usage: 1-2/day.
+
+### Lightpanda — Hermes native support
+
+Lightpanda is an officially supported browser backend in Hermes Agent (Nous Research).
+No custom integration needed — set in Hermes config:
+```yaml
+browser:
+  backend: lightpanda
+  endpoint: "ws://localhost:9222"
+```
+
+Start Lightpanda alongside Hermes under PM2:
+```bash
+pm2 start "lightpanda --host 127.0.0.1 --port 9222" --name lightpanda
+```
+
+**Beta caveat:** Lightpanda can crash on sites with unusual JS patterns. Skills that use it
+should include a `retry_with_browserbase: true` fallback flag for critical tasks.
+Non-critical tasks (research scraping, monitoring) can simply log and retry next run.
+
+### Browserbase — Developer plan ($20/mo) scope
+
+100 browser hours/month. A typical LinkedIn post draft + review takes ~5 minutes = 12 posts/hr.
+At $20/mo, comfortable for personal use. Upgrade to Startup ($99/mo) only if Phase 5 skills
+run daily heavy automation.
 
 ---
 

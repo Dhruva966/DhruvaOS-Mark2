@@ -118,7 +118,40 @@ gbrain apply-migrations --yes   # apply pending schema migrations (idempotent)
 gbrain onboard --check --json   # verify all checks green
 ```
 
-### 9. Hermes config
+### 9. Lightpanda (local browser — Phase 3+)
+
+Lightpanda is natively supported by Hermes Agent. Install once; Hermes manages the CDP connection.
+
+```bash
+# macOS (development machine)
+brew install lightpanda-io/browser/lightpanda
+
+# Ubuntu/Omen (production) — download prebuilt binary (glibc, works on Ubuntu)
+curl -LO https://github.com/lightpanda-io/browser/releases/latest/download/lightpanda-x86_64-linux
+chmod +x lightpanda-x86_64-linux
+sudo mv lightpanda-x86_64-linux /usr/local/bin/lightpanda
+lightpanda --version
+
+# Start under PM2 (alongside Hermes and GBrain):
+pm2 start "lightpanda --host 127.0.0.1 --port 9222" --name lightpanda
+pm2 save
+```
+
+**Beta stability note:** Lightpanda may crash on sites with complex JS. Non-critical skills
+(research, monitoring) retry on next run. Critical skills fall back to Browserbase.
+
+### 10. AgentQL (structured extraction — Phase 3+)
+
+```bash
+# Install in Hermes venv
+source ~/.hermes-src/.venv/bin/activate
+pip install agentql
+```
+
+API key required. Sign up at https://agentql.com (free tier: 50 calls/month, then $0.02/call).
+Add `AGENTQL_API_KEY` to `.env` (see Environment Variables section).
+
+### 11. Hermes config
 ```bash
 mkdir -p ~/.hermes
 # See MODEL_ROUTING.md for full config.yaml content
