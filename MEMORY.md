@@ -48,7 +48,8 @@ The brain gets smarter every day — automatically.
 {
   "engine": "pglite",
   "search_mode": "balanced",
-  "embedding_provider": "zeroentropy",
+  "embedding_provider": "ollama",
+  "embedding_model": "nomic-embed-text",
   "query_expansion": false,
   "brain_path": "~/brain"
 }
@@ -86,7 +87,8 @@ cat > ~/.gbrain/config.json << 'EOF'
 {
   "engine": "pglite",
   "search_mode": "balanced",
-  "embedding_provider": "zeroentropy",
+  "embedding_provider": "ollama",
+  "embedding_model": "nomic-embed-text",
   "query_expansion": false,
   "brain_path": "~/brain"
 }
@@ -422,7 +424,7 @@ gbrain onboard --check --json         # health check post-upgrade
 
 **Before major upgrades:** back up PGLite database:
 ```bash
-cp ~/.gbrain/brain.db ~/.gbrain/brain.db.bak-$(date +%Y%m%d)
+cp ~/.gbrain/brain.pglite/ ~/.gbrain/brain.pglite/.bak-$(date +%Y%m%d)
 ```
 
 **When to migrate to Postgres + Supabase:**

@@ -23,7 +23,7 @@ VPS-migration-ready (see VPS section) but not needed while laptop is accessible.
 |-----------|---------|-----------------|------|--------|
 | Hermes Agent | Python | 3.11+ | Native | GPU access, performance |
 | GBrain | Bun | ≥1.3.10 | Native | Performance, direct FS |
-| phi4-mini (Tier 0) | Ollama | Latest stable | Native + GPU | RTX 2060 inference |
+| phi4-mini (Tier 0) | Ollama | Latest stable | Native + GPU | GTX 1660 Ti inference |
 | Node.js (tooling) | Node | v24 LTS | Native (nvm) | Hermes tooling deps |
 | pm2 | Node | Latest | Native | Process management |
 | Cloudflare Tunnel | Go binary (cloudflared) | Latest | Native (systemd) | Dorm CGNAT bypass |
@@ -79,9 +79,9 @@ npm install -g pm2
 ### 5. Ollama + phi4-mini
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
-# Ollama installs as systemd service, auto-starts, auto-detects RTX 2060
+# Ollama installs as systemd service, auto-starts, auto-detects GTX 1660 Ti
 ollama pull phi4-mini
-# Verify (expect ~2.5 GB VRAM, ~15-25 tok/s on RTX 2060):
+# Verify (expect ~2.5 GB VRAM, ~15-25 tok/s on GTX 1660 Ti):
 ollama run phi4-mini "respond with: ok"
 ```
 
