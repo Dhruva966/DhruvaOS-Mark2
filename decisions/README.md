@@ -47,5 +47,8 @@ What changes as a result? What becomes harder?
 | ADR-004 | Direct OPENAI_API_KEY over OpenRouter for Tier 1 (credits stranded) | 2025-06-01 |
 | ADR-005 | PGLite over Postgres+Supabase (brain <1000 files, zero-ops) | 2025-06-01 |
 | ADR-006 | PM2 over systemd for initial process management | 2025-06-01 |
+| ADR-007 | Rejected Supermemory (redundant with GBrain, data sovereignty) | 2026-06-04 |
+| ADR-008 | Rejected PlanetScale (MySQL, no pgvector, cloud-hosted) | 2026-06-04 |
+| ADR-009 | Rejected Karpathy AutoResearch (wrong layer — skill/memory not weights) | 2026-06-04 |
 
 Create ADR files as needed. Number sequentially.
