@@ -56,7 +56,7 @@ bun --version    # verify ≥1.3.10
 
 ### 4. Node v24 via nvm
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 source ~/.bashrc
 nvm install 24
 nvm use 24
@@ -103,6 +103,7 @@ gbrain --version
 ```bash
 mkdir -p ~/brain/{people,companies,concepts,projects,daily,resources,UCLA,goals,charlie}
 mkdir -p ~/.gbrain
+# Write config BEFORE gbrain init — init reads config to pick the correct engine
 cat > ~/.gbrain/config.json << 'EOF'
 {
   "engine": "pglite",
@@ -112,7 +113,9 @@ cat > ~/.gbrain/config.json << 'EOF'
   "brain_path": "~/brain"
 }
 EOF
-gbrain init    # initialize PGLite schema
+gbrain init                     # initialize PGLite schema (reads config.json)
+gbrain apply-migrations --yes   # apply pending schema migrations (idempotent)
+gbrain onboard --check --json   # verify all checks green
 ```
 
 ### 9. Hermes config
@@ -142,7 +145,7 @@ pipe, so all Hermes→GBrain MCP calls would silently fail even though `pm2 list
 
 ```bash
 # Start GBrain in HTTP mode (Hermes connects to localhost:3131 over HTTP)
-pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131" --name gbrain-mcp
+pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131 --host 127.0.0.1" --name gbrain-mcp
 
 # Start Hermes (runs inside venv — full path avoids activation dependency)
 pm2 start "~/.hermes-src/.venv/bin/python ~/.hermes-src/run_agent.py" --name hermes
@@ -200,11 +203,12 @@ Cloudflare Tunnel free tier is sufficient for solo personal use.
 ### Setup
 ```bash
 # Install cloudflared
-curl -L https://pkg.cloudflare.com/cloudflare-warp-apt/KEY.asc \
-  | sudo tee /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg >/dev/null
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] \
-  https://pkg.cloudflare.com/cloudflare-warp $(lsb_release -cs) main" \
-  | sudo tee /etc/apt/sources.list.d/cloudflare-warp.list
+# cloudflared (tunnel) uses a separate repo from cloudflare-warp (VPN) — do not mix them
+curl -L https://pkg.cloudflare.com/cloudflare-main.gpg \
+  | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-main.gpg] \
+  https://pkg.cloudflare.com/cloudflared $(lsb_release -cs) main" \
+  | sudo tee /etc/apt/sources.list.d/cloudflared.list
 sudo apt update && sudo apt install cloudflared
 
 # Authenticate + create tunnel
@@ -228,6 +232,21 @@ sudo systemctl start cloudflared
 
 Implement in this order. Phase 0 of BUILD_PLAN.md requires all items complete before
 any external API key is used.
+
+### Pre-critical (implement before everything else — laptop-specific)
+
+**0. Lid-close suspend prevention**
+
+The Omen is a laptop. Without this, closing the lid suspends all PM2 processes mid-run.
+
+```bash
+sudo sed -i 's/#HandleLidSwitch=suspend/HandleLidSwitch=ignore/' /etc/systemd/logind.conf
+sudo sed -i 's/#HandleLidSwitchExternalPower=suspend/HandleLidSwitchExternalPower=ignore/' /etc/systemd/logind.conf
+sudo systemctl restart systemd-logind
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+```
+
+---
 
 ### Critical (implement before first API key use)
 
@@ -270,7 +289,8 @@ sudo apt install apparmor-utils
 ```
 ```apparmor
 #include <tunables/global>
-/usr/bin/python3.11 {
+# Profile must target the actual venv binary, not the system python
+/home/dhruvaos/.hermes-src/.venv/bin/python3.11 {
   #include <abstractions/base>
   #include <abstractions/nameservice>
   /home/dhruvaos/** rwk,
@@ -281,6 +301,7 @@ sudo apt install apparmor-utils
   /proc/self/fd/ r,
 }
 ```
+After loading: `sudo aa-status | grep python` to confirm the process is confined (not just the profile loaded).
 ```bash
 sudo apparmor_parser -r /etc/apparmor.d/dhruvaos_hermes
 sudo aa-enforce /etc/apparmor.d/dhruvaos_hermes
@@ -293,7 +314,8 @@ sudo ufw default deny incoming
 sudo ufw allow out to any port 443      # HTTPS (APIs)
 sudo ufw allow out to any port 80       # HTTP (redirects)
 sudo ufw allow out to any port 53       # DNS
-sudo ufw allow in from 127.0.0.1        # localhost
+sudo ufw allow in on lo                 # loopback (GBrain, Ollama)
+sudo ufw allow out on lo                # loopback
 sudo ufw enable
 ```
 

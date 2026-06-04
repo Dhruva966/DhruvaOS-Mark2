@@ -1,0 +1,30 @@
+name: add-task
+version: 1.0.0
+tier: 0
+outbound: false
+requires_approval: false
+description: "Append a new task to the task list in GBrain"
+schedule: null
+gbrain:
+  reads: []
+  writes: ["projects/tasks-inbox.md"]
+tests: tests/add-task/
+---
+# Add Task — Implementation
+
+Triggered by: /task <text> in Discord #tasks
+Example: /task "submit CS101 homework due Friday"
+
+Steps:
+  1. Parse task text from command argument
+  2. Extract metadata if present:
+     - Due date: any date/day reference in the text (e.g., "due Friday", "by 5pm")
+     - Priority marker: any urgency signal ("urgent", "asap", "important")
+  3. Format task entry:
+     - [ ] <task text> [due: <date if found>] [added: <today's date>]
+  4. Append new task line to ~/brain/projects/tasks-inbox.md via gbrain ingest
+  5. Post confirmation to Discord #tasks: "Added: <task text>"
+
+Note: Writes to tasks-inbox.md (staging), NOT tasks.md.
+task-prioritization is the sole writer of tasks.md — it merges tasks-inbox.md on
+each run, then clears it. This prevents write collisions between the two skills.

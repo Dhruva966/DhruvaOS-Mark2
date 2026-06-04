@@ -1,6 +1,3 @@
-# DhruvaOS Mark 2 — Codex configuration
-# Mirror of .claude/settings.json for Codex agent compatibility
-
 [context]
 primary = "CLAUDE.md"
 secondary = ["ARCHITECTURE.md"]
@@ -11,17 +8,27 @@ default_model = "codex-1"
 [agents.implementer]
 description = "Implement a single skill or task from the build plan"
 model = "codex-1"
-context = ["CLAUDE.md", "SKILLS.md", "MODEL_ROUTING.md"]
+context = [
+    "CLAUDE.md",
+    "SKILLS.md",
+    "MODEL_ROUTING.md",
+]
 
 [agents.spec-reviewer]
 description = "Verify implementation matches spec — read code, do not trust self-report"
 model = "codex-1"
-context = ["CLAUDE.md", "BUILD_PLAN.md"]
+context = [
+    "CLAUDE.md",
+    "BUILD_PLAN.md",
+]
 
 [agents.quality-reviewer]
 description = "Verify implementation is clean, tested, maintainable"
 model = "codex-1"
-context = ["SKILLS.md", "CLAUDE.md"]
+context = [
+    "SKILLS.md",
+    "CLAUDE.md",
+]
 
 [agents.gbrain-ops]
 description = "Run GBrain ingest, embed, or dream — sequential only, never parallel"
@@ -30,4 +37,15 @@ context = ["MEMORY.md"]
 sequential = true
 
 [security]
-never_commit = [".env", "*.env", "brain.db", "*.db"]
+never_commit = [
+    ".env",
+    "*.env",
+    "brain.db",
+    "*.db",
+]
+
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+DHRUVAOS_ENV_FILE = "~/.config/dhruvaos/.env"

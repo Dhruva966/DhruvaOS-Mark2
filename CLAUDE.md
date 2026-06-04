@@ -14,13 +14,13 @@ acting on anything high-stakes.
 | Agent runtime | Hermes Agent v1.0.0 (Python 3.11+) |
 | Memory | GBrain v0.42.1.0 (Bun ≥1.3.10, PGLite embedded Postgres) |
 | Interface | Discord (6 channels) |
-| Tier 0 model | phi4-mini via Ollama (local, RTX 2060, 2.5 GB VRAM) |
+| Tier 0 model | phi4-mini via Ollama (local, GTX 1660 Ti, 2.5 GB VRAM) |
 | Tier 1 model | GPT-4o-mini (direct OpenAI API — burns platform.openai.com credits) |
 | Tier 2 model | Claude Sonnet 4.6 (Anthropic — ALL outbound writing) |
 | Tier 3 model | Claude Opus 4.8 (Anthropic — orchestration + high-stakes) |
 | Process management | PM2 (initial) → systemd (production) |
 | Remote access | Cloudflare Tunnel (dorm CGNAT bypass) |
-| Host | HP Omen 15 — 32 GB RAM, RTX 2060 6 GB, Ubuntu |
+| Host | HP Omen 15 — 32 GB RAM, GTX 1660 Ti 6 GB, Ubuntu |
 
 ## Directory Structure
 

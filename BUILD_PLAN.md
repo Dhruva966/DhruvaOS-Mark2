@@ -81,7 +81,7 @@ Full config structure also needs provider + model routing sections from MODEL_RO
 
 ```bash
 # GBrain HTTP mode — PM2 daemon is safe because HTTP (not stdio pipe)
-pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131" --name gbrain-mcp
+pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131 --host 127.0.0.1" --name gbrain-mcp
 
 # Hermes
 pm2 start "hermes" --name hermes    # if installed via official installer
@@ -128,10 +128,44 @@ Expected output from `hermes mcp test gbrain`:
 
 If this fails: `pm2 logs gbrain-mcp --lines 50` to debug.
 
+### P1.5b — Brain sync setup (do before vault import)
+
+Set up Git sync so Obsidian on Mac and GBrain on Omen stay in sync automatically.
+Full setup instructions in MEMORY.md → "Brain Sync Architecture" section.
+
+Quick version:
+```bash
+# On Mac — initialize brain repo:
+cd ~/path/to/obsidian-vault
+git init && git remote add origin git@github.com:Dhruva966/dhruvaos-brain.git
+git push -u origin main
+
+# On Omen — add to crontab:
+*/5 * * * * cd /home/dhruvaos/brain && git pull --ff-only && /home/dhruvaos/.bun/bin/gbrain embed --stale
+```
+
+Install Obsidian Git plugin on Mac → auto-commit every 5 min.
+
 ### P1.6 — Obsidian vault import
 
+**Vault confirmed:** `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/dhruva's wiki` (iCloud-synced, on Mac)
+
+Copy vault to Omen before importing (run on Mac):
 ```bash
-gbrain import ~/path/to/obsidian-vault --no-embed
+VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/dhruva's wiki"
+rsync -av "$VAULT/" dhruvaos@<omen-ip>:/home/dhruvaos/brain/
+```
+
+Then on Omen, initialize git sync (see MEMORY.md → Brain Sync Architecture):
+```bash
+cd ~/brain && git init
+git remote add origin git@github.com:Dhruva966/dhruvaos-brain.git
+git add . && git commit -m "initial import from obsidian vault" && git push -u origin main
+```
+
+Then import into GBrain:
+```bash
+gbrain import ~/brain --no-embed
 gbrain embed --stale
 gbrain onboard --check --json    # verify all checks green
 gbrain extract links --source db
@@ -167,6 +201,35 @@ P2.3  [parallel] morning-briefing skill: stub → full implementation
 P2.4  [parallel] evening-briefing skill: stub → full implementation
 P2.5  [after P2.1-P2.4] task-prioritization skill: implement + test
 P2.6  [after P2.5] Morning briefing fires with real email + calendar data
+```
+
+### P2.0 — Notion database setup (one-time, do before P2.1)
+
+Create the 4 core databases in Notion. Use Notion AI or the MCP tools to scaffold them:
+
+1. **Tasks** — Name (title), Status (select), Priority (select), Due (date), Project (relation), Source (select)
+2. **Projects** — Name (title), Status (select), Area (select), Tasks (relation+rollup), Notes URL
+3. **People** — Name (title), Company (relation), Role (text), Last Contact (date), Brain File URL
+4. **Daily Briefings** — Date (title), Type (select: Morning/Evening), Summary (text), Discord Link (URL)
+
+Store database IDs in `.env`:
+```bash
+NOTION_TASKS_DB=<id>
+NOTION_PROJECTS_DB=<id>
+NOTION_PEOPLE_DB=<id>
+NOTION_BRIEFINGS_DB=<id>
+```
+
+Add Notion MCP to Hermes `mcp_servers:` in `~/.hermes/config.yaml`:
+```yaml
+mcp_servers:
+  gbrain:
+    url: "http://localhost:3131/mcp"
+  notion:
+    command: "npx"
+    args: ["-y", "@notionhq/notion-mcp-server"]
+    env:
+      NOTION_API_KEY: "${NOTION_API_KEY}"
 ```
 
 ### P2.1 — Email triage implementation detail
@@ -282,11 +345,17 @@ P4.7  [after P4.6] Brain health score ≥70 via gbrain doctor
 
 ### P4.1 — Dream cycle setup
 
+Note: The phase0-setup.sh script now installs the dream cycle crontab automatically.
+If installing manually:
+
 ```bash
 crontab -e
-# Add:
+# Add (use full paths — cron has no PATH):
 0 2 * * * /home/dhruvaos/.bun/bin/gbrain embed --stale
-0 3 * * * /home/dhruvaos/.bun/bin/gbrain dream
+# Pipe failure to ntfy so silent crashes are visible:
+0 3 * * * /home/dhruvaos/.bun/bin/gbrain dream || curl -s -d "dream cycle FAILED" ntfy.sh/dhruva-alerts
+# Rolling 7-day brain.db backup (run after dream cycle completes):
+30 4 * * * cp /home/dhruvaos/.gbrain/brain.db /home/dhruvaos/.gbrain/brain.db.$(date +\%Y\%m\%d) && find /home/dhruvaos/.gbrain/ -name 'brain.db.*' -mtime +7 -delete
 
 # Verify:
 gbrain dream --dry-run    # simulate 8 phases, check for errors
@@ -410,16 +479,205 @@ hermes mcp test github    # confirms repos, issues, PRs tools discovered
 
 ## Phase 6: Voice + Mobile (future, post-UCLA move-in)
 
-Extension points in architecture already exist.
+```
+P6.1  STT: NVIDIA Parakeet-TDT-1.1B (local, GPU or CPU fallback)
+P6.2  TTS: Piper (local, CPU-only, zero VRAM)
+P6.3  Wake: two-clap detector + 10s silence auto-off
+P6.4  iPhone: geofencing via Shortcuts + webhook to Hermes
+P6.5  Remote SSH access: Tailscale on Omen
+```
+
+### P6 — Full voice pipeline
 
 ```
-P6.1  TTS: Piper (local, GPU) or ElevenLabs (cloud)
-P6.2  STT: faster-whisper (local, RTX 2060 accelerated)
-P6.3  Wake word: local always-listening detection
-P6.4  iPhone: geofencing via Shortcuts + webhook to Hermes
+[always-on mic]
+  → clap detector (pyaudio, CPU, ~1% load)
+  → [TWO CLAPS detected within 0.2–1.0s]
+  → Parakeet STT activates
+  → [speech captured]
+  → Silero VAD monitors silence
+  → [10 seconds no speech detected]
+  → transcript sent to Hermes
+  → Hermes processes (Tier 0–3 as needed)
+  → response text → Piper TTS → speakers
+  → back to clap detector
 ```
+
+### P6.1 — STT: NVIDIA Parakeet-TDT-1.1B
+
+```bash
+pip install nemo_toolkit[asr]
+# or lighter:
+pip install parakeet-tdt
+
+# Test (expects CUDA):
+python -c "import nemo.collections.asr as nemo_asr; \
+  model = nemo_asr.models.ASRModel.from_pretrained('nvidia/parakeet-tdt-1.1b'); \
+  print(model.transcribe(['test.wav']))"
+```
+
+- VRAM: ~1.5GB on GPU. Can run CPU-only if VRAM tight (slower but acceptable)
+- Accuracy: state-of-art for English, ~word-error-rate <4% on clean audio
+- Latency: real-time or faster on RTX 2060
+- Cost: $0, no limits
+
+**phi4-mini + Parakeet on RTX 2060 (6GB):** don't run simultaneously. Pipeline is sequential — STT finishes before Hermes calls phi4-mini. No VRAM collision.
+
+### P6.2 — TTS: Piper (CPU, zero VRAM)
+
+```bash
+pip install piper-tts
+# Download a voice model (en_US-lessac-high is natural-sounding):
+wget https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/high/en_US-lessac-high.onnx
+wget https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/high/en_US-lessac-high.onnx.json
+
+# Test:
+echo "DhruvaOS ready." | piper --model en_US-lessac-high.onnx --output_raw | aplay -r 22050 -f S16_LE -t raw -
+```
+
+- RAM: ~200MB
+- Latency: <200ms to first audio on CPU
+- Cost: $0, no limits, fully offline
+
+### P6.3 — Wake: two-clap detector + 10s silence auto-off
+
+```python
+# clap_detector.py — always-listening, CPU only
+import pyaudio, numpy as np, time
+
+RATE = 16000
+CHUNK = 512
+ENERGY_THRESHOLD = 2000   # tune per mic/room
+CLAP_WINDOW = 1.0         # seconds between first and second clap
+SILENCE_TIMEOUT = 10.0    # seconds of silence → deactivate
+
+def detect_clap(audio_chunk):
+    energy = np.abs(np.frombuffer(audio_chunk, np.int16)).mean()
+    return energy > ENERGY_THRESHOLD
+
+def run_wake_detector(on_wake_callback):
+    p = pyaudio.PyAudio()
+    stream = p.open(format=pyaudio.paInt16, channels=1, rate=RATE,
+                    input=True, frames_per_buffer=CHUNK)
+    clap_times = []
+    print("Listening for two claps...")
+    while True:
+        data = stream.read(CHUNK, exception_on_overflow=False)
+        if detect_clap(data):
+            now = time.time()
+            clap_times = [t for t in clap_times if now - t < CLAP_WINDOW]
+            clap_times.append(now)
+            if len(clap_times) >= 2:
+                clap_times.clear()
+                on_wake_callback()   # → activate Parakeet STT
+```
+
+Silero VAD handles the 10s silence detection during active listening:
+```bash
+pip install silero-vad
+```
+
+### P6.4 — Hermes skill: voice-handler
+
+```yaml
+name: voice-handler
+version: 1.0.0
+tier: 0   # triage; escalates as needed
+outbound: false
+requires_approval: false
+description: "Receive voice transcript, route to appropriate skill, respond via TTS"
+schedule: null
+gbrain:
+  reads: ["projects/*", "goals/*", "people/*"]
+  writes: []
+---
+Steps:
+  1. Receive transcript string from STT pipeline
+  2. Intent classify at Tier 0 (phi4-mini):
+     - add task → add-task skill
+     - research X → research-synthesis
+     - whats on my cal → calendar query
+     - reminder → add to tasks-inbox with due time
+     - correction → correction-handler
+     - general question → GBrain search + respond
+  3. Run matched skill
+  4. Convert response text to speech via Piper
+  5. Play audio output
+```
+
+### P6.2 — STT model selection note (research context, June 2026)
+
+Two viable approaches:
+1. **faster-whisper** (current plan) — separate STT model, ~2GB VRAM, feeds text to phi4-mini
+2. **Encoder-free multimodal** (emerging, e.g. Gemma 4 12B) — single model handles audio input natively, no separate STT step; lower latency pipeline
+
+**Gemma 4 12B architecture insight:** removes audio encoder entirely, projects raw 40ms audio frames directly into LLM token space. One model for text + audio instead of whisper + LLM. Latency benefit: LLM starts processing before audio encoder finishes (encoder-free = no encoder queue).
+
+**RTX 2060 constraint:** Gemma 4 12B needs 12–16GB VRAM; RTX 2060 has 6GB. Does not fit local today. Options when Phase 6 arrives:
+- Use Gemma 4 12B via Google Vertex AI API (Tier 1/2, cloud inference, no local VRAM)
+- Upgrade to GPU with ≥12GB VRAM (RTX 3080 Ti, 4070, etc.)
+- Keep faster-whisper + phi4-mini two-model approach (works now, more infrastructure)
+
+**Decision at Phase 6:** benchmark faster-whisper vs Gemma 4 12B API call for latency + cost. Encoder-free via API likely wins on simplicity if VRAM stays at 6GB.
+
+### P6 — Tier 0 model note: 1-bit models
+
+phi4-mini uses ~2.4GB VRAM on RTX 2060 (6GB total). If GPU contention appears (desktop + phi4-mini + any other GPU task), consider swapping Tier 0 to a 1-bit CPU model (BitNet b1.58 3B or similar):
+- Runs on CPU using 32GB system RAM — zero GPU VRAM used
+- Integer arithmetic (1-bit) → CPU inference speed comparable to phi4-mini on GPU for short triage/classification tasks
+- Only relevant if VRAM pressure becomes real — verify with `nvidia-smi` on Day 1 before switching
+
+### P6.5 — Remote SSH access via Tailscale (simpler than jump-host solutions)
+
+For SSH into Omen from anywhere (coffee shop, class, travel):
+
+```bash
+# Install Tailscale on Omen (run as dhruvaos or admin)
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+# Get stable hostname:
+tailscale status | grep omen
+```
+
+Then from any device (phone, laptop, another machine):
+```bash
+ssh dhruvaos@<omen-hostname>.ts.net
+```
+
+Tailscale punches through university CGNAT the same way Cloudflare Tunnel does — no open inbound ports needed. This replaces the Cloudflare Tunnel for SSH use cases.
+
+**Why not pi-remote-bridge (or similar jump-host setups):** those are for machines you can't directly install Tailscale on. You can install directly on the Omen — a Pi jump host adds hardware complexity for no benefit here.
+
+**Cloudflare Tunnel stays** for HTTP services (GBrain external access if ever needed, ntfy, etc.). Tailscale is for SSH. Both coexist fine.
 
 ---
+
+## Zero-LLM Cron Tier (cost optimization pattern)
+
+Not every scheduled task needs Hermes or an LLM call. Deterministic tasks = pure bash cron jobs.
+
+| Task type | Use | Reason |
+|-----------|-----|--------|
+| "Is new email arrived?" | bash + Gmail API poll | No reasoning needed |
+| "Calendar event in 10 min" | bash + gcal API + ntfy | Pure conditional |
+| Disk / RAM health check | bash + ntfy on threshold | Arithmetic, not language |
+| File existence / backup verify | bash | Trivial |
+| "Did dream cycle run today?" | bash check cron log | Log grep |
+
+These go in `/home/dhruvaos/scripts/` as standalone bash scripts on their own cron lines — NOT Hermes skills. Zero tokens, lower latency, no PM2 dependency.
+
+Pattern:
+```bash
+#!/usr/bin/env bash
+# Zero-LLM cron: check disk space, alert if >85%
+USAGE=$(df /home/dhruvaos | awk 'NR==2 {print $5}' | tr -d '%')
+[ "$USAGE" -gt 85 ] && curl -s -d "Disk ${USAGE}% full on Omen" ntfy.sh/dhruva-alerts
+```
+
+Rule: if you can write the logic in bash without any "understand this" step → don't route it through Hermes.
+
+---
+
 
 ## Parallel Build Safety Rules
 

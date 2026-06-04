@@ -95,8 +95,10 @@ EOF
 
 ### Step 4: Initialize the brain
 ```bash
-gbrain apply-migrations --yes
-gbrain onboard --check --json    # should show all green
+# config.json must be written (Step 3) before running init
+gbrain init                     # initialize PGLite schema
+gbrain apply-migrations --yes   # apply pending migrations (idempotent)
+gbrain onboard --check --json   # should show all green
 ```
 
 ---
@@ -104,10 +106,24 @@ gbrain onboard --check --json    # should show all green
 ## Obsidian Vault Ingest
 
 GBrain treats the Obsidian vault as a regular markdown directory. No special plugin needed.
+Obsidian is the EDITOR for ~/brain/. GBrain is the SEARCH ENGINE (pgvector). They share the same files.
+
+**Architecture:**
+```
+Obsidian (Mac) ←→ ~/brain/ markdown files ←→ GBrain (Omen) imports + embeds
+```
+Obsidian's graph view shows your knowledge graph visually (local, free, beautiful).
+GBrain's semantic search handles "find everything related to X" queries from Hermes.
+
+**Vault path (confirmed):**
+```bash
+OBSIDIAN_VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/dhruva's wiki"
+```
+iCloud-synced vault. Lives on Mac at the path above.
 
 ```bash
 # Import existing Obsidian vault (skip embedding for speed)
-gbrain import ~/path/to/your-obsidian-vault --no-embed
+gbrain import "$OBSIDIAN_VAULT" --no-embed
 
 # Generate embeddings for all imported files
 gbrain embed --stale
@@ -259,6 +275,68 @@ File: `~/brain/concepts/content-diet.md`
 - Which podcasts? (name, format, why)
 - Which Twitter/X accounts are most valuable to you?
 - Which subreddits, Discord servers, or communities?
+
+---
+
+## Brain Sync Architecture
+
+One source of truth: `~/brain/` on the Omen. Everything derives from it.
+
+```
+Mac (Obsidian editor)
+    ↕  Obsidian Git plugin (auto-commit + push, every 5 min)
+GitHub private repo
+    ↕  cron pull on Omen (every 5 min)
+~/brain/ on Omen  ← SINGLE SOURCE OF TRUTH
+    ↓  gbrain embed --stale (detects changed files, re-embeds cheaply)
+GBrain pgvector index (Omen)
+    ↓  Hermes writes to Notion on skill execution (event-driven)
+Notion databases (display only — never writes back to brain)
+```
+
+### Setup: Mac side (Obsidian Git plugin)
+
+Vault path: `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/dhruva's wiki`
+
+1. Install Obsidian Git community plugin in Obsidian
+2. Initialize the vault as a git repo:
+   ```bash
+   cd "$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/dhruva's wiki"
+   git init
+   git remote add origin git@github.com:Dhruva966/dhruvaos-brain.git  # private repo
+   git add . && git commit -m "initial brain import"
+   git push -u origin main
+   ```
+3. In Obsidian Git settings: auto-commit interval = 5 minutes, auto-push = on
+
+### Setup: Omen side (auto-pull cron)
+
+Add to dhruvaos crontab (alongside dream cycle):
+```bash
+# Pull brain updates from GitHub every 5 min, re-embed changed files
+*/5 * * * * cd /home/dhruvaos/brain && git pull --ff-only && /home/dhruvaos/.bun/bin/gbrain embed --stale
+```
+
+### Setup: Hermes brain-write hook
+
+Any skill that writes to ~/brain/ must auto-commit and push afterward:
+```bash
+# Add to each skill's post-write step:
+cd ~/brain && git add -A && git commit -m "hermes: <skill-name> update $(date +%Y-%m-%d)" && git push
+```
+This ensures Omen→Mac sync is automatic whenever Hermes writes a brain file.
+
+### Notion sync rules (non-negotiable)
+- Notion is WRITE-ONCE from Hermes skills — never edit Notion and expect it to sync back
+- If you want to add a task: use `/task <text>` in Discord or iMessage → add-task skill → ~/brain/
+- If you want to edit a person file: edit in Obsidian or tell Hermes to update it
+- Notion rows update when the corresponding Hermes skill runs next (near-real-time for tasks, daily for briefings)
+
+### Cost
+- GitHub private repo: $0
+- ZeroEntropy embeddings: $0 (gbrain default)
+- git operations: $0
+- Total sync cost: **$0/month**
 
 ---
 

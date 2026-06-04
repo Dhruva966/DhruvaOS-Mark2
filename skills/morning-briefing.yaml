@@ -1,7 +1,7 @@
 name: morning-briefing
 version: 1.0.0
 tier: 2
-outbound: false
+outbound: true
 requires_approval: false
 description: "Full daily briefing: calendar + email digest + tasks + news/research"
 schedule: "0 8 * * *"

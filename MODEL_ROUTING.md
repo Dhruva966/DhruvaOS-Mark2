@@ -123,6 +123,9 @@ routing:
     require_approval: true
     approval_timeout_hours: 24    # deny + log if no response in 24h
     approval_channel: "corrections"
+    # Briefing channels auto-approve — Dhruva is the only reader, no third-party risk
+    auto_approve_channels:
+      - "briefings"              # morning-briefing, evening-briefing post here
 
   escalation:
     on_reasoning_failure: "bump_one_tier"
@@ -133,7 +136,9 @@ routing:
 
   tier_1_watchdog:
     provider: "openai_direct"
-    check_balance_daily: true
+    # NOTE: OpenAI has no programmatic balance API. check_balance_daily will no-op.
+    # Use manual monthly dashboard check + OpenAI billing alert at $50 threshold.
+    check_balance_daily: false
     switch_to_fallback_when_balance_below_usd: 50.0
     notify_channel: "alerts"
 
@@ -211,7 +216,8 @@ Set a monthly dashboard check + $50 alert as Tier 1 fallback trigger.
 
 ## Tier 1 Fallback Activation (when credits drop below $50)
 
-1. Log in to OpenAI dashboard — confirm balance < $50
+1. Log in to OpenAI dashboard (https://platform.openai.com/usage) — confirm balance < $50
+   Note: there is no programmatic API for this; check manually or via dashboard billing alert.
 2. Edit `~/.hermes/config.yaml`:
    - Set `tier_1.active_backend: "fallback"`
    - Ensure `OPENROUTER_API_KEY` is set in `.env`

@@ -1,8 +1,8 @@
 name: correction-handler
 version: 1.0.0
 tier: 3
-outbound: false
-requires_approval: false
+outbound: true
+requires_approval: true
 description: "Receive behavioral correction, write as permanent GBrain fact"
 schedule: null
 gbrain:

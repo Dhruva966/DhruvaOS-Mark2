@@ -18,12 +18,13 @@ self-improving loop takes over. Dhruva never needs to manually define every poss
 
 | Skill | Tier | Outbound | Schedule | GBrain | Trust Gate |
 |-------|------|----------|----------|--------|-----------|
-| `morning-briefing` | 2 | false | 8am daily | read: tasks, context | auto |
-| `evening-briefing` | 1 | false | 9pm daily | write: day summary | auto |
+| `morning-briefing` | 2 | true | 8am daily | read: tasks, context | auto-approve (#briefings) |
+| `evening-briefing` | 2 | true | 9pm daily | write: day summary | auto-approve (#briefings) |
+| `add-task` | 0 | false | on demand | write: tasks-inbox (staging only) | auto |
 | `email-triage` | 1 (triage) / 2 (draft) | false (triage) / true (draft) | on demand | read: people/ | auto (triage) / approval (draft) |
 | `task-prioritization` | 1 | false | on demand | read+write: tasks | auto |
 | `research-synthesis` | 2 | false | on demand | write: resources/ | auto |
-| `correction-handler` | 3 | false | #corrections trigger | write: permanent fact | auto |
+| `correction-handler` | 3 | false | #corrections trigger | write: permanent fact | **approval** (permanent behavioral rules) |
 | `signal-detector` | 0 | false | every inbound | write: entities+ideas | auto (GBrain built-in) |
 | `brain-ops` | 1 | false | every response | read: context | auto (GBrain built-in) |
 
@@ -81,7 +82,7 @@ Content when implemented:
 ```yaml
 name: evening-briefing
 version: 1.0.0
-tier: 1
+tier: 2   # synthesis + insight — Tier 1 produces formulaic output
 outbound: false
 requires_approval: false
 description: "Evening recap and next-day prep"
@@ -122,6 +123,28 @@ Steps:
   5. Load sender context from GBrain people/
   6. Post digest to #tasks with classifications
   7. Flag threads needing replies for separate /reply command (outbound, Tier 2)
+```
+
+### add-task
+```yaml
+name: add-task
+version: 1.0.0
+tier: 0
+outbound: false
+requires_approval: false
+description: "Append a new task to the task list — triggered by /task <text>"
+schedule: null
+gbrain:
+  reads: ["projects/tasks.md"]
+  writes: ["projects/tasks.md"]
+tests: tests/add-task/
+---
+Steps:
+  1. Parse task text from /task command argument
+  2. Extract due date and urgency markers from the text if present
+  3. Format: "- [ ] <text> [due: <date>] [added: <today>]"
+  4. Append to ~/brain/projects/tasks.md via gbrain ingest
+  5. Confirm to Discord #tasks: "Added: <task text>"
 ```
 
 ### task-prioritization
@@ -176,7 +199,7 @@ name: correction-handler
 version: 1.0.0
 tier: 3
 outbound: false
-requires_approval: false
+requires_approval: true   # permanent behavioral rules must be reviewed before writing
 description: "Receive behavioral correction from Dhruva, write as permanent GBrain fact"
 schedule: null   # triggered by #corrections channel message starting with /correct
 gbrain:

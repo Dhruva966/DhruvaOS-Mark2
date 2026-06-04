@@ -8,10 +8,10 @@ Read before building any skill that crosses a subsystem boundary.
 ## Subsystem Boundaries
 
 ```
-┌─────────────────┐     MCP (stdio)    ┌─────────────────┐
-│  Hermes Agent   │ ◄────────────────► │  GBrain         │
-│  Python 3.11+   │                    │  Bun 1.x        │
-└────────┬────────┘                    └────────┬────────┘
+┌─────────────────┐   MCP (HTTP :3131)  ┌─────────────────┐
+│  Hermes Agent   │ ◄─────────────────► │  GBrain         │
+│  Python 3.11+   │                     │  Bun 1.x        │
+└────────┬────────┘                     └────────┬────────┘
          │                                      │
          │ Discord API                          │ reads/writes
          ▼                                      ▼
@@ -26,9 +26,9 @@ Read before building any skill that crosses a subsystem boundary.
 ## Hermes ↔ GBrain: MCP Contract
 
 ### Connection
-- Protocol: MCP via stdio (`gbrain serve`)
-- Alternative: MCP HTTP (`gbrain serve --http --port 3131`)
-- Auth: none for stdio; OAuth 2.1 for HTTP
+- Protocol: MCP via HTTP (`gbrain serve --http --port 3131 --host 127.0.0.1`) — required for PM2 daemons
+- Alternative: MCP via stdio (`gbrain serve`) — for local ad-hoc testing only; incompatible with PM2
+- Auth: none required for loopback-only binding; do not expose port 3131 on network interfaces
 - Both services must be running: `pm2 list` shows `hermes` + `gbrain-mcp`
 
 ### GBrain operations Hermes calls

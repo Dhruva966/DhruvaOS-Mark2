@@ -65,6 +65,44 @@
 
 ---
 
+## Local Model Evolution (research context, June 2026)
+
+### Tier 0 candidates (language)
+
+| Model | VRAM | Speed | Fit |
+|-------|------|-------|-----|
+| phi4-mini (current) | ~2.4GB GPU | 15–25 tok/s RTX 2060 | Good |
+| BitNet b1.58 3B (1-bit) | 0 GPU (CPU) | ~10–20 tok/s CPU | Fallback if VRAM tight |
+
+### Voice models (Phase 6)
+
+| Model | Task | VRAM | Cost | Notes |
+|-------|------|------|------|-------|
+| Parakeet-TDT-1.1B | STT | ~1.5GB GPU (CPU fallback) | $0 | NVIDIA open-source, near real-time, <4% WER |
+| Piper | TTS | 0 (CPU only) | $0 | <200ms latency, multiple voice models |
+| Silero VAD | Silence detection | 0 (CPU) | $0 | 10s silence timeout for auto-off |
+| Custom clap detector | Wake trigger | 0 (CPU) | $0 | Two claps within 1s window, pyaudio |
+
+**VRAM budget with voice active (sequential, not simultaneous):**
+- STT phase: Parakeet ~1.5GB + system ~0.5GB = 2GB used
+- LLM phase: phi4-mini ~2.4GB + system ~0.5GB = 3GB used
+- TTS phase: Piper on CPU = 0 GPU VRAM
+- Peak: ~3GB, well within 6GB RTX 2060 limit
+
+Switch to 1-bit CPU model if `nvidia-smi` shows phi4-mini causing contention with other GPU workloads. Triage/classification tolerates CPU latency; user never waits on Tier 0 directly.
+
+### Phase 6 audio/vision model options
+
+| Approach | VRAM | Complexity | When |
+|----------|------|------------|------|
+| faster-whisper + phi4-mini | ~2GB | Two models, two pipelines | Current Phase 6 plan |
+| Encoder-free model (e.g. Gemma 4 12B local) | 12–16GB | Single model, one pipeline | When GPU ≥12GB |
+| Encoder-free model via API | 0 local | Single API call | If staying on RTX 2060 |
+
+**Encoder-free architecture insight (Gemma 4 12B, June 2026):** removes separate audio/vision encoders. Raw 40ms audio frames projected directly into LLM token space. LLM processes multimodal input from start — no encoder queue latency. Architecturally superior to whisper+LLM for Phase 6 if VRAM allows or API cost acceptable.
+
+---
+
 ## Mark 1 → Mark 2 Component Mapping
 
 | Mark 1 Component | Mark 2 Replacement | Type |
@@ -170,8 +208,10 @@ email costs more than years of Sonnet premium.
 - Skill escalation rate >30% over 7 days → permanently promote in config.yaml
 
 **Tier 1 credit watchdog:**
-- Monitor OpenAI platform balance via dashboard
-- When balance drops below $50 → disable `openai_direct` provider in config.yaml
+- OpenAI has no programmatic balance API — `check_balance_daily` in config.yaml is aspirational only; it will silently no-op
+- Set a monthly calendar reminder to check https://platform.openai.com/usage manually
+- Configure an OpenAI usage alert via dashboard (Settings → Billing → Usage limits) for $50 threshold
+- When balance drops below $50 → manually set `tier_1.active_backend: "fallback"` in config.yaml
 - Enable `openrouter` provider for Tier 1 (own billing, separate account)
 - Update `tier_1.primary` to DeepSeek V3 via OpenRouter
 
@@ -194,9 +234,10 @@ built-in 8-phase nightly dream cycle.
 
 **Cron schedule:**
 ```
-0 2 * * *  gbrain sync --repo ~/brain && gbrain embed --stale
+0 2 * * *  gbrain embed --stale
 0 3 * * *  gbrain dream
 ```
+Note: `gbrain sync` does not exist. Use `gbrain embed --stale` for incremental embedding.
 
 **Compounding effect over time:**
 - Week 1: raw import, search works
@@ -206,7 +247,90 @@ built-in 8-phase nightly dream cycle.
 
 ---
 
-## Discord Channel Architecture
+## Interface Layer
+
+DhruvaOS uses three interfaces with distinct roles:
+
+| Interface | Direction | Use Case |
+|-----------|-----------|----------|
+| **iMessage** | Bidirectional | Quick one-liner commands: `"add task X"`, `"whats on my cal"`. Fast, always-open on iPhone. |
+| **Discord** | Bidirectional | Full outputs: briefings, research results, task lists, outbound approval gate. |
+| **ntfy.sh push** | Agent → iPhone | Proactive alerts: reminders, time-sensitive notifications to lock screen. |
+
+### iMessage Integration — BlueBubbles + Hermes
+
+iMessage has no public API. BlueBubbles (open-source, free) runs on Mac as an iMessage bridge,
+exposing a REST API + webhooks. Hermes has BlueBubbles built in.
+
+```
+iPhone → iMessage → Mac Messages.app → BlueBubbles Server (port 1234)
+   ↕ REST + webhooks ↕
+Hermes (Omen) — BLUEBUBBLES_SERVER_URL + BLUEBUBBLES_PASSWORD in .env
+                 hermes gateway setup (one command, auto-configures)
+```
+
+**Mac setup (one time):**
+1. Install BlueBubbles Server `.dmg` on Mac
+2. Grant Full Disk Access + Automation → Messages in System Settings
+3. Set a password in BlueBubbles UI
+4. Configure Cloudflare Tunnel in BlueBubbles → stable `https://imessage.yourdomain.com` URL
+5. `sudo pmset -a sleep 0` — keep Mac awake as bridge
+
+**Omen .env additions (Phase 1):**
+```bash
+BLUEBUBBLES_SERVER_URL=https://imessage.yourdomain.com
+BLUEBUBBLES_PASSWORD=your-password
+NTFY_TOPIC=dhruva-alerts   # for push notifications
+```
+
+**Proactive alerts (ntfy.sh self-hosted on Omen):**
+```bash
+# Any Hermes skill can push to iPhone:
+curl -d "Reminder: standup in 10 min" https://ntfy.yourdomain.com/dhruva-alerts
+```
+ntfy iPhone app subscribes to the topic. Instant lock screen push via ntfy upstream relay.
+
+**SIP disable: NOT required** for text send/receive. SIP only needed for tapbacks/typing
+indicators — irrelevant for a command bot.
+
+**Account ban risk:** Near-zero for personal single-user use. Apple bans high-volume
+spam bots, not personal assistants on years-old Apple IDs.
+
+### Notion — Visual Dashboard (display only)
+
+Notion is a **visual display layer** — browsable tables and dashboards Dhruva accesses from any device. NOT the brain, NOT the search engine. GBrain + `~/brain/` markdown is the source of truth for all knowledge. Notion gets a mirror of structured data (tasks, briefings, people) written by Hermes skills at execution time.
+
+**Architecture:** Hermes writes directly to Notion via MCP at skill execution time. No sync daemon. No polling. Event-driven: a skill completes → writes to Notion as a final step.
+
+**4 core databases:**
+
+| Database | Key properties | Written by |
+|----------|---------------|-----------|
+| Tasks | Name, Status, Priority, Due, Project (relation) | add-task, task-prioritization |
+| Projects | Name, Status, Area, Tasks (rollup), Notes URL | manual + research-synthesis |
+| People | Name, Company (relation), Role, Last Contact, Brain File URL | manual + signal-detector |
+| Daily Briefings | Date, Type, Summary, Discord Link, Full body | morning-briefing, evening-briefing |
+
+**Discord + Notion together:** briefings post to Discord #briefings AND create a Notion page. Discord message includes the Notion URL. Discord = fast delivery + approval gate. Notion = persistent, searchable, visual archive.
+
+**What Notion cannot do:**
+- Graph view (people → companies → projects): use **Obsidian graph view** on `~/brain/` — already works once GBrain imports the vault
+- Real-time / semantic search: GBrain handles that. Notion is for browsing, not querying.
+- Bidirectional sync: Notion is write-once per skill run. Never a write source back into GBrain.
+
+**Graph views:** Obsidian (free, local) renders `~/brain/` as a full entity graph. GBrain's dream cycle auto-links the nodes. No additional tool needed.
+
+**Config additions to `.env`:**
+```bash
+NOTION_TASKS_DB=<database-id>
+NOTION_PROJECTS_DB=<database-id>
+NOTION_PEOPLE_DB=<database-id>
+NOTION_BRIEFINGS_DB=<database-id>
+```
+
+**MCP:** Notion MCP already connected (`mcp__claude_ai_Notion__*`). Add to Hermes `mcp_servers:` config in Phase 2.
+
+### Discord Channel Architecture
 
 | Channel | Purpose | Who Writes | Hermes Reads |
 |---------|---------|-----------|-------------|
