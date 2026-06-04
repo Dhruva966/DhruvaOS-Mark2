@@ -2,8 +2,18 @@
 
 ## Host Machine
 
-HP Omen 15 — Ubuntu, 32 GB RAM, RTX 2060 (6 GB VRAM)
-Primary host: local, always-on. VPS-migration-ready (see VPS section).
+HP Omen 15-dh1xxx — Ubuntu 24.04.4 LTS, 32 GB RAM, GTX 1660 Ti (6 GB VRAM)
+CPU: Intel Core i7-10750H @ 2.60GHz
+Portable gaming laptop — always with Dhruva. Not a stationary server.
+VPS-migration-ready (see VPS section) but not needed while laptop is accessible.
+
+### Ubuntu Install Notes (verified June 2026)
+
+- **SD card boot:** HP Omen 15-dh1xxx SD slot (Realtek PCI) appears in BIOS boot menu but silently fails to execute. Use USB-A drive only.
+- **Flash tool:** Use Rufus (Windows) or `dd` (Mac). Balena Etcher on Apple Silicon Mac produces malformed EFI partitions that HP UEFI rejects.
+- **Secure Boot:** Must be disabled in BIOS (F10 → Security → Secure Boot → Disable) before Ubuntu boots.
+- **Display during live boot:** GTX 1660 Ti requires kernel params at GRUB. Press `e` on boot menu, find `linux` line, add `nomodeset nouveau.modeset=0` before `---`.
+- **Third-party software:** Check "Install third-party software" during Ubuntu install — this auto-installs the NVIDIA 595 driver + CUDA 13.2.
 
 ---
 
@@ -40,15 +50,16 @@ After all setup steps complete, **remove sudo from dhruvaos** (run as admin user
 sudo deluser dhruvaos sudo    # non-root agents do not need sudo
 ```
 
-### 2. Python 3.11+
+### 2. Python 3.12 (Ubuntu 24.04 default)
 ```bash
-sudo apt update && sudo apt install -y python3.11 python3.11-venv python3.11-dev
-pip install uv    # fast Python package manager
-python3.11 --version    # verify ≥3.11
+sudo apt update && sudo apt install -y python3 python3-venv python3-dev unzip
+python3 --version    # verify — Ubuntu 24.04 ships 3.12, which satisfies Hermes's 3.11+ requirement
 ```
+Note: `python3.11` is not in Ubuntu 24.04 repos. Use `python3` (3.12). Hermes requires 3.11+, not exactly 3.11.
 
 ### 3. Bun ≥1.3.10
 ```bash
+sudo apt install unzip    # required by Bun installer — install first
 curl -fsSL https://bun.sh/install | bash
 source ~/.bashrc    # or restart shell
 bun --version    # verify ≥1.3.10
@@ -103,20 +114,32 @@ gbrain --version
 ```bash
 mkdir -p ~/brain/{people,companies,concepts,projects,daily,resources,UCLA,goals,charlie}
 mkdir -p ~/.gbrain
+
+# Pull embedding model FIRST (GBrain probes it during init)
+ollama pull nomic-embed-text
+
 # Write config BEFORE gbrain init — init reads config to pick the correct engine
-cat > ~/.gbrain/config.json << 'EOF'
-{
-  "engine": "pglite",
-  "search_mode": "balanced",
-  "embedding_provider": "zeroentropy",
-  "query_expansion": false,
-  "brain_path": "~/brain"
+python3 -c "
+import json
+config = {
+  'engine': 'pglite',
+  'search_mode': 'balanced',
+  'embedding_provider': 'ollama',
+  'embedding_model': 'nomic-embed-text',
+  'query_expansion': False,
+  'brain_path': '/home/dhruva/brain'
 }
-EOF
+open('/home/dhruva/.gbrain/config.json', 'w').write(json.dumps(config))
+print('done')
+"
+
 gbrain init                     # initialize PGLite schema (reads config.json)
 gbrain apply-migrations --yes   # apply pending schema migrations (idempotent)
 gbrain onboard --check --json   # verify all checks green
 ```
+Note: Use `ollama:nomic-embed-text` not `zeroentropy` — zeroentropy requires a cloud key. nomic-embed-text runs free on GPU via Ollama.
+
+Note: Use `python3 -c` to write config instead of heredoc (`cat << EOF`) — heredoc breaks in terminals with bracketed paste mode enabled.
 
 ### 9. Lightpanda (local browser — Phase 3+)
 
@@ -169,24 +192,33 @@ chmod 600 ~/.config/dhruvaos/.env
 
 ## Service Orchestration
 
-### PM2 process list (initial setup)
+### Service orchestration (actual, verified June 2026)
 
-GBrain must run in **HTTP mode** when daemonized under PM2. Stdio mode requires Hermes to
-spawn GBrain as a child process with a live stdin/stdout pipe — a PM2 daemon has no such
-pipe, so all Hermes→GBrain MCP calls would silently fail even though `pm2 list` shows
-`gbrain-mcp` as online.
+**GBrain:** runs via PM2 in HTTP mode.
+**Hermes Gateway:** runs via systemd user service (NOT PM2). `hermes gateway install` sets this up.
 
 ```bash
-# Start GBrain in HTTP mode (Hermes connects to localhost:3131 over HTTP)
-pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131 --host 127.0.0.1" --name gbrain-mcp
+# GBrain HTTP mode via PM2 (must be HTTP — stdio deadlocks under PM2)
+export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh"
+pm2 start "$HOME/.bun/bin/gbrain serve --http --port 3131" --name gbrain-mcp
+pm2 startup && pm2 save
 
-# Start Hermes (runs inside venv — full path avoids activation dependency)
-pm2 start "~/.hermes-src/.venv/bin/python ~/.hermes-src/run_agent.py" --name hermes
-
-# Persist across reboots
-pm2 startup    # follow the output command
-pm2 save
+# Hermes Gateway via systemd (do NOT use PM2 for Hermes)
+source ~/.hermes/.env
+hermes gateway install    # interactive: select "start on boot: Y", "start now: Y"
+# This creates: ~/.config/systemd/user/hermes-gateway.service
 ```
+
+**Critical:** The systemd service does not load `~/.hermes/.env` by default. Add this override:
+```bash
+systemctl --user edit hermes-gateway --force
+# Add these lines and save:
+# [Service]
+# EnvironmentFile=/home/dhruva/.hermes/.env
+systemctl --user daemon-reload && hermes gateway restart
+```
+
+**Why not PM2 for Hermes:** PM2 treats the `hermes` binary as a Node.js script (it's actually a shell script that activates a Python venv). Results in `SyntaxError: Unexpected identifier 'PYTHONPATH'`. The `--interpreter bash` flag works but is fragile. `hermes gateway install` → systemd is the correct path.
 
 In `~/.hermes/config.yaml`, point Hermes at the HTTP GBrain endpoint.
 Key is `mcp_servers:` (verified from Hermes cli-config.yaml.example):
