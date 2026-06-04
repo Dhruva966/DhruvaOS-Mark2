@@ -10,29 +10,29 @@ Build effort concentrates in Phase 2+ (skills) and Phase 4 (self-improving loop)
 
 ---
 
-## Phase 0: Infrastructure (SEQUENTIAL — everything depends on this)
+## Phase 0: Infrastructure ✅ COMPLETE (June 4, 2026)
 
-All tasks sequential. No parallelism. Phase 1 cannot start until P0.18 is green.
+All tasks done. Phase 1 active.
 
 ### P0 Task Table
 
-| Task | Command / Action | Done condition |
-|------|-----------------|----------------|
-| P0.1 | Create `dhruvaos` non-root user | `id dhruvaos` returns user |
-| P0.2 | Install Python 3.11+ via apt | `python3.11 --version` ≥3.11 |
-| P0.3 | Install Bun ≥1.3.10 | `bun --version` ≥1.3.10 |
-| P0.4 | Install Node v24 via nvm | `node --version` = v24.x |
-| P0.5 | Install pm2 globally | `pm2 --version` returns |
-| P0.6 | Install Ollama (systemd auto-start) | `systemctl status ollama` = active |
-| P0.7 | Pull phi4-mini | `ollama list` shows phi4-mini |
-| P0.8 | Install Hermes via official installer | `hermes --version` returns |
-| P0.9 | Install GBrain ≥0.42.1.0 | `gbrain --version` shows version |
-| P0.10 | Scaffold `~/brain/` + GBrain init | `gbrain init` succeeds |
-| P0.11 | Write `~/.gbrain/config.json` | see MEMORY.md |
-| P0.12 | Run `gbrain onboard --check --json` | all checks green |
-| P0.13 | Create Discord bot + 6 channels | Bot token obtained, channels exist |
-| P0.14 | Create `~/.config/dhruvaos/.env` (chmod 600) | permissions 600 |
-| P0.15 | Write `~/.hermes/config.yaml` | see MODEL_ROUTING.md + MCP section below |
+| Task | Command / Action | Done condition | Status |
+|------|-----------------|----------------|--------|
+| P0.1 | ~~Create `dhruvaos` non-root user~~ → used `dhruva` (main user) | user exists | ✅ |
+| P0.2 | Install Python 3.12 via apt (3.11 not in Ubuntu 24.04 repos) | `python3 --version` ≥3.11 | ✅ |
+| P0.3 | Install Bun ≥1.3.10 | `bun --version` = 1.3.14 | ✅ |
+| P0.4 | Install Node v24 via nvm | `node --version` = v24.x | ✅ |
+| P0.5 | Install pm2 globally | `pm2 --version` returns | ✅ |
+| P0.6 | Install Ollama (systemd auto-start) | `systemctl status ollama` = active | ✅ |
+| P0.7 | Pull phi4-mini + nomic-embed-text | `ollama list` shows both | ✅ |
+| P0.8 | Install Hermes via official installer | gateway running | ✅ |
+| P0.9 | Install GBrain 0.42.25.0 | `gbrain --version` | ✅ |
+| P0.10 | Scaffold `~/brain/` + GBrain init | `gbrain init` succeeded | ✅ |
+| P0.11 | Write `~/.gbrain/config.json` (ollama embedding) | config in place | ✅ |
+| P0.12 | Run `gbrain onboard --check --json` | checks green | ✅ |
+| P0.13 | Create Discord bot (drew#4878) + 6 channels | bot connected | ✅ |
+| P0.14 | Create `~/.hermes/.env` (chmod 600) | keys in place | ✅ |
+| P0.15 | Write `~/.hermes/config.yaml` | 4-tier routing configured | ✅ |
 | P0.16 | Install Lightpanda binary | `lightpanda --version` returns; PM2 shows `lightpanda` online at :9222 |
 | P0.17 | Start GBrain HTTP server via PM2 | `pm2 list` shows `gbrain-mcp` online |
 | P0.18 | Start Hermes via PM2 | `pm2 list` shows `hermes` online |
