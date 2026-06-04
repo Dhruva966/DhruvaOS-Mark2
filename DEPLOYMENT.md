@@ -4,8 +4,12 @@
 
 | Environment | Host | Status |
 |-------------|------|--------|
-| Local (primary) | HP Omen 15, Ubuntu | Current |
+| Local (primary) | HP Omen 15 gaming laptop, Ubuntu | Current |
 | VPS (future) | DigitalOcean/Fly.io | Migration-ready, not yet |
+
+> **Note:** The HP Omen 15 is a portable gaming laptop — it is always with Dhruva, not a
+> stationary home server. Cloudflare Tunnel is useful when the laptop is left at home
+> unattended, but is not required for daily use since Dhruva has direct physical access.
 
 ---
 
@@ -37,9 +41,11 @@ GITHUB_TOKEN=...                       # GitHub (Phase 5)
 
 ### Loading env vars into shell
 ```bash
-source ~/.config/dhruvaos/.env
+# Safe source (no word-splitting injection risk):
+set -a; source ~/.config/dhruvaos/.env; set +a
 # OR add to ~/.bashrc:
-export $(grep -v '^#' ~/.config/dhruvaos/.env | xargs)
+set -a; source ~/.config/dhruvaos/.env; set +a
+# Do NOT use: export $(grep -v '^#' .env | xargs) — vulnerable to value-splitting
 ```
 
 ---
@@ -47,16 +53,16 @@ export $(grep -v '^#' ~/.config/dhruvaos/.env | xargs)
 ## Infrastructure Diagram (Omen local)
 
 ```
-HP Omen 15 (Ubuntu)
+HP Omen 15 gaming laptop (portable — always with Dhruva)
 ├── dhruvaos user (non-root)
 │   ├── Hermes Agent (pm2 process)
 │   │   └── connects to Discord via bot token
-│   │   └── connects to GBrain via MCP stdio
+│   │   └── connects to GBrain via HTTP MCP (localhost:3131)
 │   │   └── calls Ollama via localhost:11434
 │   │   └── calls OpenAI/Anthropic/OpenRouter via HTTPS
 │   │
 │   ├── GBrain MCP server (pm2 process, HTTP mode port 3131)
-│   │   └── serves HTTP MCP to Hermes (localhost:3131)
+│   │   └── serves HTTP MCP to Hermes (localhost:3131/mcp)
 │   │   └── reads/writes ~/.gbrain/brain.db (PGLite)
 │   │   └── reads/writes ~/brain/ (markdown)
 │   │
@@ -67,9 +73,9 @@ HP Omen 15 (Ubuntu)
 │   └── RTX 2060 GPU via CUDA
 │   └── port 11434 (localhost only)
 │
-├── Cloudflare Tunnel (systemd service)
-│   └── tunnels outbound to Cloudflare
-│   └── optional: exposes GBrain HTTP interface
+├── Cloudflare Tunnel (systemd service, optional)
+│   └── useful when laptop is left at home unattended
+│   └── NOT required for daily use (Dhruva has physical access)
 │
 └── AppArmor + UFW + auditd (kernel-level security)
 ```
@@ -113,7 +119,7 @@ bun --version    # must be ≥1.3.10
 
 ### 5. Node.js v24
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 source ~/.bashrc
 nvm install 24 && nvm use 24 && nvm alias default 24
 npm install -g pm2
@@ -179,19 +185,120 @@ chmod 600 ~/.config/dhruvaos/.env
 7. Enable Developer Mode in Discord settings
 8. Right-click your username → Copy User ID → add to `.env` as `DISCORD_ALLOWED_USER`
 
-### 13. Cloudflare Tunnel
+### 13a. BlueBubbles (iMessage bridge — on Mac, not Omen)
+
+**Verified: v1.9.9 (May 2025), macOS Sequoia compatible. SIP NOT required for text.**
+Hermes has BlueBubbles as a first-class built-in gateway — no custom skill needed.
+
+Run this on your Mac, not the Omen. Mac must have Messages.app signed into your iCloud.
+
 ```bash
-curl -L https://pkg.cloudflare.com/cloudflare-warp-apt/KEY.asc \
-  | sudo tee /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg >/dev/null
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] \
-  https://pkg.cloudflare.com/cloudflare-warp $(lsb_release -cs) main" \
-  | sudo tee /etc/apt/sources.list.d/cloudflare-warp.list
+# 1. Download BlueBubbles Server v1.9.9+ from https://bluebubbles.app/install
+# 2. Install .dmg, launch BlueBubbles Server
+# 3. System Settings → Privacy & Security:
+#    - Full Disk Access → add BlueBubbles
+#    - Automation → BlueBubbles → allow Messages
+# 4. In BlueBubbles UI: set a password, note it for .env
+# 5. Proxy: select "Cloudflare Tunnel" → configure custom domain
+#    (Cloudflare tunnel binary is now bundled in BlueBubbles — no separate install)
+# 6. Keep Mac awake:
+sudo pmset -a sleep 0 disksleep 0
+
+# 7. Verify BlueBubbles REST API responds:
+curl "http://localhost:1234/api/v1/ping?password=YOUR_PASSWORD"
+```
+
+Add to `.env` on Omen:
+```bash
+BLUEBUBBLES_SERVER_URL=https://imessage.yourdomain.com
+BLUEBUBBLES_PASSWORD=your-password
+```
+
+After Hermes is running on Omen:
+```bash
+hermes gateway setup   # auto-registers webhook, configures iMessage gateway
+hermes gateway run
+```
+
+**Apple ID ban risk:** Low for personal single-user conversational use. Mitigations:
+- Use a dedicated Apple ID (not your primary iCloud)
+- Keep send/receive balanced — don't spam one-way
+- Don't send auto-responses to strangers
+
+**SIP note:** Leave SIP ENABLED. SIP only gates Private API (tapbacks, typing indicators) — irrelevant for DhruvaOS text commands.
+
+### 12b. ntfy.sh (push alerts to iPhone — on Omen)
+
+```bash
+# ntfy is NOT in Ubuntu's default apt repos; add the official ntfy apt repo first
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://archive.heckel.io/apt/pubkey.txt | sudo tee /etc/apt/keyrings/archive.heckel.io.asc >/dev/null
+echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/archive.heckel.io.asc] https://archive.heckel.io/apt debian main" \
+  | sudo tee /etc/apt/sources.list.d/archive.heckel.io.list
+sudo apt update && sudo apt install ntfy
+
+# Configure /etc/ntfy/server.yml:
+sudo bash -c 'cat > /etc/ntfy/server.yml << EOF
+base-url: https://notifications.yourdomain.com
+upstream-base-url: https://ntfy.sh    # required for iOS instant push
+listen-http: :2586
+EOF'
+
+sudo systemctl enable ntfy && sudo systemctl start ntfy
+
+# Test:
+curl -d "DhruvaOS test alert" ntfy.sh/dhruva-alerts
+```
+
+Install ntfy iPhone app → subscribe to your topic → instant push.
+
+### 14. Cloudflare Tunnel
+```bash
+# cloudflared (tunnel daemon) uses a separate repo from cloudflare-warp (VPN)
+curl -L https://pkg.cloudflare.com/cloudflare-main.gpg \
+  | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-main.gpg] \
+  https://pkg.cloudflare.com/cloudflared $(lsb_release -cs) main" \
+  | sudo tee /etc/apt/sources.list.d/cloudflared.list
 sudo apt update && sudo apt install cloudflared
 cloudflared tunnel login
 cloudflared tunnel create dhruvaos
 sudo cloudflared service install
 sudo systemctl enable cloudflared && sudo systemctl start cloudflared
 ```
+
+### 13b. Lid-close suspend prevention (critical — Omen is a laptop)
+
+The Omen must not suspend when the lid closes, or all PM2 processes freeze mid-run.
+
+```bash
+# Prevent suspend on lid close
+sudo sed -i 's/#HandleLidSwitch=suspend/HandleLidSwitch=ignore/' /etc/systemd/logind.conf
+sudo sed -i 's/#HandleLidSwitchExternalPower=suspend/HandleLidSwitchExternalPower=ignore/' /etc/systemd/logind.conf
+sudo systemctl restart systemd-logind
+# Verify:
+grep HandleLidSwitch /etc/systemd/logind.conf
+```
+
+Also prevent automatic sleep/hibernate:
+```bash
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+```
+
+### 13c. Automated brain.db backup
+
+PGLite is a single file. One power-loss during a dream cycle write = total memory loss.
+Add a post-dream backup cron alongside the dream cycle cron:
+
+```bash
+crontab -e
+# Add (as dhruvaos):
+0 2 * * * /home/dhruvaos/.bun/bin/gbrain embed --stale
+0 3 * * * /home/dhruvaos/.bun/bin/gbrain dream || curl -d "dream cycle FAILED — check: pm2 logs gbrain-mcp" ntfy.sh/dhruva-alerts
+30 4 * * * cp /home/dhruvaos/.gbrain/brain.db /home/dhruvaos/.gbrain/brain.db.$(date +\%Y\%m\%d) && find /home/dhruvaos/.gbrain/ -name 'brain.db.*' -mtime +7 -delete
+```
+
+The 4:30am step: keeps 7 rolling daily backups, deletes older ones. Zero external cost.
 
 ### 14. Security hardening (see ENVIRONMENT.md for full detail)
 ```bash
@@ -205,7 +312,7 @@ sudo systemctl enable cloudflared && sudo systemctl start cloudflared
 ```bash
 source ~/.config/dhruvaos/.env
 # GBrain runs in HTTP mode — PM2 daemonizes it; Hermes connects on port 3131
-pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131" --name gbrain-mcp
+pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131 --host 127.0.0.1" --name gbrain-mcp
 # Hermes uses venv python
 pm2 start "~/.hermes-src/.venv/bin/python ~/.hermes-src/run_agent.py" --name hermes
 pm2 startup    # follow output command

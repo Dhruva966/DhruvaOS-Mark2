@@ -13,7 +13,9 @@ tests: tests/task-prioritization/
 # Task Prioritization — Implementation
 
 Steps:
-  1. Load current tasks from GBrain (gbrain search "current tasks projects/tasks.md")
+  1. Load current tasks from ~/brain/projects/tasks.md via GBrain
+  1.5 Merge inbox: if ~/brain/projects/tasks-inbox.md exists and is non-empty →
+     append all lines to tasks.md, then clear tasks-inbox.md (write empty file)
   2. Load goals for context (gbrain search "goals")
   3. Fetch calendar for deadline context (Google Calendar MCP, next 7 days)
   4. Score each task on two dimensions:
@@ -23,4 +25,6 @@ Steps:
   6. Write updated ranked list to ~/brain/projects/tasks.md
   7. Post ranked list to Discord #tasks
 
-Note: Only this skill writes to projects/tasks.md. No other skill should write that file.
+Note: ONLY this skill writes to projects/tasks.md.
+add-task writes to tasks-inbox.md (staging). This skill merges inbox → main on each run.
+No other skill should ever write tasks.md directly.

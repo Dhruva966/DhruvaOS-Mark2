@@ -1,7 +1,7 @@
 name: evening-briefing
 version: 1.0.0
-tier: 1
-outbound: false
+tier: 2
+outbound: true
 requires_approval: false
 description: "Evening recap and next-day prep"
 schedule: "0 21 * * *"
@@ -13,11 +13,12 @@ tests: tests/evening-briefing/
 # Evening Briefing — Implementation (STUB: Phase 2)
 
 Steps when implemented:
-  1. Load today's morning briefing from GBrain
+  1. Load today's morning briefing from GBrain (daily/briefing-{{date}}.md)
+  1.5 Guard: if file not found → post "No morning briefing for today — recap skipped" to #briefings and exit cleanly
   2. Load current task list from GBrain
   3. Assess what was accomplished vs planned (compare tasks vs completions)
   4. Identify unfinished tasks to carry forward tomorrow
-  5. Compose recap using gpt-4o-mini (Tier 1, internal):
+  5. Compose recap using claude-sonnet-4-6 (Tier 2, internal — synthesis quality matters):
      - Done today
      - Carried to tomorrow
      - One observation or insight
