@@ -11,16 +11,16 @@ acting on anything high-stakes.
 
 | Layer | Technology |
 |-------|-----------|
-| Agent runtime | Hermes Agent v1.0.0 (Python 3.11+) |
-| Memory | GBrain v0.42.1.0 (Bun ≥1.3.10, PGLite embedded Postgres) |
-| Interface | Discord (6 channels) |
-| Tier 0 model | phi4-mini via Ollama (local, GTX 1660 Ti, 2.5 GB VRAM) |
+| Agent runtime | Hermes Agent v1.0.0 (Python 3.12, systemd user service) |
+| Memory | GBrain v0.42.25.0 (Bun 1.3.14, PGLite at ~/.gbrain/brain.pglite/) |
+| Interface | Discord (6 channels) — bot name: drew#4878 |
+| Tier 0 model | phi4-mini via Ollama (local, GTX 1660 Ti 6GB, nomic-embed-text for embeddings) |
 | Tier 1 model | GPT-4o-mini (direct OpenAI API — burns platform.openai.com credits) |
 | Tier 2 model | Claude Sonnet 4.6 (Anthropic — ALL outbound writing) |
 | Tier 3 model | Claude Opus 4.8 (Anthropic — orchestration + high-stakes) |
-| Process management | PM2 (initial) → systemd (production) |
+| Process management | Hermes: systemd user service. GBrain: PM2. Ollama: systemd system service. |
 | Remote access | Cloudflare Tunnel (dorm CGNAT bypass) |
-| Host | HP Omen 15 — 32 GB RAM, GTX 1660 Ti 6 GB, Ubuntu |
+| Host | HP Omen 15 — 32 GB RAM, GTX 1660 Ti 6 GB, Ubuntu 24.04, user: dhruva |
 
 ## Directory Structure
 
@@ -87,11 +87,15 @@ escalates >30% of runs in a week.
 | Starting skills | `skills/*.yaml` (seeded to `~/.hermes/skills/`) |
 | Brain repo | `~/brain/` |
 | GBrain MCP server | `gbrain serve` (stdio) or `gbrain serve --http --port 3131` |
-| All API keys | `~/.config/dhruvaos/.env` (chmod 600, never committed) |
+| All API keys | `~/.hermes/.env` (chmod 600, never committed) — canonical secrets file |
 | Discord channel map | `discord/channels.md` |
-| Process list | `pm2 list` or `~/.pm2/` |
+| Hermes status | `systemctl --user status hermes-gateway` |
+| GBrain status | `pm2 list` (gbrain-mcp process) |
+| Hermes logs | `~/.hermes/logs/gateway.log` |
 | GBrain health | `gbrain onboard --check --json` |
+| GBrain database | `~/.gbrain/brain.pglite/` |
 | Dream cycle | `gbrain dream` (cron at 3am) |
+| Restart Hermes | `systemctl --user restart hermes-gateway` (never ask Drew to restart itself) |
 
 ## Database Schema
 
@@ -104,8 +108,8 @@ Schema migrations are handled automatically by `gbrain upgrade` + `gbrain apply-
 
 ## Security Non-Negotiables
 
-1. Hermes runs as `dhruvaos` non-root user — never root
-2. All API keys in `~/.config/dhruvaos/.env` (chmod 600, never committed to git)
+1. Hermes runs as `dhruva` user (main user, no separate dhruvaos account needed)
+2. All API keys in `~/.hermes/.env` (chmod 600, never committed to git)
 3. Discord allowlist: only Dhruva's Discord user ID can issue commands
 4. YOLO mode disabled — `require_approval_always: true` in config.yaml, always
 5. Outbound text ALWAYS Tier 2+ AND requires explicit Discord approval — no cost override, ever

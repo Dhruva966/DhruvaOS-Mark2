@@ -70,7 +70,7 @@ HP Omen 15 gaming laptop (portable — always with Dhruva)
 │
 ├── Ollama (systemd service)
 │   └── phi4-mini model
-│   └── RTX 2060 GPU via CUDA
+│   └── GTX 1660 Ti GPU via CUDA
 │   └── port 11434 (localhost only)
 │
 ├── Cloudflare Tunnel (systemd service, optional)
@@ -365,7 +365,7 @@ gbrain serve    # run manually to see errors
 ollama list                    # verify phi4-mini is present
 ollama run phi4-mini "test"    # test manually
 systemctl status ollama        # check systemd service
-nvidia-smi                     # verify RTX 2060 detected
+nvidia-smi                     # verify GTX 1660 Ti detected
 ```
 
 ### OpenAI API errors (Tier 1)

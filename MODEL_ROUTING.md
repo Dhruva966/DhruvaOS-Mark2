@@ -255,7 +255,7 @@ For briefings and recurring skills with stable system prompts, this is the prima
 # Verify phi4-mini is serving
 ollama list    # should show phi4-mini
 ollama run phi4-mini "test"
-# VRAM: ~2.5 GB (3.5 GB free on RTX 2060)
+# VRAM: ~2.5 GB (3.5 GB free on GTX 1660 Ti)
 ```
 
 ### Tier 1 — OpenAI direct
