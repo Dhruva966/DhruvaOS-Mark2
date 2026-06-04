@@ -1,6 +1,6 @@
 name: correction-handler
 version: 1.0.0
-tier: 3
+tier: 2
 outbound: true
 requires_approval: true
 description: "Receive behavioral correction, write as permanent GBrain fact"
@@ -16,7 +16,7 @@ Triggered by: /correct <text> in Discord #corrections
 
 Steps:
   1. Parse correction text from command
-  2. Use claude-opus-4-8 (Tier 3) to interpret the correction accurately:
+  2. Use claude-sonnet-4-6 (Tier 2) to interpret the correction accurately:
      - What behavior is being corrected?
      - What should the new behavior be?
      - Is this a factual update, a preference, or a behavioral rule?
@@ -30,5 +30,6 @@ Steps:
   5. Append to ~/brain/concepts/corrections.md (read first to preserve existing entries)
   6. Post acknowledgment to #corrections: "Understood. [brief summary of correction]."
 
-Note: Uses Tier 3 (Opus) to ensure corrections are interpreted precisely.
-Misinterpreting a correction and writing it wrong is worse than no correction at all.
+Note: Uses Tier 2 (Sonnet) for cost efficiency. Corrections are textual interpretation
+tasks — Sonnet handles them well. Escalate to Tier 3 only if a correction involves
+complex multi-step behavioral reasoning that Sonnet demonstrably fails on.
