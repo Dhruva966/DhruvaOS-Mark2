@@ -212,6 +212,10 @@ read -p "Press ENTER when .env is filled in..."
 # P0.15 — Write ~/.hermes/config.yaml
 # ============================================================
 log "[P0.15] Writing Hermes config.yaml..."
+# NOTE: The heredoc uses single-quoted 'EOF' so ${VAR} strings are written literally.
+# Hermes reads ~/.config/dhruvaos/.env at startup and interpolates ${VAR} references
+# in config.yaml. Do not change to unquoted EOF — that would expand vars at write time
+# when they are not yet in the shell environment.
 sudo -u dhruvaos bash -c '
 mkdir -p ~/.hermes
 cat > ~/.hermes/config.yaml << '"'"'EOF'"'"'
@@ -290,7 +294,7 @@ routing:
     promote_permanently_threshold: 0.30
   tier_1_watchdog:
     provider: "openai_direct"
-    check_balance_daily: true
+    check_balance_daily: true  # No-op: OpenAI has no programmatic balance API. Set a manual calendar reminder + dashboard alert at $50 threshold instead.
     switch_to_fallback_when_balance_below_usd: 50.0
     notify_channel: "alerts"
 
