@@ -187,6 +187,8 @@ gbrain dream
 | `OPENROUTER_API_KEY` | No (post-credits fallback) | Tier 1 when OpenAI credits < $50 |
 | `DISCORD_BOT_TOKEN` | Yes | Hermes Discord gateway |
 | `DISCORD_ALLOWED_USER` | Yes | Dhruva's Discord user ID (allowlist — only user who can command) |
-| `BROWSERBASE_API_KEY` | No | Cloud browser for Hermes web automation |
+| `BROWSERBASE_API_KEY` | Phase 5 | Cloud browser — LinkedIn, auth-walled sites (Developer plan $20/mo) |
+| `BROWSERBASE_PROJECT_ID` | Phase 5 | Browserbase project ID (pair with API key) |
+| `AGENTQL_API_KEY` | Phase 3 | Structured extraction — prevents raw HTML reaching Sonnet ($0.02/call) |
 | `EXA_API_KEY` | No | Web search tool |
-| `FIRECRAWL_API_KEY` | No | Web content extraction |
+| `FIRECRAWL_API_KEY` | No | Web content extraction (may be replaced by AgentQL) |
