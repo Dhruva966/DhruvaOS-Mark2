@@ -13,12 +13,12 @@ Read before building any skill that crosses a subsystem boundary.
 │  Python 3.11+   │                     │  Bun 1.x        │
 └────────┬────────┘                     └────────┬────────┘
          │                                      │
-         │ Discord API                          │ reads/writes
-         ▼                                      ▼
-┌─────────────────┐                    ┌─────────────────┐
-│  Discord        │                    │  ~/brain/        │
-│  6 channels     │                    │  markdown files  │
-└─────────────────┘                    └─────────────────┘
+         │ Discord API      HTTP :8081          │ reads/writes
+         ▼                  ▼                   ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│  Discord        │  │  XPosterOS      │  │  ~/brain/        │
+│  6 channels     │  │  FastAPI+Notion │  │  markdown files  │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
 
 ---
@@ -150,6 +150,47 @@ Coordinate by writing to date-stamped files:
 
 ---
 
+## Hermes ↔ XPosterOS: HTTP Contract
+
+XPosterOS runs as a systemd user service on Omen at `http://127.0.0.1:8081`.
+Hermes controls it via the `xposteros-control` skill. All communication is localhost (no tunnel needed for Hermes).
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/system/health` | GET | none | Health check + dry_run status |
+| `/drafts` | GET | Bearer | List all drafts (filter to `review_ready`) |
+| `/events/brain-dump` | POST | Bearer | Create Notion brain dump from Hermes |
+| `/events/draft-approved` | POST | Bearer | Mark draft approved in Notion |
+| `/approvals/draft` | POST | Bearer | Approve draft → queue for posting |
+| `/queue/next` | GET | Bearer | Next scheduled queue item |
+| `/queue/post-now` | POST | Bearer | Trigger immediate post (confirm first) |
+
+### XPosterOS env vars (in `~/.hermes/.env` on Omen)
+
+| Var | Value |
+|-----|-------|
+| `XPOSTEROS_API_URL` | `http://127.0.0.1:8081` |
+| `XPOSTEROS_API_TOKEN` | Bearer token (= `API_AUTH_TOKEN` in `/home/dhruva/xposteros/.env`) |
+
+### Dry-run contract
+- XPosterOS starts with `XPOSTER_DRY_RUN=true` — all Notion writes blocked
+- Events return `WorkerResult(status="success", output.persisted=false, dry_run=true)` in dry-run
+- Go-live: set `XPOSTER_DRY_RUN=false` in `/home/dhruva/xposteros/.env` + restart service
+- **Never enable live mode without Dhruva's explicit approval**
+
+### Service management
+```bash
+systemctl --user status xposteros-api     # check
+systemctl --user restart xposteros-api   # restart after .env or code changes
+journalctl --user -u xposteros-api -n 50 --no-pager  # logs
+```
+
+### Worker cron
+Hermes cron job `xposteros-workers` runs `deploy/run-workers.sh` every 2 hours.
+Check: `hermes cron list` — look for job ID `144fcb74af5c`.
+
+---
+
 ## Hermes ↔ External APIs: Tool Contract
 
 | Tool | Provider | Auth | Used by | Status |
@@ -159,6 +200,7 @@ Coordinate by writing to date-stamped files:
 | Calendar | Google Calendar API | OAuth refresh token (headless) | morning-briefing, calendar-read | ✅ token in .env |
 | Email | Gmail API | OAuth refresh token (headless) | email-triage, morning-briefing | ✅ token in .env |
 | Notion MCP | @notionhq/notion-mcp-server | `NOTION_TOKEN` | all Notion operations | ✅ MCP registered |
+| XPosterOS API | localhost:8081 | `XPOSTEROS_API_TOKEN` | xposteros-control skill | ✅ service running |
 | Web extraction (structured) | AgentQL | `AGENTQL_API_KEY` | research-synthesis (optional upgrade) | ⬜ no key yet |
 | Browser automation | Browserbase | `BROWSERBASE_API_KEY` | Phase 5 LinkedIn/GitHub | ⬜ Phase 5 |
 | Code hosting | GitHub MCP | `GITHUB_TOKEN` | GitHub skill (Phase 5) | ⬜ Phase 5 |
@@ -205,17 +247,35 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [x] correction-handler skill: `/correct` → classifies BEHAVIOR/FACT/PREFERENCE/FORMAT, appends corrections.md, GBrain ingest
 - [x] All 3 Codex-reviewed + fixes applied (JSON injection, step ordering, shell portability, trust gate compliance)
 - [ ] P3.3 quality firewall gate: test `/test-outbound` in #corrections (manual — needs Dhruva + Discord)
-- [ ] ntfy.sh phone push: set NTFY_TOPIC in .env, install ntfy app (deferred)
+- [x] ntfy.sh phone push: NTFY_TOPIC=dhruva-alerts-14a313f0dbe1 in ~/.hermes/.env ✅. Still needed: install ntfy iPhone app → subscribe to ntfy.sh/dhruva-alerts-14a313f0dbe1
+
+**XPosterOS Integration — Complete (June 5, 2026):**
+
+- [x] XPosterOS FastAPI backend cloned to `/home/dhruva/xposteros/` on Omen
+- [x] `xposteros-api` systemd user service running at `127.0.0.1:8081`
+- [x] `integrations/dhruvaos_client.py` — wired HTTP POST to Hermes (non-blocking, best-effort)
+- [x] `/events/brain-dump` — creates Notion brain dump in live mode; WorkerResult in dry-run
+- [x] `/events/draft-approved` — approves draft in Notion in live mode; WorkerResult in dry-run
+- [x] `deploy/run-workers.sh` — worker pipeline runner for Hermes cron
+- [x] Hermes cron `xposteros-workers` registered (every 2h, job ID `144fcb74af5c`)
+- [x] `xposteros-control` skill deployed to `~/.hermes/skills/dhruvaos/xposteros-control/`
+- [x] `XPOSTEROS_API_URL` + `XPOSTEROS_API_TOKEN` in `~/.hermes/.env`
+- [x] All 6 Notion DB IDs verified + set in `/home/dhruva/xposteros/.env`
+- [x] 50 tests passing, ruff lint clean
+- [ ] Go-live: set `XPOSTER_DRY_RUN=false` (waiting on X credentials)
+- [ ] Cloudflare tunnel for Vercel→Omen backend (manual step — `/etc/cloudflared/config.yml` placeholder)
+- [ ] Vercel env vars: `XPOSTEROS_API_URL=https://xposteros.<TUNNEL_DOMAIN>` (needs tunnel first)
+- [ ] X credentials: `X_API_KEY`, `X_API_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET`
 
 ---
 
-## Known Issues (flagged June 5, 2026 — fix before P3.3 gate)
+## Known Issues (flagged June 5, 2026 — ALL FIXED June 5, 2026)
 
-| Issue | File | Fix |
-|-------|------|-----|
-| `DISCORD_*_CHANNEL_ID` env vars may not be set | `~/.hermes/.env` on Omen | `grep DISCORD ~/.hermes/.env \| grep CHANNEL` — add missing ones |
-| Notion MCP has hardcoded token literal | `~/.hermes/config.yaml` → `mcp_servers.notion.env.NOTION_TOKEN` | Change to `"${NOTION_API_KEY}"` |
-| GBrain dual-process (stdio + HTTP PM2) | `~/.hermes/config.yaml` → `mcp_servers.gbrain` | Replace `command: gbrain / args: serve` with `url: http://localhost:3131/mcp` |
+| Issue | Status | Fix Applied |
+|-------|--------|-------------|
+| `DISCORD_*_CHANNEL_ID` env vars may not be set | ✅ Already set | All 5 channel IDs verified present in ~/.hermes/.env |
+| Notion MCP has hardcoded token literal | ✅ Fixed | Changed to `"${NOTION_API_KEY}"` in config.yaml. Hermes restarted. |
+| GBrain dual-process (stdio + HTTP) | ✅ Fixed | Replaced `command: gbrain / args: serve` with `url: http://localhost:3131/mcp`. Hermes restarted. |
 
 ---
 
