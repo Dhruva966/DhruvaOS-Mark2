@@ -3,7 +3,7 @@ name: add-task
 version: 1.0.0
 tier: 1
 outbound: false
-requires_approval: false
+requires_approval: true
 description: "Parse natural-language task from Discord, add to Notion Tasks DB + GBrain tasks-inbox. Triggered by /task command."
 schedule: null
 gbrain:

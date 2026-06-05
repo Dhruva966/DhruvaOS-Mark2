@@ -8,7 +8,7 @@ description: "Deep-dive a topic using GBrain + Exa web search, synthesize findin
 schedule: null
 gbrain:
   reads: ["concepts/*", "resources/*"]
-  writes: ["resources/research-{{topic}}-{{date}}.md"]
+  writes: ["resources/research-[topic-slug]-[date].md"]
 tests: tests/research-synthesis/
 platforms: [linux]
 prerequisites:

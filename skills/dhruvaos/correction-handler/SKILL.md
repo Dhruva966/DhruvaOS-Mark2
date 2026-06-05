@@ -57,7 +57,8 @@ For example:
 Use the `file` tool to read `~/brain/concepts/corrections.md` (or create if missing):
 
 ```bash
-ls ~/brain/concepts/corrections.md 2>/dev/null || (mkdir -p ~/brain/concepts && echo "# DhruvaOS Corrections Log" > ~/brain/concepts/corrections.md)
+mkdir -p ~/brain/concepts
+[ -f ~/brain/concepts/corrections.md ] || echo "# DhruvaOS Corrections Log" > ~/brain/concepts/corrections.md
 ```
 
 Read the current content, then **append** the new correction entry in this format:

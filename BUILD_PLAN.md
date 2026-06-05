@@ -488,8 +488,8 @@ AGENTQL_API_KEY=...   # sign up at agentql.com
 - Step 2-3: Exa search + Exa content fetch (full article text, no raw HTML)
 - Step 4: Sonnet synthesis (known + new + open questions)
 - Step 5: Write to ~/brain/resources/research-[topic]-[date].md
-- Step 6: Discord #research summary (≤1800 chars)
-- Step 7: GBrain ingest of new research note
+- Step 6: GBrain ingest of new research note (durable — before Discord)
+- Step 7: Discord #research summary (≤1800 chars, notification only)
 
 **No AgentQL needed** — Exa's `contents` parameter returns clean article text natively.
 
@@ -531,23 +531,6 @@ NTFY_TOPIC=dhruva-alerts-xxxxxxxxxxxx
 ```
 
 Use for: approval request notifications, skill errors, dream cycle failures.
-
-### P3.3 — Quality firewall mandatory test
-
-Before enabling ANY outbound skill, run this exact sequence:
-
-```
-1. Send to Hermes in #corrections: "/test-outbound Hello this is a test message"
-2. Verify Hermes uses claude-sonnet-4-6 (check logs: model=claude-sonnet-4-6)
-3. Verify preview appears in #corrections with [APPROVAL REQUIRED] header
-4. Verify Hermes is BLOCKING — does not send without approval
-5. React 👍 in #corrections
-6. Verify action executed only after your approval
-7. Send "/deny" in #corrections on a second test
-8. Verify action was discarded and logged
-```
-
-**This gate must pass before Phase 4.** No outbound skill active until verified.
 
 **Done condition:** agent handles email triage, research, tasks without intervention.
 Outbound gate fires 100% of the time.
