@@ -467,7 +467,9 @@ P3.0  [OPTIONAL] AgentQL setup: install SDK, get API key           ⬜ no key ye
 P3.1  [parallel] research-synthesis skill                          ✅ deployed (Exa native content extraction, no AgentQL)
 P3.2  [parallel] correction-handler skill                          ✅ deployed
 P3.2b [parallel] add-task skill                                    ✅ deployed (/task command)
-P3.3  [SEQUENTIAL] Quality firewall end-to-end test                ⬜ requires manual testing (Dhruva)
+P3.3  [SEQUENTIAL] Quality firewall end-to-end test                ⬜ requires manual testing (Dhruva in Discord)
+P3.3b github-update skill fully implemented (quality firewall test skill) ✅ deployed June 5
+P3.3c GitHub MCP added to hermes config.yaml                       ✅ June 5
 P3.4  [after P3.3] All 8 starting skills verified working          ⬜ pending P3.3
 P3.5  [after P3.4] ntfy.sh setup for phone push notifications      ⬜ needs NTFY_TOPIC set
 ```

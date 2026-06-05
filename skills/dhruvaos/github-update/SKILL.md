@@ -1,10 +1,10 @@
 ---
 name: github-update
-version: 0.1.0
+version: 1.0.0
 tier: 2
 outbound: true
 requires_approval: true
-description: "Create GitHub issues, PRs, or comments via GitHub MCP. Requires approval before any write operation. Phase 5 skill."
+description: "Create GitHub issues, PRs, or comments via GitHub MCP. Requires approval before any write. Quality firewall test skill."
 schedule: null
 gbrain:
   reads: ["projects/*"]
@@ -15,92 +15,105 @@ prerequisites:
   env_vars:
     - GITHUB_TOKEN
     - DISCORD_CORRECTIONS_CHANNEL_ID
+    - DISCORD_ALLOWED_USER
 metadata:
   hermes:
-    tags: [GitHub, Outbound, Phase5, Quality-Firewall]
+    tags: [GitHub, Outbound, Quality-Firewall, Phase5]
 ---
 
-# GitHub Update (Phase 5)
+# GitHub Update
 
-**STATUS: Phase 5 skill — requires GitHub MCP configured + quality firewall test passed.**
-
-Triggered by: `/github <action>` in Discord.
+Triggered by `/github <action>` in Discord #corrections.
 Examples:
 - `/github create issue "Bug: login fails on Safari" in Dhruva966/portfolio`
-- `/github comment on PR #42 in Dhruva966/dhruvaos with "This looks good, merging."`
+- `/github comment on PR #42 in Dhruva966/DhruvaOS-Mark2 "Looks good"`
+- `/github list issues in Dhruva966/DhruvaOS-Mark2`
 
-Quality firewall: Tier 2 minimum, approval for EVERY write operation. Reads are auto-approved.
-
-## GitHub MCP Setup (needed before using this skill)
-
-Add to `~/.hermes/config.yaml`:
-```yaml
-mcp_servers:
-  github:
-    command: npx
-    args: ["-y", "@modelcontextprotocol/server-github"]
-    env:
-      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
-    enabled: true
-```
-
-Verify: `hermes mcp test github` → should show repos, issues, PRs tools.
-
-## Supported Operations
-
-**Read-only (no approval needed):**
-- List issues/PRs
-- Read PR diff
-- Search code
-
-**Write (requires approval in #corrections):**
-- Create issue
-- Create PR comment
-- Close/merge PR
-- Create release
+**Quality firewall:** EVERY write operation requires explicit 👍 approval from `DISCORD_ALLOWED_USER`.
+Read operations (list, read diff, search) execute without approval.
 
 ## Step 1 — Parse Command
 
-Determine:
-- Target repo (default: Dhruva966/DhruvaOS-Mark2)
-- Action type (create issue / comment / close / etc.)
-- Content
+From the command text, determine:
+- **Operation:** create-issue / comment / list-issues / read-pr / close-pr / create-release
+- **Repo:** owner/repo (default: `Dhruva966/DhruvaOS-Mark2` if not specified)
+- **Content:** title, body, or comment text
 
-## Step 2 — For Read Operations
+If the repo is not specified and the command is ambiguous, ask: "Which repo? (default: Dhruva966/DhruvaOS-Mark2)"
 
-Execute directly via GitHub MCP tools. Return results to Discord.
+## Step 2 — Read Operations (no approval needed)
 
-## Step 3 — For Write Operations: Draft + Approve
+For `list issues`, `read PR`, `search code` — execute directly via GitHub MCP tools and return results to Discord. Skip to done.
 
-Draft the exact GitHub action:
+Available GitHub MCP read tools: `list_issues`, `get_pull_request`, `search_repositories`, `get_file_contents`, `list_commits`.
+
+## Step 3 — Write Operations: Build Approval Request
+
+For any write operation, generate:
+
+```python
+import hashlib, secrets, datetime
+
+approval_id = secrets.token_hex(8)   # e.g. "a3f7c21b"
+content = "[EXACT text/title/body that will be written to GitHub]"
+content_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
+expires = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
+```
+
+## Step 4 — Post Approval Request to Discord
+
+Use the `messaging` tool to post to `DISCORD_CORRECTIONS_CHANNEL_ID` (#corrections):
+
 ```
 📤 [APPROVAL REQUIRED] github-update
-Approval ID: [opaque id generated for this GitHub write]
+Approval ID: [approval_id]
 Repo: [owner/repo]
 Action: [create issue / comment / etc.]
-Content SHA-256: [hash of exact GitHub payload]
-Expires: [ISO timestamp, 10 minutes from now]
+Content hash: [content_hash]
+Expires: [expires]
 ---
-[EXACT CONTENT that will be written to GitHub]
+[EXACT content that will be written to GitHub — title + body or comment text]
 ---
-React 👍 to execute · Reply /deny [approval-id] to discard
+React 👍 to execute · Reply /deny [approval_id] to discard
 ```
 
-Post to #corrections. Wait for approval (up to 10 min).
-Reject approval if the reaction is not from `DISCORD_ALLOWED_USER`, the preview message was
-edited, the content hash no longer matches, or the approval ID is expired/mismatched.
+**HARD STOP.** Use the `clarify` tool to wait for a reaction or reply. Timeout: 10 minutes.
 
-## Step 4 — Execute via GitHub MCP
+Validation before executing:
+- Reaction MUST be 👍 (not any other emoji)
+- Reactor MUST be `DISCORD_ALLOWED_USER`
+- Approval ID in any `/deny` reply MUST match `approval_id`
+- Current time MUST be before `expires`
+- The preview message MUST NOT have been edited
 
-After approval, use GitHub MCP tools to execute the operation.
+If any validation fails: post "❌ Approval rejected — [reason]. Discard. Re-run /github to try again." and stop.
+If timeout: post "⏱ Approval expired. Discard." and stop.
 
-## Step 5 — Confirm
+## Step 5 — Execute via GitHub MCP
 
-Post success to #corrections: `✅ GitHub [action] complete: [link]`
+After valid approval, call the appropriate GitHub MCP write tool:
 
-## Important
+| Action | MCP Tool |
+|--------|----------|
+| Create issue | `create_issue` |
+| Comment on PR/issue | `add_issue_comment` |
+| Close issue | `update_issue` (state: closed) |
+| Create release | `create_release` |
 
-GITHUB_TOKEN must have appropriate permissions:
-- `repo` scope for private repos
-- `public_repo` scope for public repos only
-- Fine-grained PAT recommended (limit to specific repos)
+## Step 6 — Confirm
+
+Post to #corrections:
+```
+✅ GitHub [action] complete
+Repo: [owner/repo]
+Link: [URL from GitHub MCP response]
+```
+
+## Error Handling
+
+| Failure | Action |
+|---------|--------|
+| GitHub MCP returns error | Post error to #corrections, do NOT retry automatically |
+| No approval in 10 min | Discard silently, post "Approval expired" |
+| Wrong approver reacts | Ignore reaction, keep waiting until timeout |
+| Clarify tool unavailable | Abort, post "Approval gate unavailable — not executing write" |
