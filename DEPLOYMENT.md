@@ -91,6 +91,16 @@ HP Omen 15 gaming laptop (portable — always with Dhruva)
 
 Full setup from a fresh Ubuntu install. Follow in order.
 
+### 0. HP Omen 15 Hardware Gotchas (learn from prior pain)
+
+- **Cannot boot from SD card slot** — HP Omen 15-dh1xxx SD reader uses Realtek PCI; BIOS shows it but silently refuses boot code. Use USB-A drive only.
+- **Balena Etcher on Apple Silicon = bad UEFI target** — Rosetta 2 Etcher writes wrong partition GUIDs; HP UEFI silently rejects. Use `dd` on Mac or Rufus on Windows instead.
+- **GTX 1660 Ti needs `nomodeset`** — At GRUB: press `e`, find `linux` line, add `nomodeset nouveau.modeset=0` before `---`, F10 to boot. Otherwise display freezes on live boot.
+- **Disable Secure Boot** — F10 at POST → Security → disable Secure Boot before Ubuntu boot.
+- **Bracketed paste mode** — Terminal prepends `^[[200~` to pasted commands. Fix: `printf '\e[?2004l'`
+- **PYTHONUNBUFFERED=1 required** — Without it, Python stdout buffers under systemd; `journalctl --user -u hermes-gateway` shows nothing. Add to `~/.hermes/.env`.
+- **Power-cut during install** corrupts USB — Reflash with `dd` (more reliable than Rufus for recovery) and keep laptop plugged in during install.
+
 ### 1. OS Prerequisites
 ```bash
 sudo apt update && sudo apt upgrade -y

@@ -14,7 +14,7 @@ Okay the full.A full picture. I grew up so firstly I was born in Baldwin Park, u
 
 2. What's your origin story with technology? When did you first get into it, and how has your relationship with it evolved?
 
-
+Mm-hmm.So essentially um I started playing video games like Fortnite, Minecraft, Forza, etc. And then that's how my f relationship with technology grew. 
 
 3. What do you want to be known for in 10 years? Not what you want to achieve — what do you want people to say about you?
 
