@@ -6,6 +6,8 @@ Your answers become the content of `~/brain/` and fuel the dream cycle.
 
 ---
 
+Of course, like one key information that like my agent should know in its G-Brain Vault, exactly how its own system work, and edxactly how it changes itself when updating and building itself, it should be  documenting key information. So if there's a framework I should create for that, let's do that as well.
+
 ## SECTION 1: YOU — Identity & Background
 
 1. Who are you? Give the full picture — not just the résumé version. Where did you grow up, what shaped you, what do you care about at your core?
@@ -14,7 +16,7 @@ Okay the full.A full picture. I grew up so firstly I was born in Baldwin Park, u
 
 2. What's your origin story with technology? When did you first get into it, and how has your relationship with it evolved?
 
-Mm-hmm.So essentially um I started playing video games like Fortnite, Minecraft, Forza, etc. And then that's how my f relationship with technology grew. 
+Mm-hmm.So essentially um I started playing video games like Fortnite, Minecraft, Forza, etc. And then that's how my f relationship with technology grew. And then with chat GPT, I opened my first account in 2023, so I was a pretty early on user of it, which would be eighth to ninth grade. So ninth grade I think. Like second semester, ninth grade. Then I was messing around with LLMs. I had a base prompts sheet that I created where I could just spam prompts for like in tenth and eleventh grade I mainly used it where in order to help meed study for tests. I used to create prompts to create study guides. Then I got more into it where in senior year 2025 to 2026 I started developing like more complex applications like with agents um and that in the summer during or sorry in the summer before senior year I didn't mention this but junior to senior year I actually had my first use of Claude Code in order to program a Raspberry Pi um for a tick like a an eye mask that had sleep features inside of it, such as blue light um for waking and vibration stimulus for sleeping as well as waking and then heating pads, etc., just to power everythingAnd then now I try to build agentic applications. Now I'm building Hermes, obviously, Hermes G Brain setup on locally to run on my HP Omen gaming laptop, which was my original gaming laptop when I played Fortnite, etc. So I kind of like trying to reuse what I've used in the past. And I've installed Ubuntu on it.
 
 3. What do you want to be known for in 10 years? Not what you want to achieve — what do you want people to say about you?
 
