@@ -11,8 +11,8 @@ Infrastructure is $0. The only real cost is Anthropic API.
 | Phase 5+ (with Browserbase, if needed) | $35–59 | $420–708 |
 | After OpenAI credits dry up (Year 2+) | +$3–8/mo | add $36–96/yr |
 
-**Prompt caching is the single highest-leverage optimization.** One config flag cuts
-Anthropic spend ~40–50%. Enable before the first Sonnet call.
+**Prompt caching is the single highest-leverage optimization.** Anthropic's prompt caching
+still meaningfully reduces repeated system/context cost; keep it enabled before the first Sonnet call.
 
 ---
 
@@ -23,8 +23,8 @@ Anthropic spend ~40–50%. Enable before the first Sonnet call.
 | Ollama (local) | 0 | phi4-mini | $0 | $0 | **$0** |
 | OpenAI direct | 1 | gpt-4o-mini | $0.15 | $0.60 | **~$0** (burns platform credits) |
 | OpenRouter (Year 2 fallback) | 1 | DeepSeek V3 | $0.23 | $0.34 | **$3–8** |
-| Anthropic | 2 | claude-sonnet-4-6 | $3.00 ($0.30 cached) | $15.00 | **$12–25** |
-| Anthropic | 3 | claude-opus-4-8 | $15.00 ($1.50 cached) | $75.00 | **$3–8** |
+| Anthropic | 2 | claude-sonnet-4-6 | $3.00 | $15.00 | **$12–25** |
+| Anthropic | 3 | claude-opus-4-8 | $15.00 | $75.00 | **$3–8** |
 | Exa | — | search | $7/1k queries | — | **$0** (free 1k/mo tier) |
 | AgentQL | — | structured extract | $0.02/call | — | **$0–6** (free 50/mo) |
 | **API total** | | | | | **$15–39/mo** |
@@ -86,7 +86,7 @@ anthropic:
   cache_system_prompt: true
 ```
 
-**Without this, the numbers above double. Always enable caching.**
+Treat actual cache hit rate as workload-dependent; verify it from Anthropic billing after the first week.
 
 ---
 
@@ -97,7 +97,7 @@ anthropic:
 | **Prompt caching** | **$16–32** | Enable in config.yaml | None |
 | Defer Browserbase | $20 | Don't buy until Phase 5 local Playwright fails | Minor |
 | Correction-handler → Tier 2 | $2–5 | Change `tier: 3` → `tier: 2` in YAML | Marginal quality reduction |
-| Skip Firecrawl entirely | $0–10 | AgentQL replaces it — never buy a key | None |
+| Skip Firecrawl entirely | $0–10 | AgentQL is primary; keep Firecrawl only as fallback | None |
 | Stay on Exa free tier | $7+ | 1k searches/month free — don't upgrade until proven insufficient | None for Phase 1–3 |
 | Stay on AgentQL free tier | $6 | 50 calls/month free — measure actual Phase 3 usage first | None initially |
 
@@ -159,7 +159,7 @@ Before first run:
 - [ ] `anthropic.prompt_caching: true` in config.yaml — **do this first, biggest savings**
 - [ ] OpenAI dashboard alert set at $50 threshold
 - [ ] `correction-handler.yaml`: change `tier: 3` → `tier: 2`
-- [ ] No Firecrawl key — AgentQL handles extraction
+- [ ] If Firecrawl is configured, keep it marked fallback-only in docs and config
 - [ ] Browserbase: do not buy until Phase 5 and only if local Playwright fails on LinkedIn
 
 Monthly:

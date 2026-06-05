@@ -19,7 +19,7 @@ Rejected. Wrong layer of the stack for DhruvaOS.
 ## Rationale
 
 - DhruvaOS uses models, it doesn't own weights: Sonnet 4.6 and Opus 4.8 are Anthropic-hosted and cannot be fine-tuned by the user. phi4-mini via Ollama could theoretically be fine-tuned but this is a large scope expansion with unclear payoff.
-- Hardware constraint: RTX 2060 6GB. phi4-mini consumes ~4-5GB during inference, leaving ~1GB for training gradients — insufficient even for LoRA fine-tuning.
+- Hardware constraint: GTX 1660 Ti 6GB. phi4-mini consumes a meaningful chunk of VRAM during inference, leaving too little headroom for practical local LoRA fine-tuning.
 - Wrong abstraction: DhruvaOS self-improvement happens at the skill and memory layer (Hermes skill authoring loop + GBrain dream cycle), not the model weight layer. Improving behavior via skill composition is faster, cheaper, and more controllable than weight updates.
 - AutoResearch is an ML research tool. DhruvaOS is a personal AI OS. These are different problems.
 

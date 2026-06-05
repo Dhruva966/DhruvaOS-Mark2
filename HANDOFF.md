@@ -29,7 +29,7 @@ Read before building any skill that crosses a subsystem boundary.
 - Protocol: MCP via HTTP (`gbrain serve --http --port 3131 --host 127.0.0.1`) — required for PM2 daemons
 - Alternative: MCP via stdio (`gbrain serve`) — for local ad-hoc testing only; incompatible with PM2
 - Auth: none required for loopback-only binding; do not expose port 3131 on network interfaces
-- Both services must be running: `pm2 list` shows `hermes` + `gbrain-mcp`
+- Both services must be running: `systemctl --user status hermes-gateway` is active and `pm2 list` shows `gbrain-mcp`
 
 ### GBrain operations Hermes calls
 
@@ -144,26 +144,31 @@ Coordinate by writing to date-stamped files:
 | Tool | Provider | Auth | Used by |
 |------|---------|------|---------|
 | Web search | Exa | `EXA_API_KEY` | research-synthesis, morning-briefing |
-| Web extraction | Firecrawl | `FIRECRAWL_API_KEY` | research-synthesis |
+| Web extraction | AgentQL (Firecrawl fallback) | `AGENTQL_API_KEY` (`FIRECRAWL_API_KEY` optional) | research-synthesis |
 | Browser automation | Browserbase | `BROWSERBASE_API_KEY` | novel tasks, LinkedIn, GitHub |
-| Calendar | Google Calendar MCP | OAuth (configure in Hermes) | morning-briefing, calendar skill |
-| Email | Gmail MCP | OAuth (configure in Hermes) | email-triage |
+| Calendar | Google Calendar API / Hermes calendar tool | OAuth | morning-briefing, calendar-read |
+| Email | Gmail API / Hermes email tool | OAuth | email-triage |
 | Code hosting | GitHub MCP | `GITHUB_TOKEN` (future) | GitHub skill (Phase 5) |
 
 ---
 
 ## Integration Checklist (Phase 1 verification)
 
-Before declaring Phase 1 complete, verify each integration:
+**Status as of 2026-06-04:**
 
-- [ ] `pm2 list` shows `hermes` and `gbrain-mcp` both online
-- [ ] Hermes sends a message to Discord #briefings
-- [ ] `gbrain search "test"` from CLI returns results
-- [ ] Hermes skill calls `gbrain search` and receives a valid response (check Hermes logs)
-- [ ] phi4-mini via Ollama responds to a triage request (check tier 0 in logs)
-- [ ] Claude Sonnet responds to a test request (check tier 2 in logs)
-- [ ] `gbrain onboard --check --json` is all green
-- [ ] Outbound approval gate test: preview appears in #corrections, Hermes blocks
+- [x] `systemctl --user status hermes-gateway` is active
+- [x] `pm2 list` shows `gbrain-mcp` online (708MB RAM, PID 21690)
+- [x] Hermes sends a message to Discord #briefings (drew#4878 alive)
+- [x] `gbrain search "test"` from CLI returns results
+- [x] `hermes mcp test gbrain` — 88 tools discovered, connected in 2285ms
+- [x] `gbrain onboard --check --json` — 0 recommendations, fully onboarded
+- [x] Morning briefing cron set: `0 8 * * *` America/Los_Angeles
+- [x] Obsidian vault imported: 40 pages, 45 chunks, 85 tags, embedded
+- [ ] Hermes skill calls `gbrain search` and receives valid response (verify in logs)
+- [ ] phi4-mini Tier 0 routing verified in Hermes logs
+- [ ] Claude Sonnet Tier 2 verified in Hermes logs
+- [ ] Outbound approval gate test (do when security hardening done)
+- [ ] `gbrain skillpack scaffold --all` (deferred — do at home on SSH)
 
 ---
 

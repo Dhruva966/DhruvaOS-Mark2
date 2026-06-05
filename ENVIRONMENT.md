@@ -36,18 +36,11 @@ about exceeding PGLite limits (currently <1000 brain files). PGLite is zero-ops 
 
 ## Install Commands (exact, verified)
 
-Run as `dhruvaos` user unless noted otherwise.
+Run as `dhruva` unless noted otherwise. This is the current single-user deployment on the Omen.
 
-### 1. Create dedicated user (run as your regular Ubuntu user)
+### 1. Confirm current deploy user
 ```bash
-sudo useradd -m -s /bin/bash dhruvaos
-sudo usermod -aG sudo dhruvaos    # needed for initial setup only — remove after setup
-sudo su - dhruvaos
-```
-
-After all setup steps complete, **remove sudo from dhruvaos** (run as admin user):
-```bash
-sudo deluser dhruvaos sudo    # non-root agents do not need sudo
+whoami    # expect: dhruva
 ```
 
 ### 2. Python 3.12 (Ubuntu 24.04 default)
@@ -98,7 +91,7 @@ If the one-liner fails or you need a pinned version, manual path:
 git clone https://github.com/NousResearch/hermes-agent ~/.hermes-src
 cd ~/.hermes-src
 # Installer creates venv automatically; if not:
-python3.11 -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 uv sync    # preferred (uses uv.lock for determinism)
 # or: uv pip install -e ".[all]"
 ```
@@ -155,7 +148,7 @@ chmod +x lightpanda-x86_64-linux
 sudo mv lightpanda-x86_64-linux /usr/local/bin/lightpanda
 lightpanda --version
 
-# Start under PM2 (alongside Hermes and GBrain):
+# Start under PM2:
 pm2 start "lightpanda --host 127.0.0.1 --port 9222" --name lightpanda
 pm2 save
 ```
@@ -182,9 +175,8 @@ mkdir -p ~/.hermes
 
 ### 10. API keys file
 ```bash
-mkdir -p ~/.config/dhruvaos
-touch ~/.config/dhruvaos/.env
-chmod 600 ~/.config/dhruvaos/.env
+touch ~/.hermes/.env
+chmod 600 ~/.hermes/.env
 # Edit and add required keys — see Environment Variables section
 ```
 
@@ -204,7 +196,7 @@ pm2 start "$HOME/.bun/bin/gbrain serve --http --port 3131" --name gbrain-mcp
 pm2 startup && pm2 save
 
 # Hermes Gateway via systemd (do NOT use PM2 for Hermes)
-source ~/.hermes/.env
+set -a; source ~/.hermes/.env; set +a
 hermes gateway install    # interactive: select "start on boot: Y", "start now: Y"
 # This creates: ~/.config/systemd/user/hermes-gateway.service
 ```
@@ -237,13 +229,13 @@ hermes mcp test gbrain   # confirms tools discovered
 ### Check status
 ```bash
 pm2 list
-pm2 logs hermes --lines 50
+systemctl --user status hermes-gateway
 pm2 logs gbrain-mcp --lines 20
 ```
 
 ### Restart after config change
 ```bash
-pm2 restart hermes
+systemctl --user restart hermes-gateway
 pm2 restart gbrain-mcp
 ```
 
@@ -255,7 +247,7 @@ pm2 restart gbrain-mcp
 |---------|-----------|-------|
 | Ollama | systemd (auto-installed) | `systemctl status ollama` |
 | GBrain MCP | PM2 (via `pm2 startup`) | `pm2 list` |
-| Hermes | PM2 (via `pm2 startup`) | `pm2 list` |
+| Hermes | systemd user service | `systemctl --user status hermes-gateway` |
 | Cloudflare Tunnel | systemd | See setup below |
 
 ---
@@ -278,10 +270,10 @@ sudo apt update && sudo apt install cloudflared
 
 # Authenticate + create tunnel
 cloudflared tunnel login
-cloudflared tunnel create dhruvaos
+cloudflared tunnel create dhruva
 
 # (Optional) expose GBrain HTTP interface externally
-cloudflared tunnel route dns dhruvaos gbrain.yourdomain.com
+cloudflared tunnel route dns dhruva gbrain.yourdomain.com
 ```
 
 ### Boot persistence
@@ -317,15 +309,15 @@ sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.ta
 
 **1. Non-root user** (already done in install step 1)
 ```bash
-# Hermes must run as dhruvaos, never root
-id    # should show: uid=1001(dhruvaos)
+# Hermes must run as dhruva, never root
+id    # should show the dhruva user, never root
 ```
 
 **2. API keys file permissions**
 ```bash
-chmod 600 ~/.config/dhruvaos/.env
-ls -la ~/.config/dhruvaos/.env    # should show: -rw------- dhruvaos
-# .gitignore already committed in the repo — covers .env, *.env, brain.db
+chmod 600 ~/.hermes/.env
+ls -la ~/.hermes/.env    # should show: -rw-------
+# .gitignore already committed in the repo — covers .env, *.env, legacy brain.db, and brain.pglite/
 ```
 
 **3. Discord allowlist in Hermes config**
@@ -350,15 +342,15 @@ agent:
 **5. AppArmor profile for Hermes**
 ```bash
 sudo apt install apparmor-utils
-# Profile at /etc/apparmor.d/dhruvaos_hermes:
+# Profile at /etc/apparmor.d/dhruva_hermes:
 ```
 ```apparmor
 #include <tunables/global>
 # Profile must target the actual venv binary, not the system python
-/home/dhruvaos/.hermes-src/.venv/bin/python3.11 {
+/home/dhruva/.hermes-src/.venv/bin/python3.12 {
   #include <abstractions/base>
   #include <abstractions/nameservice>
-  /home/dhruvaos/** rwk,
+  /home/dhruva/** rwk,
   /tmp/** rwk,
   deny /etc/passwd r,
   deny /etc/shadow r,
@@ -368,8 +360,8 @@ sudo apt install apparmor-utils
 ```
 After loading: `sudo aa-status | grep python` to confirm the process is confined (not just the profile loaded).
 ```bash
-sudo apparmor_parser -r /etc/apparmor.d/dhruvaos_hermes
-sudo aa-enforce /etc/apparmor.d/dhruvaos_hermes
+sudo apparmor_parser -r /etc/apparmor.d/dhruva_hermes
+sudo aa-enforce /etc/apparmor.d/dhruva_hermes
 ```
 
 **6. UFW firewall (outbound allow-list)**
@@ -397,16 +389,13 @@ sudo systemctl enable auditd && sudo systemctl start auditd
 **8. Systemd security hardening** (after migrating from PM2)
 
 ```ini
-# ~/.config/systemd/user/hermes.service
+# ~/.config/systemd/user/hermes-gateway.service.d/override.conf
 [Unit]
 Description=DhruvaOS Hermes Agent
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3.11 /home/dhruvaos/.hermes-src/run_agent.py
-EnvironmentFile=/home/dhruvaos/.config/dhruvaos/.env
-User=dhruvaos
-Group=dhruvaos
+EnvironmentFile=/home/dhruva/.hermes/.env
 ProtectSystem=strict
 ProtectHome=read-only
 NoNewPrivileges=yes

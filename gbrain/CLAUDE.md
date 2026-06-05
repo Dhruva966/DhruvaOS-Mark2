@@ -11,7 +11,7 @@ Purpose: GBrain configuration, ingest patterns, and search/memory conventions fo
 | What | Where |
 |------|-------|
 | GBrain config | `~/.gbrain/config.json` |
-| PGLite database | `~/.gbrain/brain.db` |
+| PGLite database | `~/.gbrain/brain.pglite/` |
 | Brain content | `~/brain/` (markdown) |
 | GBrain binary | `~/.bun/bin/gbrain` |
 | Dream cycle log | Check `gbrain dream --dry-run` output |
@@ -66,8 +66,8 @@ gbrain:
 ## Forbidden Patterns ❌
 
 ```bash
-# ❌ Direct database access — never touch brain.db directly
-sqlite3 ~/.gbrain/brain.db "SELECT * FROM chunks"    # WRONG
+# ❌ Direct database access — never touch brain.pglite directly
+sqlite3 ~/.gbrain/brain.pglite "SELECT * FROM chunks"    # WRONG
 
 # ❌ Two concurrent gbrain write operations
 gbrain import ~/notes/ &       # background
@@ -88,8 +88,8 @@ Professor at UCLA. Met at orientation.
 ```
 
 ```bash
-# ❌ Deleting brain.db to "reset" — destroys all embeddings
-rm ~/.gbrain/brain.db    # WRONG: use gbrain apply-migrations --yes instead
+# ❌ Deleting brain.pglite to "reset" — destroys all embeddings
+rm -rf ~/.gbrain/brain.pglite    # WRONG: use gbrain apply-migrations --yes instead
 ```
 
 ```yaml
@@ -119,8 +119,65 @@ rm ~/.gbrain/brain.db    # WRONG: use gbrain apply-migrations --yes instead
    require post-upgrade backfills (link extraction, timeline rebuild). The onboard check
    tells you what's needed.
 
-5. **Never commit `~/.gbrain/brain.db` to git.** This file contains all embedded brain
+5. **Never commit `~/.gbrain/brain.pglite/` to git.** This directory contains all embedded brain
    content including personal information. It's in `.gitignore`. Keep it there.
+
+---
+
+## CLI Gotchas — Check `--help` First
+
+**Rule:** Run `gbrain --help` or `gbrain <cmd> --help` before any unfamiliar command. Silent no-ops and wrong flags are common. 2 seconds of `--help` beats 50 trial-and-error turns.
+
+| Wrong assumption | Correct command |
+|-----------------|-----------------|
+| `gbrain onboard --apply <id>` | `gbrain jobs submit <name> --follow` |
+| `gbrain config set embedding_model` | Edit `~/.gbrain/config.json` directly (file-plane field — DB write is a no-op) |
+| `gbrain embed --force` | `gbrain embed --all` |
+| `gbrain embed --stale` shows 0 after failed embed | `gbrain embed --all` (marks pages embedded even on error) |
+
+**Onboard job names** (from `gbrain onboard --check --json` → `"job"` field):
+```bash
+gbrain jobs submit extract-timeline-from-meetings --follow
+gbrain jobs submit extract-ner --follow
+gbrain jobs submit unify-types --params '{"target_pack":"gbrain-base-v2"}' --follow
+```
+
+**Ollama embedding on Ubuntu 24.04:** use `127.0.0.1` not `localhost` — IPv6 resolution mismatch.
+```bash
+export OLLAMA_BASE_URL=http://127.0.0.1:11434/v1   # add to ~/.bashrc
+```
+
+**MCP restart sequence after GBrain config changes:**
+```bash
+pm2 restart gbrain-mcp
+sleep 5
+hermes mcp test gbrain   # verify reconnected
+# Never restart during: gbrain dream, gbrain embed, gbrain import (write lock held)
+```
+
+---
+
+## Common Task Patterns
+
+### Ingest new content
+```bash
+gbrain import ~/path/to/content --no-embed
+gbrain embed --stale
+gbrain onboard --check --json    # verify health after every import
+```
+
+### Run onboard recommendations
+```bash
+gbrain onboard --check --json           # see what's needed
+gbrain jobs submit <job-name> --follow  # run each recommendation
+gbrain onboard --check --json           # verify resolved
+```
+
+### Dream cycle (manual)
+```bash
+gbrain dream --dry-run   # preview
+gbrain dream             # run full cycle
+```
 
 ---
 

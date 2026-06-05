@@ -1,0 +1,22 @@
+name: calendar-read
+version: 1.0.0
+tier: 1
+outbound: false
+requires_approval: false
+description: "Read upcoming calendar events and return a structured agenda"
+schedule: null
+gbrain:
+  reads: ["projects/*", "goals/*"]
+  writes: []
+tests: tests/calendar-read/
+---
+# Calendar Read — Implementation (STUB: Phase 2)
+
+Steps when implemented:
+  1. Connect to Google Calendar via OAuth-backed API/tooling
+  2. Fetch today's and next 7 days' events from the primary calendar
+  3. Normalize title, start/end time, location, attendees, and notes
+  4. Cross-reference events against known tasks and deadlines in GBrain
+  5. Return a structured agenda block for morning-briefing and task-prioritization
+
+Status: STUB — scaffold only. Fill in implementation in Phase 2.

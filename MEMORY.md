@@ -61,8 +61,8 @@ The brain gets smarter every day — automatically.
 - `conservative` (4K / 10 chunks) = use if costs spike unexpectedly
 - `tokenmax` = unlimited budget, LLM expansion on — reserve for deep research queries only
 
-**Embedding provider:** ZeroEntropy (default, free, integrated). Do not add OpenAI embedding
-unless ZeroEntropy fails for a specific use case.
+**Embedding provider:** Ollama `nomic-embed-text` on the local machine. This is the current
+default for DhruvaOS because it runs locally, keeps data on-box, and avoids a separate cloud key.
 
 ---
 
@@ -71,7 +71,7 @@ unless ZeroEntropy fails for a specific use case.
 ### Step 1: Install and verify GBrain
 ```bash
 bun install -g github:garrytan/gbrain
-gbrain upgrade    # ensure ≥0.42.1.0
+gbrain upgrade    # ensure current 0.42.x release
 gbrain --version
 ```
 
@@ -313,10 +313,10 @@ Vault path: `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/dhruva's wi
 
 ### Setup: Omen side (auto-pull cron)
 
-Add to dhruvaos crontab (alongside dream cycle):
+Add to the `dhruva` user's crontab with a lock file so writes stay serialized:
 ```bash
 # Pull brain updates from GitHub every 5 min, re-embed changed files
-*/5 * * * * cd /home/dhruvaos/brain && git pull --ff-only && /home/dhruvaos/.bun/bin/gbrain embed --stale
+*/5 * * * * flock -n /tmp/gbrain-write.lock sh -lc 'cd /home/dhruva/brain && git pull --ff-only && /home/dhruva/.bun/bin/gbrain embed --stale'
 ```
 
 ### Setup: Hermes brain-write hook
@@ -336,7 +336,7 @@ This ensures Omen→Mac sync is automatic whenever Hermes writes a brain file.
 
 ### Cost
 - GitHub private repo: $0
-- ZeroEntropy embeddings: $0 (gbrain default)
+- Ollama `nomic-embed-text` embeddings: $0 (local)
 - git operations: $0
 - Total sync cost: **$0/month**
 
@@ -350,8 +350,8 @@ The dream cycle is what makes GBrain compound. Run nightly without fail.
 ```bash
 crontab -e
 # Add these two lines:
-0 2 * * * /home/dhruvaos/.bun/bin/gbrain embed --stale
-0 3 * * * /home/dhruvaos/.bun/bin/gbrain dream
+0 2 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale
+0 3 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain dream
 ```
 
 ### Verify

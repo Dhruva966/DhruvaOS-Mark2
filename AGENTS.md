@@ -20,8 +20,8 @@ Only load a module doc when your task touches that subsystem.
 
 ## Security Non-Negotiables (all agents, no override)
 
-1. Never commit API keys, `.env` files, or `brain.db`
-2. All runtime ops run as `dhruvaos` non-root user — never root
+1. Never commit API keys, `.env` files, `brain.pglite/`, or legacy `brain.db` snapshots
+2. All runtime ops run as `dhruva` non-root user — never root
 3. Never bypass the Discord approval gate for any outbound text
 4. Quality firewall: any text sent to a third party (email, LinkedIn, GitHub, personal site) → Tier 2+ model → explicit Dhruva approval before send
 

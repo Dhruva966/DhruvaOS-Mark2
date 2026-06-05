@@ -1,7 +1,7 @@
 name: morning-briefing
 version: 1.0.0
 tier: 2
-outbound: true
+outbound: false
 requires_approval: false
 description: "Full daily briefing: calendar + email digest + tasks + news/research"
 schedule: "0 8 * * *"
@@ -14,7 +14,7 @@ tests: tests/morning-briefing/
 
 Steps when implemented:
   1. Load ~/brain/projects/tasks.md from GBrain (gbrain search "current tasks")
-  2. Fetch today's calendar events (Google Calendar MCP)
+  2. Fetch today's calendar events (Google Calendar API / Hermes calendar tool)
   3. Fetch top 5 unread emails, classify by action-required / FYI / spam
   4. Load ongoing project context (gbrain search "active projects status")
   5. Fetch curated news/research digest (Exa search on tracked topics from goals/)

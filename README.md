@@ -4,12 +4,12 @@
 > Built to handle the operational layer of a human life — inbox, calendar, research,
 > outbound communication — while compounding knowledge every night.
 
-[![Status](https://img.shields.io/badge/status-Phase_0-orange?style=flat-square)](https://github.com/Dhruva966/DhruvaOS-Mark2)
+[![Status](https://img.shields.io/badge/status-Phase_1_active-brightgreen?style=flat-square)](https://github.com/Dhruva966/DhruvaOS-Mark2)
 [![Runtime](https://img.shields.io/badge/Hermes_Agent-v1.0.0-blueviolet?style=flat-square)](https://github.com/NousResearch/hermes-agent)
-[![Memory](https://img.shields.io/badge/GBrain-v0.42.1-blue?style=flat-square)](https://github.com/garrytan/gbrain)
+[![Memory](https://img.shields.io/badge/GBrain-v0.42.25.0-blue?style=flat-square)](https://github.com/garrytan/gbrain)
 [![Model](https://img.shields.io/badge/Claude_Sonnet_4.6-outbound_writing-red?style=flat-square)](#model-routing)
 [![Infrastructure](https://img.shields.io/badge/infra_cost-%240%2Fmonth-brightgreen?style=flat-square)](#cost)
-[![Host](https://img.shields.io/badge/host-HP_Omen_RTX_2060_Ubuntu-222?style=flat-square)](#)
+[![Host](https://img.shields.io/badge/host-HP_Omen_GTX_1660_Ti_Ubuntu-222?style=flat-square)](#)
 
 ---
 
@@ -156,11 +156,11 @@ Dhruva's knowledge, context, and reasoning — built automatically from daily in
 
 | Year | Infrastructure | Anthropic (Tier 2/3) | OpenAI credits | Total |
 |------|--------------|---------------------|---------------|-------|
-| Year 1 | $0 (Omen local) | ~$25–50/mo | ~$1–3/mo (burns platform credits) | **~$32–68/mo** |
-| Year 2 | $0 | ~$25–50/mo | ~$3–8/mo (OpenRouter fallback) | **~$35–70/mo** |
+| Year 1 | $0 (Omen local) | ~$15–39/mo | ~$1–3/mo (burns platform credits) | **~$16–42/mo** |
+| Year 2 | $0 | ~$15–39/mo | ~$3–8/mo (OpenRouter fallback) | **~$18–47/mo** |
 
-~$1,000 in OpenAI platform credits at moderate usage (500 req/day) lasts approximately
-2–3 years. Prompt caching on Anthropic system prompts reduces Tier 2/3 spend by ~40–50%.
+~$1,000 in OpenAI platform credits at moderate usage lasts years, not months. Prompt caching
+should stay enabled on Anthropic and the actual hit rate should be verified from billing data.
 
 ---
 
@@ -168,8 +168,9 @@ Dhruva's knowledge, context, and reasoning — built automatically from daily in
 
 | Phase | Name | Milestone | State |
 |-------|------|-----------|-------|
-| 0 | Infrastructure | Hermes + GBrain wired, Discord live, security hardened | **Next** |
-| 1 | Alive | Responds in Discord with GBrain context | ○ |
+| 0 | Infrastructure | Hermes + GBrain wired, Discord live | **Complete** |
+| 0.5 | Hardening | AppArmor/UFW/auditd + service hardening | In progress |
+| 1 | Alive | Responds in Discord with GBrain context | **Active** |
 | 2 | Inbox | Email triage, calendar, morning briefing with real data | ○ |
 | 3 | Menial tasks | Research, corrections, quality firewall verified end-to-end | ○ |
 | 4 | Self-improving | Dream cycle running, novel task → skill authored + promoted | ○ |
@@ -184,8 +185,8 @@ After it, it authors new skills from experience. The system becomes qualitativel
 ## Quick start
 
 ```bash
-# Create dedicated non-root user
-sudo useradd -m -s /bin/bash dhruvaos && sudo su - dhruvaos
+# Use the current non-root deploy user
+whoami    # expect: dhruva
 
 # Install Hermes Agent (official installer handles Python 3.11, venv, uv, Node.js)
 curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
@@ -198,14 +199,19 @@ bun install -g github:garrytan/gbrain && gbrain upgrade
 # Install Ollama + phi4-mini (Tier 0 — local, free)
 curl -fsSL https://ollama.com/install.sh | sh
 ollama pull phi4-mini
+ollama pull nomic-embed-text
 
 # Initialize brain
 mkdir -p ~/brain/{people,companies,concepts,projects,daily,resources,UCLA,goals,charlie}
+mkdir -p ~/.gbrain
+cat > ~/.gbrain/config.json << 'EOF'
+{"engine":"pglite","search_mode":"balanced","embedding_provider":"ollama","embedding_model":"nomic-embed-text","query_expansion":false,"brain_path":"~/brain"}
+EOF
 gbrain init
 
-# Start services (GBrain runs in HTTP mode — required for PM2 daemonization)
-pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131" --name gbrain-mcp
-pm2 start "hermes" --name hermes
+# Start services
+pm2 start "/home/dhruva/.bun/bin/gbrain serve --http --port 3131 --host 127.0.0.1" --name gbrain-mcp
+systemctl --user enable --now hermes-gateway
 pm2 startup && pm2 save
 
 # Verify integration
@@ -243,7 +249,7 @@ Phase-by-phase build guide with exact commands → [BUILD_PLAN.md](BUILD_PLAN.md
 ```bash
 # Process status
 pm2 list
-pm2 logs hermes --lines 50
+systemctl --user status hermes-gateway
 pm2 logs gbrain-mcp --lines 20
 
 # GBrain

@@ -14,17 +14,18 @@ self-improving loop takes over. Dhruva never needs to manually define every poss
 
 ---
 
-## Starting Skills (8 seeds)
+## Starting Skills (8 custom seeds + 2 GBrain built-ins)
 
 | Skill | Tier | Outbound | Schedule | GBrain | Trust Gate |
 |-------|------|----------|----------|--------|-----------|
-| `morning-briefing` | 2 | true | 8am daily | read: tasks, context | auto-approve (#briefings) |
-| `evening-briefing` | 2 | true | 9pm daily | write: day summary | auto-approve (#briefings) |
+| `morning-briefing` | 2 | false | 8am daily | read: tasks, context | auto (#briefings is internal) |
+| `evening-briefing` | 2 | false | 9pm daily | write: day summary | auto (#briefings is internal) |
 | `add-task` | 0 | false | on demand | write: tasks-inbox (staging only) | auto |
 | `email-triage` | 1 (triage) / 2 (draft) | false (triage) / true (draft) | on demand | read: people/ | auto (triage) / approval (draft) |
+| `calendar-read` | 1 | false | on demand | read: tasks, deadlines | auto |
 | `task-prioritization` | 1 | false | on demand | read+write: tasks | auto |
 | `research-synthesis` | 2 | false | on demand | write: resources/ | auto |
-| `correction-handler` | 3 | false | #corrections trigger | write: permanent fact | **approval** (permanent behavioral rules) |
+| `correction-handler` | 2 | false | #corrections trigger | write: permanent fact | **approval** (permanent behavioral rules) |
 | `signal-detector` | 0 | false | every inbound | write: entities+ideas | auto (GBrain built-in) |
 | `brain-ops` | 1 | false | every response | read: context | auto (GBrain built-in) |
 
@@ -69,7 +70,7 @@ tests: tests/morning-briefing/
 ---
 Status: STUB — scaffold present, content TBD in Phase 2.
 Content when implemented:
-  1. Fetch today's calendar events (Google Calendar MCP)
+  1. Fetch today's calendar events (Google Calendar API / Hermes calendar tool)
   2. Fetch top 5 unread emails, classify, surface action items
   3. Load task list from GBrain, sort by priority
   4. Search GBrain for recent research + ongoing project context
@@ -116,13 +117,36 @@ gbrain:
 tests: tests/email-triage/
 ---
 Steps:
-  1. Connect to email via MCP (Gmail or IMAP)
+  1. Connect to Gmail via Google API OAuth (or Hermes email tool if configured)
   2. Fetch unread threads (max 50)
   3. For each thread: classify (action required / FYI / spam / newsletter)
   4. Group by sender, urgency, project context
   5. Load sender context from GBrain people/
   6. Post digest to #tasks with classifications
   7. Flag threads needing replies for separate /reply command (outbound, Tier 2)
+```
+
+### calendar-read
+```yaml
+name: calendar-read
+version: 1.0.0
+tier: 1
+outbound: false
+requires_approval: false
+description: "Read upcoming calendar events and return a structured agenda"
+schedule: null
+gbrain:
+  reads: ["projects/*", "goals/*"]
+  writes: []
+tests: tests/calendar-read/
+---
+Status: STUB — scaffold present, content TBD in Phase 2.
+Content when implemented:
+  1. Connect to Google Calendar via OAuth-backed tool/API
+  2. Fetch today's and next 7 days' events
+  3. Normalize time, title, attendees, and location
+  4. Cross-reference deadlines from projects/tasks.md
+  5. Return agenda block for morning-briefing and task-prioritization
 ```
 
 ### add-task
@@ -135,15 +159,15 @@ requires_approval: false
 description: "Append a new task to the task list — triggered by /task <text>"
 schedule: null
 gbrain:
-  reads: ["projects/tasks.md"]
-  writes: ["projects/tasks.md"]
+  reads: []
+  writes: ["projects/tasks-inbox.md"]
 tests: tests/add-task/
 ---
 Steps:
   1. Parse task text from /task command argument
   2. Extract due date and urgency markers from the text if present
   3. Format: "- [ ] <text> [due: <date>] [added: <today>]"
-  4. Append to ~/brain/projects/tasks.md via gbrain ingest
+  4. Append to ~/brain/projects/tasks-inbox.md via gbrain ingest
   5. Confirm to Discord #tasks: "Added: <task text>"
 ```
 
@@ -163,10 +187,11 @@ tests: tests/task-prioritization/
 ---
 Steps:
   1. Load current task list from ~/brain/projects/tasks.md
-  2. Fetch calendar for deadlines context
-  3. Score each task: urgency (deadline proximity) × importance (goal alignment)
-  4. Re-rank and write updated list to GBrain
-  5. Post ranked list to #tasks
+  2. Merge ~/brain/projects/tasks-inbox.md into tasks.md if staging entries exist, then clear the inbox file
+  3. Fetch calendar for deadlines context
+  4. Score each task: urgency (deadline proximity) × importance (goal alignment)
+  5. Re-rank and write updated list to GBrain
+  6. Post ranked list to #tasks
 ```
 
 ### research-synthesis
@@ -187,7 +212,8 @@ Steps:
   1. Receive topic query from Discord #research
   2. Search GBrain for existing knowledge on topic
   3. Run Exa search for current sources
-  4. Use Firecrawl to extract content from top 5 sources
+  4. Use AgentQL to extract structured content from top 5 sources
+     - Fall back to Firecrawl only when AgentQL cannot parse the page
   5. Synthesize: what's known, what's new, gaps, key takeaways
   6. Write structured summary to ~/brain/resources/
   7. Post synthesis to #research
@@ -197,7 +223,7 @@ Steps:
 ```yaml
 name: correction-handler
 version: 1.0.0
-tier: 3
+tier: 2
 outbound: false
 requires_approval: true   # permanent behavioral rules must be reviewed before writing
 description: "Receive behavioral correction from Dhruva, write as permanent GBrain fact"
@@ -212,7 +238,7 @@ Steps:
   2. Classify: behavior change / factual update / preference update
   3. Write to ~/brain/concepts/corrections.md with date + category
   4. Summarize what was corrected and post acknowledgment to #corrections
-  5. Hermes uses Opus to ensure the correction is interpreted accurately
+  5. Hermes uses Sonnet by default and escalates only if the correction is unusually ambiguous
 ```
 
 ### charlie-monitoring (STUB — NOT IMPLEMENTED)

@@ -1,10 +1,10 @@
 # GBrain — Reference Summary
 
-Fetched: 2025-06-01. Source: https://github.com/garrytan/gbrain
+Fetched: 2026-06-04. Source: https://github.com/garrytan/gbrain
 
 ## Version
 
-0.42.1.0 (current stable as of 2025-06-01)
+0.42.25.0 (current stable at fetch time)
 
 ## Runtime Requirements
 
@@ -25,7 +25,7 @@ gbrain upgrade    # auto-update + schema migrations
 | PGLiteEngine | WASM Postgres 17.5, zero-config, free | Default — <1000 files, single machine |
 | PostgresEngine | Postgres + pgvector (Supabase) | >1000 files, multi-device sync |
 
-PGLite stores at `~/.gbrain/brain.db`. Migration: `gbrain migrate --to supabase`.
+PGLite stores at `~/.gbrain/brain.pglite/`. Migration commands and engine names should be checked against the current upstream CLI before use.
 
 ## MCP Exposure
 
@@ -105,7 +105,8 @@ Recommended schema: `docs/GBRAIN_RECOMMENDED_SCHEMA.md` in gbrain repo.
 {
   "engine": "pglite",
   "search_mode": "balanced",
-  "embedding_provider": "zeroentropy",
+  "embedding_provider": "ollama",
+  "embedding_model": "nomic-embed-text",
   "query_expansion": false,
   "brain_path": "~/brain"
 }

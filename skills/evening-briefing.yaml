@@ -1,7 +1,7 @@
 name: evening-briefing
 version: 1.0.0
 tier: 2
-outbound: true
+outbound: false
 requires_approval: false
 description: "Evening recap and next-day prep"
 schedule: "0 21 * * *"

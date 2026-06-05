@@ -15,11 +15,11 @@
 
 ## Environment Variables
 
-Store all secrets in `~/.config/dhruvaos/.env` (chmod 600).
+Store all secrets in `~/.hermes/.env` (chmod 600).
 Never commit this file.
 
 ```bash
-# ~/.config/dhruvaos/.env
+# ~/.hermes/.env
 
 # Required
 OPENAI_API_KEY=sk-proj-...              # platform.openai.com (Tier 1)
@@ -42,9 +42,9 @@ GITHUB_TOKEN=...                       # GitHub (Phase 5)
 ### Loading env vars into shell
 ```bash
 # Safe source (no word-splitting injection risk):
-set -a; source ~/.config/dhruvaos/.env; set +a
+set -a; source ~/.hermes/.env; set +a
 # OR add to ~/.bashrc:
-set -a; source ~/.config/dhruvaos/.env; set +a
+set -a; source ~/.hermes/.env; set +a
 # Do NOT use: export $(grep -v '^#' .env | xargs) — vulnerable to value-splitting
 ```
 
@@ -54,8 +54,8 @@ set -a; source ~/.config/dhruvaos/.env; set +a
 
 ```
 HP Omen 15 gaming laptop (portable — always with Dhruva)
-├── dhruvaos user (non-root)
-│   ├── Hermes Agent (pm2 process)
+├── dhruva user (non-root)
+│   ├── Hermes Agent (systemd user service)
 │   │   └── connects to Discord via bot token
 │   │   └── connects to GBrain via HTTP MCP (localhost:3131)
 │   │   └── calls Ollama via localhost:11434
@@ -63,7 +63,7 @@ HP Omen 15 gaming laptop (portable — always with Dhruva)
 │   │
 │   ├── GBrain MCP server (pm2 process, HTTP mode port 3131)
 │   │   └── serves HTTP MCP to Hermes (localhost:3131/mcp)
-│   │   └── reads/writes ~/.gbrain/brain.db (PGLite)
+│   │   └── reads/writes ~/.gbrain/brain.pglite/ (PGLite)
 │   │   └── reads/writes ~/brain/ (markdown)
 │   │
 │   └── ~/brain/ (markdown knowledge base)
@@ -89,19 +89,13 @@ Full setup from a fresh Ubuntu install. Follow in order.
 ### 1. OS Prerequisites
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y git curl build-essential python3.11 python3.11-venv python3.11-dev \
+sudo apt install -y git curl build-essential python3 python3-venv python3-dev \
   apparmor-utils apparmor-profiles-extra auditd ufw
 ```
 
-### 2. Create dedicated user
+### 2. Confirm current deploy user
 ```bash
-sudo useradd -m -s /bin/bash dhruvaos
-sudo usermod -aG sudo dhruvaos    # temporary — remove after setup completes
-sudo su - dhruvaos
-```
-**After all setup steps complete**, remove sudo (run as admin user):
-```bash
-sudo deluser dhruvaos sudo
+whoami    # expect: dhruva
 ```
 
 ### 3. Python tooling
@@ -145,7 +139,7 @@ hermes --version    # verify
 ```bash
 bun install -g github:garrytan/gbrain
 gbrain upgrade
-gbrain --version    # should be ≥0.42.1.0
+gbrain --version    # should be current 0.42.x
 ```
 
 ### 9. Brain + GBrain init
@@ -153,8 +147,9 @@ gbrain --version    # should be ≥0.42.1.0
 mkdir -p ~/brain/{people,companies,concepts,projects,daily,resources,UCLA,goals,charlie}
 mkdir -p ~/.gbrain
 cat > ~/.gbrain/config.json << 'EOF'
-{"engine":"pglite","search_mode":"balanced","embedding_provider":"zeroentropy","query_expansion":false,"brain_path":"~/brain"}
+{"engine":"pglite","search_mode":"balanced","embedding_provider":"ollama","embedding_model":"nomic-embed-text","query_expansion":false,"brain_path":"~/brain"}
 EOF
+ollama pull nomic-embed-text
 gbrain init                     # initializes PGLite schema
 gbrain apply-migrations --yes   # apply any pending migrations
 gbrain onboard --check --json   # verify all checks green
@@ -169,9 +164,8 @@ mkdir -p ~/.hermes
 
 ### 11. API keys
 ```bash
-mkdir -p ~/.config/dhruvaos
-touch ~/.config/dhruvaos/.env
-chmod 600 ~/.config/dhruvaos/.env
+touch ~/.hermes/.env
+chmod 600 ~/.hermes/.env
 # Edit and fill in all required keys
 ```
 
@@ -227,30 +221,24 @@ hermes gateway run
 
 **SIP note:** Leave SIP ENABLED. SIP only gates Private API (tapbacks, typing indicators) — irrelevant for DhruvaOS text commands.
 
-### 12b. ntfy.sh (push alerts to iPhone — on Omen)
+### 12b. ntfy.sh push alerts — DEFERRED TO PHASE 4
 
+ntfy setup is not a Phase 0 blocker. Discord is sufficient for all Phase 1-3 notifications.
+Do this in Phase 4 when the dream cycle is running and silent failures actually matter.
+
+**When you get there (Phase 4), use ntfy.sh cloud — zero install needed:**
 ```bash
-# ntfy is NOT in Ubuntu's default apt repos; add the official ntfy apt repo first
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://archive.heckel.io/apt/pubkey.txt | sudo tee /etc/apt/keyrings/archive.heckel.io.asc >/dev/null
-echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/archive.heckel.io.asc] https://archive.heckel.io/apt debian main" \
-  | sudo tee /etc/apt/sources.list.d/archive.heckel.io.list
-sudo apt update && sudo apt install ntfy
+# Pick a random topic string (acts as your password):
+# e.g. dhruva-alerts-x7k3q9
 
-# Configure /etc/ntfy/server.yml:
-sudo bash -c 'cat > /etc/ntfy/server.yml << EOF
-base-url: https://notifications.yourdomain.com
-upstream-base-url: https://ntfy.sh    # required for iOS instant push
-listen-http: :2586
-EOF'
+# Test from Omen:
+curl -d "Drew is alive" ntfy.sh/dhruva-alerts-YOURSTRING
 
-sudo systemctl enable ntfy && sudo systemctl start ntfy
-
-# Test:
-curl -d "DhruvaOS test alert" ntfy.sh/dhruva-alerts
+# iPhone: install ntfy app (App Store) → subscribe to that topic
 ```
 
-Install ntfy iPhone app → subscribe to your topic → instant push.
+Self-hosted ntfy (private server on Omen) is optional and can be set up later.
+See Phase 4 in BUILD_PLAN.md for full instructions.
 
 ### 14. Cloudflare Tunnel
 ```bash
@@ -262,7 +250,7 @@ echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-main.gpg] \
   | sudo tee /etc/apt/sources.list.d/cloudflared.list
 sudo apt update && sudo apt install cloudflared
 cloudflared tunnel login
-cloudflared tunnel create dhruvaos
+cloudflared tunnel create dhruva
 sudo cloudflared service install
 sudo systemctl enable cloudflared && sudo systemctl start cloudflared
 ```
@@ -285,17 +273,19 @@ Also prevent automatic sleep/hibernate:
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 ```
 
-### 13c. Automated brain.db backup
+### 13c. Automated brain backup
 
 PGLite is a single file. One power-loss during a dream cycle write = total memory loss.
 Add a post-dream backup cron alongside the dream cycle cron:
 
 ```bash
 crontab -e
-# Add (as dhruvaos):
-0 2 * * * /home/dhruvaos/.bun/bin/gbrain embed --stale
-0 3 * * * /home/dhruvaos/.bun/bin/gbrain dream || curl -d "dream cycle FAILED — check: pm2 logs gbrain-mcp" ntfy.sh/dhruva-alerts
-30 4 * * * cp /home/dhruvaos/.gbrain/brain.db /home/dhruvaos/.gbrain/brain.db.$(date +\%Y\%m\%d) && find /home/dhruvaos/.gbrain/ -name 'brain.db.*' -mtime +7 -delete
+# Add (as dhruva — actual deploy user):
+0 2 * * * /home/dhruva/.bun/bin/gbrain embed --stale
+# ntfy.sh cloud alert — set up NTFY_TOPIC in Phase 4 first (P4.0)
+0 3 * * * /home/dhruva/.bun/bin/gbrain dream || curl -s -d "dream cycle FAILED" ntfy.sh/dhruva-alerts-YOURSTRING
+# Rolling 7-day backup — brain.pglite is a directory, use cp -r
+30 4 * * * cp -r /home/dhruva/.gbrain/brain.pglite /home/dhruva/.gbrain/brain.pglite.$(date +\%Y\%m\%d) && find /home/dhruva/.gbrain/ -maxdepth 1 -name 'brain.pglite.*' -mtime +7 -exec rm -rf {} +
 ```
 
 The 4:30am step: keeps 7 rolling daily backups, deletes older ones. Zero external cost.
@@ -310,18 +300,18 @@ The 4:30am step: keeps 7 rolling daily backups, deletes older ones. Zero externa
 
 ### 15. Start services
 ```bash
-source ~/.config/dhruvaos/.env
+set -a; source ~/.hermes/.env; set +a
 # GBrain runs in HTTP mode — PM2 daemonizes it; Hermes connects on port 3131
-pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131 --host 127.0.0.1" --name gbrain-mcp
-# Hermes uses venv python
-pm2 start "~/.hermes-src/.venv/bin/python ~/.hermes-src/run_agent.py" --name hermes
+pm2 start "/home/dhruva/.bun/bin/gbrain serve --http --port 3131 --host 127.0.0.1" --name gbrain-mcp
+hermes gateway install
 pm2 startup    # follow output command
 pm2 save
 ```
 
 ### 16. Verify
 ```bash
-pm2 list                              # both processes online
+pm2 list                              # gbrain-mcp online
+systemctl --user status hermes-gateway
 gbrain onboard --check --json        # all green
 ollama list                           # phi4-mini present
 # Send "hello" in Discord #briefings → Hermes should respond
@@ -338,8 +328,8 @@ gbrain onboard --check --json
 ```bash
 crontab -e
 # Add:
-# 0 2 * * * /home/dhruvaos/.bun/bin/gbrain embed --stale
-# 0 3 * * * /home/dhruvaos/.bun/bin/gbrain dream
+# 0 2 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale
+# 0 3 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain dream
 ```
 
 ---
@@ -348,16 +338,16 @@ crontab -e
 
 ### Hermes not responding in Discord
 ```bash
-pm2 logs hermes --lines 100    # check for errors
-pm2 restart hermes
-# Common: .env not sourced → add `source ~/.config/dhruvaos/.env` before pm2 start
+journalctl --user -u hermes-gateway -n 100 --no-pager
+systemctl --user restart hermes-gateway
+# Common: env file missing from service override → verify EnvironmentFile=/home/dhruva/.hermes/.env
 ```
 
 ### GBrain MCP connection failed
 ```bash
 pm2 logs gbrain-mcp --lines 50
 gbrain serve    # run manually to see errors
-# Common: bun not in PATH for pm2 → use full path: /home/dhruvaos/.bun/bin/gbrain
+# Common: bun not in PATH for pm2 → use full path: /home/dhruva/.bun/bin/gbrain
 ```
 
 ### phi4-mini not responding (Tier 0)
@@ -406,7 +396,7 @@ gbrain dream --dry-run    # simulate, check for errors
 
 1. **Snapshot brain:**
    ```bash
-   cp ~/.gbrain/brain.db ~/.gbrain/brain.db.bak-$(date +%Y%m%d)
+   cp -r ~/.gbrain/brain.pglite ~/.gbrain/brain.pglite.bak-$(date +%Y%m%d)
    tar -czf ~/brain-backup-$(date +%Y%m%d).tar.gz ~/brain/
    ```
 
@@ -414,8 +404,8 @@ gbrain dream --dry-run    # simulate, check for errors
 
 3. **Transfer files:**
    ```bash
-   scp brain-backup-*.tar.gz dhruvaos@<vps-ip>:~/
-   scp ~/.gbrain/brain.db dhruvaos@<vps-ip>:~/.gbrain/
+   scp brain-backup-*.tar.gz dhruva@<vps-ip>:~/
+   scp -r ~/.gbrain/brain.pglite dhruva@<vps-ip>:~/.gbrain/
    ```
 
 4. **Repeat install steps 1-18 on VPS** (skip Ollama — no GPU)

@@ -20,7 +20,8 @@ Steps:
      - If GBrain returns high-confidence answer with citations → skip web search, summarize brain only
      - If brain has gaps → proceed to web search
   3. Run Exa search for current sources (top 10)
-  4. Use Firecrawl to extract full content from top 5 sources
+  4. Use AgentQL to extract structured content from top 5 sources
+     - Firecrawl only as fallback if AgentQL cannot parse a source cleanly
   5. Synthesize using claude-sonnet-4-6 (Tier 2):
      - What's known (from brain)
      - What's new (from web)

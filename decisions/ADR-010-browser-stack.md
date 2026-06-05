@@ -29,7 +29,7 @@ Three-layer browser stack, each layer matched to cost and complexity:
 ### Lightpanda (local browser)
 - Built in Zig from scratch. Not Chromium-derived. No legacy overhead.
 - 9x faster than Chrome (5s vs 46s per 100 pages), 16x less RAM (123MB vs 2GB).
-- On the Omen (32GB RAM, RTX 2060 already loaded with phi4-mini), Chrome adds ~2GB RAM
+- On the Omen (32GB RAM, GTX 1660 Ti already loaded with phi4-mini), Chrome adds ~2GB RAM
   pressure per browser instance. Lightpanda adds ~123MB. Real constraint on a laptop.
 - **Natively integrated into Hermes Agent (Nous Research)** — no custom tooling needed.
   Set `browser.backend: lightpanda` in config.yaml, point at CDP port 9222.

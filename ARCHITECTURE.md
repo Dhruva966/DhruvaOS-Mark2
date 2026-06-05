@@ -31,7 +31,7 @@
 ║  GBRAIN MCP SERVER            ║   ║  EXTERNAL TOOLS                  ║
 ║  (Bun 1.x, HTTP mode :3131)   ║   ║                                  ║
 ║                              ║   ║  Ollama → phi4-mini (Tier 0)     ║
-║  ┌──────────────────────────┐ ║   ║    RTX 2060, 2.5 GB VRAM        ║
+║  ┌──────────────────────────┐ ║   ║    GTX 1660 Ti, ~2.5 GB VRAM    ║
 ║  │  PGLite                  │ ║   ║                                  ║
 ║  │  pgvector + FTS + RRF    │ ║   ║  OpenAI API → gpt-4o-mini (T1)  ║
 ║  │  HNSW cosine similarity  │ ║   ║    direct OPENAI_API_KEY         ║
@@ -44,7 +44,7 @@
 ║                              ║   ║    DeepSeek V3 post-credits      ║
 ║  ┌──────────────────────────┐ ║   ║                                  ║
 ║  │  Think                   │ ║   ║  Exa (web search)               ║
-║  │  temporal + entity graph ║   ║  AgentQL (structured extraction)║
+║  │  temporal + entity graph ║   ║  AgentQL (structured extraction)  ║
 ║  └──────────────────────────┘ ║   ║  Lightpanda (local browser)     ║
 ║                              ║   ║  Browserbase (cloud browser)    ║
 ║                              ║   ║  Calendar / Email / GitHub MCP   ║
@@ -133,7 +133,7 @@ run daily heavy automation.
 
 | Model | VRAM | Speed | Fit |
 |-------|------|-------|-----|
-| phi4-mini (current) | ~2.4GB GPU | 15–25 tok/s RTX 2060 | Good |
+| phi4-mini (current) | ~2.4GB GPU | 15–25 tok/s GTX 1660 Ti | Good |
 | BitNet b1.58 3B (1-bit) | 0 GPU (CPU) | ~10–20 tok/s CPU | Fallback if VRAM tight |
 
 ### Voice models (Phase 6)
@@ -149,7 +149,7 @@ run daily heavy automation.
 - STT phase: Parakeet ~1.5GB + system ~0.5GB = 2GB used
 - LLM phase: phi4-mini ~2.4GB + system ~0.5GB = 3GB used
 - TTS phase: Piper on CPU = 0 GPU VRAM
-- Peak: ~3GB, well within 6GB RTX 2060 limit
+- Peak: ~3GB, well within 6GB GTX 1660 Ti limit
 
 Switch to 1-bit CPU model if `nvidia-smi` shows phi4-mini causing contention with other GPU workloads. Triage/classification tolerates CPU latency; user never waits on Tier 0 directly.
 
@@ -159,7 +159,7 @@ Switch to 1-bit CPU model if `nvidia-smi` shows phi4-mini causing contention wit
 |----------|------|------------|------|
 | faster-whisper + phi4-mini | ~2GB | Two models, two pipelines | Current Phase 6 plan |
 | Encoder-free model (e.g. Gemma 4 12B local) | 12–16GB | Single model, one pipeline | When GPU ≥12GB |
-| Encoder-free model via API | 0 local | Single API call | If staying on RTX 2060 |
+| Encoder-free model via API | 0 local | Single API call | If staying on GTX 1660 Ti |
 
 **Encoder-free architecture insight (Gemma 4 12B, June 2026):** removes separate audio/vision encoders. Raw 40ms audio frames projected directly into LLM token space. LLM processes multimodal input from start — no encoder queue latency. Architecturally superior to whisper+LLM for Phase 6 if VRAM allows or API cost acceptable.
 
