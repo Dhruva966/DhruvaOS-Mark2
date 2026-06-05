@@ -8,6 +8,9 @@ Your answers become the content of `~/brain/` and fuel the dream cycle.
 
 Of course, like one key information that like my agent should know in its G-Brain Vault, exactly how its own system work, and edxactly how it changes itself when updating and building itself, it should be  documenting key information. So if there's a framework I should create for that, let's do that as well.
 
+
+add to memory all the credits i won from notion developer hackathon, including planetscale: ""https://app.planetscale.com/vutukurydhruva/settings/billing that i migth forget and might be able to use alter on
+
 ## SECTION 1: YOU — Identity & Background
 
 1. Who are you? Give the full picture — not just the résumé version. Where did you grow up, what shaped you, what do you care about at your core?
