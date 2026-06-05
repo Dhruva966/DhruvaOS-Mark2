@@ -2,8 +2,10 @@
 
 ## Overview
 
-DhruvaOS uses Hermes Agent's self-improving skill loop. Skills are YAML files in
-`~/.hermes/skills/` with a frontmatter header followed by an implementation body.
+DhruvaOS uses Hermes Agent's self-improving skill loop. Deployed custom skills are
+`SKILL.md` files in `skills/dhruvaos/<name>/` and are copied to
+`~/.hermes/skills/dhruvaos/<name>/SKILL.md`. Each file has YAML frontmatter followed by
+a markdown implementation body.
 
 Two categories:
 1. **Starting skills** — seeded manually at deploy time; define the initial capability floor
@@ -31,24 +33,27 @@ self-improving loop takes over. Dhruva never needs to manually define every poss
 
 ---
 
-## Skill YAML Format
+## Skill Format
 
 ```yaml
-# ~/.hermes/skills/<name>.yaml
+# ~/.hermes/skills/dhruvaos/<name>/SKILL.md
 name: <skill-name>
 version: 1.0.0
 tier: <0|1|2|3>
 outbound: <true|false>            # true = another human will read this output
-requires_approval: <true|false>   # true = prompt Dhruva before running
+requires_approval: <true|false>   # DhruvaOS convention; enforce in skill body/runtime
 description: "<one sentence>"
-schedule: <null | cron-expression>
+schedule: <null | cron-expression> # documentation only; Hermes cron is configured separately
 gbrain:
   reads: ["<brain-glob>"]         # e.g. ["people/*", "projects/*"]
   writes: ["<brain-glob>"]        # e.g. ["daily/*"]
-tests: tests/<skill-name>/
+tests: tests/
 ---
 # Implementation follows here (plain text steps or structured actions)
 ```
+
+Hermes only requires `name` and `description`. Other fields are DhruvaOS review and safety
+conventions. Tests are repo-local contract tests; Hermes does not provide `--mock-tools`.
 
 ---
 
@@ -212,8 +217,7 @@ Steps:
   1. Receive topic query from Discord #research
   2. Search GBrain for existing knowledge on topic
   3. Run Exa search for current sources
-  4. Use AgentQL to extract structured content from top 5 sources
-     - Fall back to Firecrawl only when AgentQL cannot parse the page
+  4. Use Exa native content extraction for top sources
   5. Synthesize: what's known, what's new, gaps, key takeaways
   6. Write structured summary to ~/brain/resources/
   7. Post synthesis to #research
@@ -298,8 +302,8 @@ Step 2: Execute with existing tools
   - Use browser, search, calendar, shell, etc.
   - Track which tools were used and in what sequence
 
-Step 3: If execution succeeds → write skill YAML
-  ~/.hermes/skills/<task-name>.yaml
+Step 3: If execution succeeds → write skill
+  ~/.hermes/skills/dhruvaos/<task-name>/SKILL.md
   Frontmatter: name, tier, outbound, requires_approval, gbrain.reads/writes
   Body: ordered steps mirroring what just worked
 
@@ -308,8 +312,8 @@ Step 4: Write test
   Must mock all external tool calls
   Must test happy path + one edge case
 
-Step 5: Quality gate (automatic)
-  pytest ~/.hermes/skills/<task-name>/tests/ --mock-tools
+Step 5: Quality gate
+  python3 -m pytest skills/dhruvaos/<task-name>/tests/
   If fails → patch skill, re-run, do not promote until green
 
 Step 6: Trust gate
@@ -340,10 +344,10 @@ authored → staged → quality-gate → trust-gate → trusted → in-use
                                        escalation >30%/week
                                                     │
                                             tier promoted
-                                            (update YAML)
+                                            (update SKILL.md)
 ```
 
-Skill deletion: `rm ~/.hermes/skills/<name>.yaml` + restart Hermes.
+Skill deletion: `rm -rf ~/.hermes/skills/dhruvaos/<name>/` + restart Hermes.
 Log deletion reason in `decisions/` if it was a trusted skill.
 
 ---

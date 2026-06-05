@@ -21,7 +21,7 @@ prerequisites:
 gbrain:
   reads: ["daily/*", "projects/*", "goals/*", "brain/*"]
   writes: ["daily/briefing-{{date}}.md"]
-tests: tests/morning-briefing/
+tests: tests/
 metadata:
   hermes:
     tags: [briefing, calendar, gmail, discord, morning, daily]
@@ -307,7 +307,7 @@ mkdir -p ~/brain/daily/
 
 ## Step 7 — Post to Discord (4 separate messages)
 
-Use the `messaging` tool to post **4 separate messages** to Discord channel `1507031063296217189` (#briefings).
+Use the `messaging` tool to post **4 separate messages** to `DISCORD_BRIEFINGS_CHANNEL_ID` (#briefings).
 Post them in order: Header+Calendar → Inbox → Tasks → Research.
 Do NOT ask for approval — internal auto-post. Do NOT combine into one message.
 
@@ -340,4 +340,4 @@ Never abort early due to a single data source failure. The briefing ships even i
 Skill is complete when:
 1. All 4 sections composed (with at least 1 non-error section)
 2. File written to `~/brain/daily/briefing-{{today_str}}.md`
-3. All 4 Discord messages posted to #briefings (channel `1507031063296217189`)
+3. All 4 Discord messages posted to `DISCORD_BRIEFINGS_CHANNEL_ID` (#briefings)

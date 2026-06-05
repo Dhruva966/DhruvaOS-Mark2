@@ -13,7 +13,7 @@ Hermes should post **4 separate Discord messages** to #briefings in order:
 
 Check logs:
 ```bash
-ssh dhruva@100.119.229.11 "tail -100 ~/.hermes/logs/gateway.log | grep -A5 'morning'"
+ssh dhruva@<TAILSCALE_IP> "tail -100 ~/.hermes/logs/gateway.log | grep -A5 'morning'"
 ```
 
 Common issues and fixes:
@@ -21,33 +21,33 @@ Common issues and fixes:
 ### Issue: Cron job didn't trigger
 Check job status:
 ```bash
-ssh dhruva@100.119.229.11 "PATH=/home/dhruva/.local/bin:$PATH && hermes cron list"
+ssh dhruva@<TAILSCALE_IP> "PATH=/home/dhruva/.local/bin:$PATH && hermes cron list"
 ```
 Expected: `e5c41a6e8f1f [active]` with `Next run: 2026-06-05T08:00:00-07:00`
 
 If `state: paused`: 
 ```bash
-ssh dhruva@100.119.229.11 "PATH=/home/dhruva/.local/bin:$PATH && hermes cron resume e5c41a6e8f1f"
+ssh dhruva@<TAILSCALE_IP> "PATH=/home/dhruva/.local/bin:$PATH && hermes cron resume e5c41a6e8f1f"
 ```
 
 ### Issue: Skill not found
 ```bash
-ssh dhruva@100.119.229.11 "PATH=/home/dhruva/.local/bin:$PATH && hermes skills list | grep morning"
+ssh dhruva@<TAILSCALE_IP> "PATH=/home/dhruva/.local/bin:$PATH && hermes skills list | grep morning"
 ```
-If missing: re-run `scp skills/dhruvaos/morning-briefing/SKILL.md dhruva@10.0.0.31:~/.hermes/skills/dhruvaos/morning-briefing/SKILL.md`
+If missing: re-run `scp skills/dhruvaos/morning-briefing/SKILL.md dhruva@<LAN_IP>:~/.hermes/skills/dhruvaos/morning-briefing/SKILL.md`
 
 ### Issue: Gmail/Calendar auth failed
 The briefing should still post with error sections. Look for "⚠️ Calendar unavailable" or "⚠️ Inbox unavailable" in the briefing.
 
 Test credentials manually:
 ```bash
-ssh dhruva@100.119.229.11 "set -a; source ~/.hermes/.env; set +a; source ~/.hermes/hermes-agent/venv/bin/activate && python3 ~/.hermes/scripts/google_api_helper.py test"
+ssh dhruva@<TAILSCALE_IP> "set -a; source ~/.hermes/.env; set +a; source ~/.hermes/hermes-agent/venv/bin/activate && python3 ~/.hermes/scripts/google_api_helper.py test"
 ```
 Expected: `OK — token valid, expires: 2026-06-05 xx:xx`
 
 ### Issue: Nothing in #briefings at all
-1. Check Hermes is running: `ssh dhruva@100.119.229.11 "systemctl --user status hermes-gateway"`
-2. Check GBrain is running: `ssh dhruva@100.119.229.11 "bash -s" < scripts/health-check.sh`
+1. Check Hermes is running: `ssh dhruva@<TAILSCALE_IP> "systemctl --user status hermes-gateway"`
+2. Check GBrain is running: `ssh dhruva@<TAILSCALE_IP> "bash -s" < scripts/health-check.sh`
 3. Trigger briefing manually: in Discord, send to Drew: `morning briefing`
 
 ## Testing other skills

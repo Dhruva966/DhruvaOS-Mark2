@@ -9,7 +9,7 @@ schedule: null
 gbrain:
   reads: ["people/*"]
   writes: []
-tests: tests/email-triage/
+tests: tests/
 platforms: [linux]
 prerequisites:
   env_vars:
@@ -53,6 +53,10 @@ For every ACTION_REQUIRED email also extract:
 - What action is needed (one sentence, imperative)
 - Deadline if mentioned (or "No deadline stated")
 
+Data minimization: Discord is internal but still hosted by a third party. Do not post full
+email bodies or long snippets. Redact unnecessary personal details and include only the sender
+label, subject, action, and deadline needed for Dhruva to decide what to do.
+
 ## Step 3 — Build the Digest
 
 Construct a Discord message with this structure:
@@ -77,7 +81,7 @@ If there are zero ACTION_REQUIRED items:
 
 ## Step 4 — Post to Discord
 
-Use the `messaging` tool to post the formatted digest to channel ID `1507031086226735236` (DISCORD_TASKS_CHANNEL_ID).
+Use the `messaging` tool to post the formatted digest to `DISCORD_TASKS_CHANNEL_ID` (#tasks).
 No approval needed — this is an internal briefing.
 Keep the message under 1800 characters to stay within Discord's 2000-character limit. If the digest would be longer, truncate the ACTION_REQUIRED list to the top 3 and append '…(full list in Gmail inbox)'
 

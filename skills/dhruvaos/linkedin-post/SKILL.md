@@ -9,7 +9,7 @@ schedule: null
 gbrain:
   reads: ["people/*", "projects/*", "goals/*"]
   writes: []
-tests: tests/linkedin-post/
+tests: tests/
 platforms: [linux]
 prerequisites:
   env_vars:
@@ -53,21 +53,26 @@ Using your reasoning (Sonnet quality), write a LinkedIn post:
 
 ## Step 3 — Post Preview for Approval
 
-Use the `messaging` tool to post to Discord #corrections (channel `1507031153209638953`):
+Use the `messaging` tool to post to `DISCORD_CORRECTIONS_CHANNEL_ID` (#corrections):
 
 ```
 📤 [APPROVAL REQUIRED] linkedin-post
+Approval ID: [opaque id generated for this draft]
 Platform: LinkedIn (Dhruva's personal account)
 Model: claude-sonnet-4-6 (Tier 2)
 Topic: [topic from command]
+Content SHA-256: [hash of exact draft text]
+Expires: [ISO timestamp, 10 minutes from now]
 ---
 [FULL DRAFT TEXT — exactly as it will appear on LinkedIn]
 ---
-React 👍 to post · Reply /deny to discard
+React 👍 to post · Reply /deny [approval-id] to discard
 ```
 
 **HARD STOP:** Do not proceed until 👍 approval received. Wait up to 10 minutes (clarify_timeout).
 If no response in 10 minutes: discard draft and notify Dhruva: "LinkedIn post draft expired — re-run /linkedin to try again."
+Reject approval if the reaction is not from `DISCORD_ALLOWED_USER`, the preview message was
+edited, the content hash no longer matches, or the approval ID is expired/mismatched.
 
 ## Step 4 — Post to LinkedIn (only after approval)
 

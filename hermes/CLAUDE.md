@@ -12,7 +12,7 @@ Purpose: Hermes Agent config overrides, skill seeds, and development patterns fo
 |------|-------|
 | Hermes runtime config | `~/.hermes/config.yaml` (not in repo — secrets) |
 | Canonical routing spec | `MODEL_ROUTING.md` |
-| Starting skills | `skills/*.yaml` (seeded to `~/.hermes/skills/`) |
+| Starting skills | `skills/dhruvaos/<skill>/SKILL.md` (deployed to `~/.hermes/skills/dhruvaos/<skill>/SKILL.md`) |
 | Hermes source | `~/.hermes-src/` (cloned from GitHub) |
 | All live skills | `~/.hermes/skills/` |
 
@@ -108,8 +108,8 @@ run_shell("rm -rf /tmp/output")    # WRONG: shell requires requires_approval: tr
    for internal triage only. If a skill queries Exa, AgentQL, Gmail, Calendar, or any external service,
    tier is minimum 1.
 
-2. **Never write a skill without tests.** The quality gate runs `pytest --mock-tools`.
-   No tests = skill fails quality gate = never promoted. Write the test first.
+2. **Never write a skill without tests.** Hermes does not provide `--mock-tools`, so keep
+   repo-local contract tests under `skills/dhruvaos/<skill>/tests/` and run them with pytest.
 
 3. **Never edit `~/.hermes/config.yaml` while Hermes is running.** Stop Hermes
    (`systemctl --user stop hermes-gateway`), edit, restart (`systemctl --user start hermes-gateway`).
@@ -130,17 +130,21 @@ run_shell("rm -rf /tmp/output")    # WRONG: shell requires requires_approval: tr
 
 ### Add a new skill
 ```bash
-cp skills/<name>.yaml ~/.hermes/skills/<name>.yaml
+mkdir -p ~/.hermes/skills/dhruvaos/<name>
+cp skills/dhruvaos/<name>/SKILL.md ~/.hermes/skills/dhruvaos/<name>/SKILL.md
 # Set frontmatter: tier, outbound, requires_approval, gbrain.reads, gbrain.writes
-pytest ~/.hermes/skills/<name>/tests/ --mock-tools   # must pass
+python3 -m pytest skills/dhruvaos/<name>/tests/      # repo-local contract tests
 systemctl --user restart hermes-gateway
 ```
 
 ### Wire GBrain MCP (first-time setup)
 ```bash
-hermes mcp add gbrain --command gbrain --args serve
+# In ~/.hermes/config.yaml:
+# mcp_servers:
+#   gbrain:
+#     url: "http://localhost:3131/mcp"
 hermes mcp list          # verify gbrain appears
-hermes mcp test gbrain   # verify 88 tools discovered
+hermes mcp test gbrain   # verify tools discovered
 ```
 
 ### Schedule a skill via cron
@@ -183,6 +187,6 @@ tail -f ~/.hermes/logs/gateway.log   # watch escalation events
 
 | Wrong assumption | Correct |
 |-----------------|---------|
-| `hermes mcp test gbrain` before adding | `hermes mcp add gbrain --command gbrain --args serve` first |
+| `hermes mcp test gbrain` before adding | Configure `mcp_servers.gbrain.url: "http://localhost:3131/mcp"` first |
 | Edit `config.yaml` while Hermes running | `systemctl --user stop hermes-gateway` → edit → start |
 | Drew can restart itself | Always restart from terminal — `systemctl --user restart hermes-gateway` |

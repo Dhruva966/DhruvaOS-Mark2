@@ -44,7 +44,7 @@
 ║                              ║   ║    DeepSeek V3 post-credits      ║
 ║  ┌──────────────────────────┐ ║   ║                                  ║
 ║  │  Think                   │ ║   ║  Exa (web search)               ║
-║  │  temporal + entity graph ║   ║  AgentQL (structured extraction)  ║
+║  │  temporal + entity graph ║   ║  Exa contents (active research)   ║
 ║  └──────────────────────────┘ ║   ║  Lightpanda (local browser)     ║
 ║                              ║   ║  Browserbase (cloud browser)    ║
 ║                              ║   ║  Calendar / Email / GitHub MCP   ║
@@ -81,8 +81,8 @@ Task needs web content
         │       └── Lightpanda (local, $0, 9x faster than Chrome, 16x less RAM)
         │
         └── Either browser → page loaded
-                └── AgentQL structured query
-                        └── Returns JSON (200 tokens) → Sonnet
+                └── Extract clean text/structured data
+                        └── Returns compact context → Sonnet
                             NOT raw HTML (30k tokens) → Sonnet
 ```
 
@@ -91,14 +91,15 @@ Task needs web content
 | Layer | Tool | Status | Cost | Use cases |
 |---|---|---|---|---|
 | Local browser | Lightpanda | Beta (stable enough for scraping) | $0 | Research scraping, Charlie monitoring, health checks |
-| Structured extraction | AgentQL | Production | ~$0.02/call | All browser reads — wraps whichever browser ran |
+| Search + article extraction | Exa contents | Active | API usage | Research synthesis and current-source lookups |
+| Structured extraction | AgentQL | Optional future | ~$0.02/call | Complex product pages, dashboards, forms |
 | Cloud browser | Browserbase | Production, YC W24 | $20/mo (Developer) | LinkedIn, Gmail web, auth-walled sites, CAPTCHA |
 
-### Token math — why AgentQL pays for itself
+### Token math — why extraction pays for itself
 
-Without AgentQL: 5 article pages → Sonnet = 5 × 30k tokens × $3/1M = **$0.45 per research run**
-With AgentQL: 5 API calls × $0.02 + 5 × 2k structured tokens × $3/1M = **$0.11 per research run**
-Break-even: >3 research synthesis runs/week. Typical usage: 1-2/day.
+Without extraction: 5 article pages → Sonnet = 5 × 30k tokens × $3/1M = **$0.45 per research run**.
+With extracted content: the model sees compact, relevant context instead of raw HTML. Phase 3 uses
+Exa native contents for this; add a structured extractor only when a skill needs dashboard/form data.
 
 ### Lightpanda — Hermes native support
 
@@ -206,14 +207,14 @@ Uses built-in tools to solve it
 Task succeeds
          │
          ▼
-Hermes writes ~/.hermes/skills/<task-name>.yaml
+Hermes writes ~/.hermes/skills/dhruvaos/<task-name>/SKILL.md
   - frontmatter: tier, outbound, requires_approval, gbrain.reads/writes
   - body: step-by-step implementation
   - tests: ~/.hermes/skills/<task-name>/tests/test_basic.py
          │
          ▼
-Quality gate runs automatically
-  pytest tests/ --mock-tools
+Quality gate runs
+  repo-local contract tests
   → must pass before promotion
          │
          ▼

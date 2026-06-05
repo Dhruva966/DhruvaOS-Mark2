@@ -192,7 +192,7 @@ chmod 600 ~/.hermes/.env
 ```bash
 # GBrain HTTP mode via PM2 (must be HTTP — stdio deadlocks under PM2)
 export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh"
-pm2 start "$HOME/.bun/bin/gbrain serve --http --port 3131" --name gbrain-mcp
+pm2 start "$HOME/.bun/bin/gbrain serve --http --port 3131 --host 127.0.0.1" --name gbrain-mcp
 pm2 startup && pm2 save
 
 # Hermes Gateway via systemd (do NOT use PM2 for Hermes)
@@ -272,8 +272,8 @@ sudo apt update && sudo apt install cloudflared
 cloudflared tunnel login
 cloudflared tunnel create dhruva
 
-# (Optional) expose GBrain HTTP interface externally
-cloudflared tunnel route dns dhruva gbrain.yourdomain.com
+# Do NOT expose GBrain MCP. It has no auth and must stay bound to 127.0.0.1.
+# Cloudflare Tunnel is only for future authenticated HTTP surfaces, never :3131.
 ```
 
 ### Boot persistence

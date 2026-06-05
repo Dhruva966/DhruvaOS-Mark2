@@ -9,7 +9,7 @@ schedule: null
 gbrain:
   reads: ["concepts/*", "resources/*"]
   writes: ["resources/research-[topic-slug]-[date].md"]
-tests: tests/research-synthesis/
+tests: tests/
 platforms: [linux]
 prerequisites:
   env_vars:
@@ -34,8 +34,21 @@ Uses Exa for current sources + content extraction (no AgentQL needed — Exa ret
 Parse everything after `/research` as the topic string.
 If empty: post to #research: "Usage: /research <topic to research>"
 
-Normalize the topic to a slug for filename: lowercase, replace spaces with hyphens.
-Example: "transformer attention mechanisms" → "transformer-attention-mechanisms"
+Normalize the topic to a filesystem-safe slug before writing any file:
+
+```python
+import re
+from pathlib import Path
+
+topic = "<topic from command>"
+slug = re.sub(r"[^a-z0-9]+", "-", topic.lower()).strip("-")[:80] or "research"
+target_dir = Path("~/brain/resources").expanduser().resolve()
+target = (target_dir / f"research-{slug}-YYYY-MM-DD.md").resolve()
+if not str(target).startswith(str(target_dir) + "/"):
+    raise ValueError("Unsafe research output path")
+```
+
+Example: "Transformer attention mechanisms!" → "transformer-attention-mechanisms".
 
 ## Step 1 — Search GBrain First
 
@@ -121,17 +134,18 @@ mkdir -p ~/brain/resources/
 Signal GBrain to index the new research note immediately after file write:
 
 ```bash
-gbrain import ~/brain/resources/research-[slug]-[date].md 2>&1
-gbrain embed --stale 2>&1
+GBRAIN_BIN="$(command -v gbrain || echo /home/dhruva/.bun/bin/gbrain)"
+flock -n /tmp/gbrain-write.lock sh -lc "$GBRAIN_BIN import ~/brain/resources/research-[slug]-[date].md 2>&1 && $GBRAIN_BIN embed --stale 2>&1"
 ```
 
-If gbrain binary not in PATH: try `/home/dhruva/.bun/bin/gbrain` as fallback.
+If the lock is busy, skip immediate ingest and note "GBrain ingest queued for stale embed"
+in the Discord summary. Do not wait on an active dream/import cycle.
 
 Future searches for this topic will now find this synthesis.
 
 ## Step 7 — Post Discord Summary
 
-Use the `messaging` tool to post a condensed summary to channel ID `1507031106350874764` (#research).
+Use the `messaging` tool to post a condensed summary to `DISCORD_RESEARCH_CHANNEL_ID` (#research).
 Keep under 1800 characters. Structure:
 
 ```

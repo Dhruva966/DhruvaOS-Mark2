@@ -9,7 +9,7 @@ schedule: null
 gbrain:
   reads: []
   writes: []
-tests: tests/calendar-read/
+tests: tests/
 platforms: [linux]
 prerequisites:
   env_vars:
@@ -120,6 +120,6 @@ If the entire 7-day window has no events, return: "📅 No events scheduled for 
 
 Return the formatted agenda string as your output.
 If called from another skill (morning-briefing), the caller embeds this in its message.
-If called standalone, post it to Discord #briefings (channel `1507031063296217189`).
+If called standalone, post it to Discord `DISCORD_BRIEFINGS_CHANNEL_ID` (#briefings).
 
 This skill is READ-ONLY. Do not modify any calendar events.

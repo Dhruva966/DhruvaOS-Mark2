@@ -21,6 +21,52 @@ echo "=============================================="
 echo " DhruvaOS Health Check — $(date '+%Y-%m-%d %H:%M %Z')"
 echo "=============================================="
 
+MODE="auto"
+case "${1:-}" in
+    --omen-only) MODE="omen" ;;
+    --local-only) MODE="local" ;;
+    "") ;;
+    *) warn "Unknown option: $1 (expected --omen-only or --local-only)" ;;
+esac
+
+OS_NAME="$(uname -s 2>/dev/null || echo unknown)"
+if [ "$MODE" = "auto" ] && [ "$OS_NAME" = "Darwin" ]; then
+    MODE="local"
+elif [ "$MODE" = "auto" ]; then
+    MODE="omen"
+fi
+
+if [ "$MODE" = "local" ]; then
+    pass "Mode: local repo check ($OS_NAME)"
+    ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || pwd)"
+    if [ -f "$ROOT/CLAUDE.md" ] && [ -f "$ROOT/AGENTS.md" ]; then
+        pass "Repo docs: CLAUDE.md + AGENTS.md present"
+    else
+        fail "Repo docs: missing CLAUDE.md or AGENTS.md"
+    fi
+    if bash -n "$ROOT"/scripts/*.sh 2>/dev/null; then
+        pass "Shell scripts: syntax OK"
+    else
+        fail "Shell scripts: syntax error"
+    fi
+    if [ -x "$ROOT/scripts/check-skill-contracts.py" ] && "$ROOT/scripts/check-skill-contracts.py"; then
+        pass "Skill contracts: clean"
+    else
+        warn "Skill contracts: checker failed or not executable"
+    fi
+    if command -v tailscale >/dev/null 2>&1; then
+        TSIP=$(tailscale ip -4 2>/dev/null | head -1)
+        [ -n "$TSIP" ] && pass "Local Tailscale: connected ($TSIP)" || warn "Local Tailscale: installed but no IP"
+    else
+        warn "Local Tailscale: not installed"
+    fi
+    echo "=============================================="
+    echo " Local check done. Omen service check:"
+    echo "   ssh dhruva@<TAILSCALE_IP> 'bash -s -- --omen-only' < scripts/health-check.sh"
+    echo "=============================================="
+    exit 0
+fi
+
 # Hermes gateway
 if systemctl --user is-active --quiet hermes-gateway 2>/dev/null; then
     pass "Hermes gateway: active"
@@ -36,6 +82,29 @@ elif pm2 list 2>/dev/null | grep -q "gbrain-mcp"; then
     pass "GBrain MCP: running (check pm2 list for exact status)"
 else
     fail "GBrain MCP: NOT FOUND — run: pm2 start gbrain-mcp"
+fi
+
+# GBrain MCP has no auth; port 3131 must never bind to a network interface.
+if command -v ss >/dev/null 2>&1; then
+    GBRAIN_LISTEN=$(ss -ltn 2>/dev/null | awk '$4 ~ /:3131$/ {print $4}' | tr '\n' ' ')
+    if [ -z "$GBRAIN_LISTEN" ]; then
+        warn "GBrain MCP bind: port 3131 not listening"
+    else
+        NON_LOOPBACK=""
+        for ADDR in $GBRAIN_LISTEN; do
+            case "$ADDR" in
+                127.0.0.1:3131|localhost:3131|\[::1\]:3131) ;;
+                *) NON_LOOPBACK="$NON_LOOPBACK $ADDR" ;;
+            esac
+        done
+        if [ -n "$NON_LOOPBACK" ]; then
+            fail "GBrain MCP bind: non-loopback listener detected ($NON_LOOPBACK)"
+        else
+            pass "GBrain MCP bind: loopback only ($GBRAIN_LISTEN)"
+        fi
+    fi
+else
+    warn "GBrain MCP bind: skipped (ss not installed)"
 fi
 
 # Ollama
@@ -63,11 +132,15 @@ else
     warn "Tailscale: not installed"
 fi
 
-# UFW
-if sudo ufw status 2>/dev/null | grep -q "Status: active"; then
-    pass "UFW: active"
+# UFW. Use non-interactive sudo so this health check never hangs in SSH/CI.
+if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    if sudo -n ufw status 2>/dev/null | grep -q "Status: active"; then
+        pass "UFW: active"
+    else
+        warn "UFW: not active"
+    fi
 else
-    warn "UFW: not active"
+    warn "UFW: skipped (sudo unavailable or password required)"
 fi
 
 # auditd
@@ -83,6 +156,20 @@ if [ -d "$HOME/.gbrain/brain.pglite" ]; then
     pass "GBrain DB: exists ($DB_SIZE)"
 else
     fail "GBrain DB: missing — run: gbrain init"
+fi
+
+# Runtime versions
+if command -v hermes >/dev/null 2>&1; then
+    HERMES_VERSION=$(hermes --version 2>/dev/null | head -1)
+    pass "Hermes CLI: ${HERMES_VERSION:-installed}"
+else
+    warn "Hermes CLI: not in PATH"
+fi
+if command -v gbrain >/dev/null 2>&1; then
+    GBRAIN_VERSION=$(gbrain --version 2>/dev/null | head -1)
+    pass "GBrain CLI: ${GBRAIN_VERSION:-installed}"
+else
+    warn "GBrain CLI: not in PATH"
 fi
 
 # .env file
@@ -117,8 +204,10 @@ fi
 # Cron jobs
 MORNING=$(crontab -l 2>/dev/null | grep "morning\|briefing" | wc -l | tr -d ' ')
 DREAM=$(crontab -l 2>/dev/null | grep "gbrain dream" | wc -l | tr -d ' ')
-if [ "$MORNING" -gt 0 ] || [ -f "$HOME/.hermes/cron/jobs.json" ]; then
+if [ -f "$HOME/.hermes/cron/jobs.json" ]; then
     pass "Hermes cron: jobs.json exists"
+elif [ "$MORNING" -gt 0 ]; then
+    pass "Morning briefing cron: present in crontab"
 else
     warn "Morning briefing cron: check ~/.hermes/cron/jobs.json"
 fi
@@ -129,11 +218,36 @@ else
 fi
 
 # Skills count
-SKILL_COUNT=$(ls -d "$HOME/.hermes/skills/dhruvaos/"*/SKILL.md 2>/dev/null | wc -l | tr -d ' ')
-if [ "$SKILL_COUNT" -ge 8 ]; then
+SKILL_COUNT=$(find "$HOME/.hermes/skills/dhruvaos" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')
+if [ "$SKILL_COUNT" -ge 10 ]; then
     pass "DhruvaOS skills: $SKILL_COUNT deployed"
+elif [ "$SKILL_COUNT" -ge 8 ]; then
+    warn "DhruvaOS skills: $SKILL_COUNT deployed (expected 10 — missing github-update/linkedin-post?)"
 else
-    warn "DhruvaOS skills: only $SKILL_COUNT found (expected 8)"
+    warn "DhruvaOS skills: only $SKILL_COUNT found (expected 10)"
+fi
+
+# GBrain onboard health. This can be moderately expensive, so keep the output compact.
+if command -v gbrain >/dev/null 2>&1; then
+    ONBOARD=$(gbrain onboard --check --json 2>/dev/null | head -c 2000 || true)
+    if echo "$ONBOARD" | grep -q '"recommendations"[[:space:]]*:[[:space:]]*\[\]'; then
+        pass "GBrain onboard: no recommendations"
+    elif [ -n "$ONBOARD" ]; then
+        warn "GBrain onboard: recommendations or warnings present"
+    else
+        warn "GBrain onboard: check failed or produced no output"
+    fi
+fi
+
+# GBrain brain file count
+BRAIN_FILES=$(find "$HOME/brain" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+if [ "${BRAIN_FILES:-0}" -gt 0 ]; then
+    pass "Brain markdown files: $BRAIN_FILES"
+    if [ "${BRAIN_FILES:-0}" -lt 20 ]; then
+        warn "  Brain has <20 files — braindump session recommended (see MEMORY.md)"
+    fi
+else
+    warn "Brain files: none found in ~/brain/ — run gbrain import after adding content"
 fi
 
 # Hermes logs — recent errors
@@ -146,5 +260,5 @@ else
 fi
 
 echo "=============================================="
-echo " Done. SSH to omen: ssh dhruva@100.119.229.11"
+echo " Done. SSH target lives in the private ops note: ssh dhruva@<TAILSCALE_IP>"
 echo "=============================================="

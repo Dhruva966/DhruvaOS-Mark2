@@ -16,7 +16,7 @@ openssl rand -hex 8
 ### 2. Test from Omen
 
 ```bash
-ssh dhruva@100.119.229.11 "curl -s -d 'DhruvaOS test notification' ntfy.sh/dhruva-alerts-YOURSTRING"
+ssh dhruva@<TAILSCALE_IP> "curl -s -d 'DhruvaOS test notification' ntfy.sh/dhruva-alerts-YOURSTRING"
 ```
 
 Should appear on iPhone immediately.
@@ -31,9 +31,9 @@ Should appear on iPhone immediately.
 ### 4. Add to Omen .env
 
 ```bash
-ssh dhruva@100.119.229.11 "echo 'NTFY_TOPIC=dhruva-alerts-YOURSTRING' >> ~/.hermes/.env"
+ssh dhruva@<TAILSCALE_IP> "echo 'NTFY_TOPIC=dhruva-alerts-YOURSTRING' >> ~/.hermes/.env"
 # Restart Hermes so it picks up the new env var:
-ssh dhruva@100.119.229.11 "systemctl --user restart hermes-gateway"
+ssh dhruva@<TAILSCALE_IP> "systemctl --user restart hermes-gateway"
 ```
 
 ## Usage patterns

@@ -26,7 +26,7 @@ still meaningfully reduces repeated system/context cost; keep it enabled before 
 | Anthropic | 2 | claude-sonnet-4-6 | $3.00 | $15.00 | **$12–25** |
 | Anthropic | 3 | claude-opus-4-8 | $15.00 | $75.00 | **$3–8** |
 | Exa | — | search | $7/1k queries | — | **$0** (free 1k/mo tier) |
-| AgentQL | — | structured extract | $0.02/call | — | **$0–6** (free 50/mo) |
+| Structured extractor | — | optional future | varies | — | **$0–6** if added |
 | **API total** | | | | | **$15–39/mo** |
 
 ### OpenAI credit burn rate
@@ -47,7 +47,7 @@ Configure a dashboard alert at $50 (Settings → Billing → Usage limits).
 |---|---|---|---|
 | Omen electricity | ~$10–17 | All | 90–150W × 24/7 × $0.16/kWh. Background cost — not tracked. |
 | Browserbase Developer | $20 | Phase 5 only | **DEFER — see note below** |
-| AgentQL overage | $0–6 | Phase 3+ | Free 50 calls/month; only pay if research runs go heavy |
+| Structured extractor overage | $0–6 | Future | Add only if Exa contents is insufficient for structured pages |
 | Cloudflare Tunnel | $0 | All | Free tier |
 | Discord bot | $0 | All | Free |
 | Tailscale | $0 | Phase 6 | Free for personal use |
@@ -97,9 +97,9 @@ Treat actual cache hit rate as workload-dependent; verify it from Anthropic bill
 | **Prompt caching** | **$16–32** | Enable in config.yaml | None |
 | Defer Browserbase | $20 | Don't buy until Phase 5 local Playwright fails | Minor |
 | Correction-handler → Tier 2 | $2–5 | Change `tier: 3` → `tier: 2` in YAML | Marginal quality reduction |
-| Skip Firecrawl entirely | $0–10 | AgentQL is primary; keep Firecrawl only as fallback | None |
+| Skip Firecrawl entirely | $0–10 | Exa contents handles active research-synthesis path | None |
 | Stay on Exa free tier | $7+ | 1k searches/month free — don't upgrade until proven insufficient | None for Phase 1–3 |
-| Stay on AgentQL free tier | $6 | 50 calls/month free — measure actual Phase 3 usage first | None initially |
+| Defer structured extractor | $6 | Add only for dashboards/forms/product pages | None for current Phase 3 |
 
 **Applied together (all levers, no Browserbase):** ~$12–22/month total.
 
@@ -112,7 +112,7 @@ Treat actual cache hit rate as workload-dependent; verify it from Anthropic bill
 | Phase 0 (infrastructure setup) | Nothing new | **$0** |
 | Phase 1 (alive — GBrain + Discord) | Anthropic Tier 2/3 (minimal) | **$5–12** |
 | Phase 2 (inbox — email/calendar) | Regular Tier 2 use | **$12–25** |
-| Phase 3 (menial tasks + research) | AgentQL (likely free tier) | **$12–30** |
+| Phase 3 (menial tasks + research) | Exa searches + native contents | **$12–30** |
 | Phase 4 (self-improving loop) | Slightly more Tier 2 synthesis | **$15–35** |
 | Phase 5 (network — LinkedIn) | Browserbase $20/mo if needed | **$35–55** |
 | Phase 6 (voice — future) | Negligible (local STT/TTS) | **$35–55** |
@@ -146,7 +146,7 @@ These are with prompt caching applied. Without caching: ~$12/mo for same workloa
 | OpenAI Tier 1 | ~$0 (credits) | — |
 | OpenRouter Tier 1 | — | $36–96 |
 | Exa | $0 | $0 |
-| AgentQL | $0–72 | $0–72 |
+| Structured extractor (if added) | $0–72 | $0–72 |
 | Browserbase (if added) | $0–160 | $0–240 |
 | **Annual total (no Browserbase)** | **$180–468** | **$216–564** |
 | **Annual total (with Browserbase)** | **$340–628** | **$456–804** |
@@ -158,11 +158,11 @@ These are with prompt caching applied. Without caching: ~$12/mo for same workloa
 Before first run:
 - [ ] `anthropic.prompt_caching: true` in config.yaml — **do this first, biggest savings**
 - [ ] OpenAI dashboard alert set at $50 threshold
-- [ ] `correction-handler.yaml`: change `tier: 3` → `tier: 2`
-- [ ] If Firecrawl is configured, keep it marked fallback-only in docs and config
+- [x] `correction-handler` is Tier 2 in deployed `SKILL.md`
+- [ ] If Firecrawl is configured anywhere, remove it from active research flow
 - [ ] Browserbase: do not buy until Phase 5 and only if local Playwright fails on LinkedIn
 
 Monthly:
 - [ ] Check https://platform.openai.com/usage — verify credit burn rate
 - [ ] Check Anthropic dashboard for cache hit rate
-- [ ] Check AgentQL dashboard — ensure staying within free 50 calls/month
+- [ ] If a structured extractor is added later, check its dashboard and cap usage

@@ -11,7 +11,7 @@ acting on anything high-stakes.
 
 | Layer | Technology |
 |-------|-----------|
-| Agent runtime | Hermes Agent v1.0.0 (Python 3.12, systemd user service) |
+| Agent runtime | Hermes Agent (verify installed version with `hermes --version`; Python 3.12 host, systemd user service) |
 | Memory | GBrain v0.42.25.0 (Bun 1.3.14, PGLite at ~/.gbrain/brain.pglite/) |
 | Interface | Discord (6 channels) — bot name: drew#4878 |
 | Tier 0 model | phi4-mini via Ollama (local, GTX 1660 Ti 6GB, nomic-embed-text for embeddings) |
@@ -19,7 +19,7 @@ acting on anything high-stakes.
 | Tier 2 model | Claude Sonnet 4.6 (Anthropic — ALL outbound writing) |
 | Tier 3 model | Claude Opus 4.8 (Anthropic — orchestration + high-stakes) |
 | Process management | Hermes: systemd user service. GBrain: PM2. Ollama: systemd system service. |
-| Remote access | Cloudflare Tunnel (dorm CGNAT bypass) |
+| Remote access | Tailscale SSH primary; Cloudflare Tunnel only for future authenticated HTTP surfaces |
 | Host | HP Omen 15 — 32 GB RAM, GTX 1660 Ti 6 GB, Ubuntu 24.04, user: dhruva |
 
 ## Directory Structure
@@ -45,14 +45,8 @@ DhruvaOS Mark 2/
 │   └── CLAUDE.md          # GBrain ingest, search, memory patterns
 ├── skills/
 │   ├── CLAUDE.md          # Skill authoring rules + trust gate
-│   ├── calendar-read.yaml
-│   ├── morning-briefing.yaml
-│   ├── evening-briefing.yaml
-│   ├── email-triage.yaml
-│   ├── task-prioritization.yaml
-│   ├── research-synthesis.yaml
-│   ├── correction-handler.yaml
-│   └── charlie-monitoring.yaml  # STUB
+│   ├── *.yaml                   # legacy/reference stubs only
+│   └── dhruvaos/<skill>/SKILL.md # deployed skill source
 ├── brain/                 # Symlink → ~/brain/ (markdown knowledge base)
 │   └── CLAUDE.md          # Brain content structure + writing conventions
 ├── discord/
@@ -85,9 +79,9 @@ escalates >30% of runs in a week.
 |------|-------|
 | Hermes runtime config | `~/.hermes/config.yaml` |
 | GBrain config | `~/.gbrain/config.json` |
-| Starting skills | `skills/*.yaml` (seeded to `~/.hermes/skills/`) |
+| Starting skills | `skills/dhruvaos/<skill>/SKILL.md` (deployed to `~/.hermes/skills/dhruvaos/<skill>/SKILL.md`) |
 | Brain repo | `~/brain/` |
-| GBrain MCP server | `gbrain serve` (stdio) or `gbrain serve --http --port 3131` |
+| GBrain MCP server | Production: `gbrain serve --http --port 3131 --host 127.0.0.1`; stdio only for ad-hoc local tests |
 | All API keys | `~/.hermes/.env` (chmod 600, never committed) — canonical secrets file |
 | Discord channel map | `discord/channels.md` |
 | Hermes status | `systemctl --user status hermes-gateway` |
@@ -117,7 +111,7 @@ Schema migrations are handled automatically by `gbrain upgrade` + `gbrain apply-
 
 ## Testing Standard
 
-- Skill tests: `pytest ~/.hermes/skills/<skill>/tests/ --mock-tools`
+- Skill contract tests: repo-local `pytest skills/dhruvaos/<skill>/tests/`; Hermes `--mock-tools` is not available
 - Brain health after any import: `gbrain onboard --check --json`
 - Model routing: verify tier escalation in Hermes logs after each skill run
 - Quality firewall: end-to-end test before enabling any outbound skill (verify approval gate fires)
