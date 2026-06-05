@@ -11,6 +11,7 @@ Design:
   - Sources ANTHROPIC_API_KEY from ~/.hermes/.env (required by gbrain extract_facts)
   - Skips gracefully if Ollama is down or 0 facts exist
   - Acquires a non-blocking lock so concurrent runs skip safely
+  - Diagnostic output → stderr; only rewrite/error summaries → stdout
   - Log: ~/.gbrain/stale-fact-rewrites.jsonl
 
 Run: via Hermes cron --no-agent --script at 3:30am (after gbrain dream at 3am).
@@ -105,8 +106,8 @@ def get_entity_page(entity_slug: str, env: dict) -> str:
         )
         if r.returncode == 0:
             return r.stdout[:2000]
-    except Exception:
-        pass
+    except Exception as e:
+        log({"event": "entity_page_error", "entity_slug": entity_slug, "error": str(e)})
     return ""
 
 
@@ -148,6 +149,8 @@ def evaluate_fact(fact: dict, context: str, dry_run: bool) -> tuple[bool, str, s
         if start < 0 or end <= start:
             return False, "", ""
         data = json.loads(response[start:end])
+        if not isinstance(data, dict):
+            return False, "", ""
         if data.get("stale") and data.get("updated_fact"):
             return True, str(data.get("reason", "")), str(data["updated_fact"])
     except json.JSONDecodeError as e:
@@ -162,12 +165,15 @@ def main() -> None:
     dry_run = "--dry-run" in sys.argv
     mode_label = "[DRY-RUN] " if dry_run else ""
 
+    # Ensure lock dir exists before trying to open lock file
+    LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+
     # Acquire exclusive non-blocking lock — skip if another instance is running
     lock_fd = open(LOCK_FILE, "w")
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
-        print("[stale-fact-rewrite] another instance running — skipping", flush=True)
+        print("[stale-fact-rewrite] another instance running — skipping", file=sys.stderr, flush=True)
         return
 
     try:
@@ -179,14 +185,15 @@ def main() -> None:
 
 def _run(dry_run: bool, mode_label: str, _lock_fd) -> None:
     start_ts = datetime.datetime.now()
-    print(f"[stale-fact-rewrite] {mode_label}start {start_ts.isoformat()}", flush=True)
+    print(f"[stale-fact-rewrite] {mode_label}start {start_ts.isoformat()}", file=sys.stderr, flush=True)
 
     env = build_env()
 
     if "ANTHROPIC_API_KEY" not in env or not env["ANTHROPIC_API_KEY"]:
-        print("[stale-fact-rewrite] ERROR: ANTHROPIC_API_KEY not found in ~/.hermes/.env",
-              file=sys.stderr, flush=True)
+        msg = "ERROR: ANTHROPIC_API_KEY not found in ~/.hermes/.env"
+        print(f"[stale-fact-rewrite] {msg}", file=sys.stderr, flush=True)
         log({"event": "run_error", "error": "ANTHROPIC_API_KEY missing"})
+        print(f"⚠️ stale-fact-rewrite: {msg}", flush=True)  # stdout → Discord
         sys.exit(1)
 
     # 1. Get active facts
@@ -194,16 +201,18 @@ def _run(dry_run: bool, mode_label: str, _lock_fd) -> None:
         result = gbrain_call("recall", {"limit": MAX_FACTS}, env)
         facts = result.get("facts", [])
     except Exception as e:
-        print(f"[stale-fact-rewrite] ERROR fetching facts: {e}", file=sys.stderr, flush=True)
+        msg = f"ERROR fetching facts: {e}"
+        print(f"[stale-fact-rewrite] {msg}", file=sys.stderr, flush=True)
         log({"event": "run_error", "error": str(e)})
+        print(f"⚠️ stale-fact-rewrite: {msg}", flush=True)  # stdout → Discord
         sys.exit(1)
 
     n = len(facts)
-    print(f"[stale-fact-rewrite] {n} active fact(s) to check", flush=True)
+    print(f"[stale-fact-rewrite] {n} active fact(s) to check", file=sys.stderr, flush=True)
 
     if n == 0:
         print("[stale-fact-rewrite] no facts yet — run gbrain dream first to extract facts",
-              flush=True)
+              file=sys.stderr, flush=True)
         log({"event": "run_complete", "checked": 0, "rewrites": 0, "errors": 0,
              "duration_s": 0, "dry_run": dry_run})
         return
@@ -212,8 +221,10 @@ def _run(dry_run: bool, mode_label: str, _lock_fd) -> None:
     try:
         ollama_generate("test", model="phi4-mini")
     except (urllib.error.URLError, OSError) as e:
-        print(f"[stale-fact-rewrite] ERROR: Ollama unreachable: {e}", file=sys.stderr, flush=True)
+        msg = f"ERROR: Ollama unreachable: {e}"
+        print(f"[stale-fact-rewrite] {msg}", file=sys.stderr, flush=True)
         log({"event": "run_error", "error": f"Ollama unreachable: {e}"})
+        print(f"⚠️ stale-fact-rewrite: Ollama unreachable — check Ollama service", flush=True)
         sys.exit(1)
 
     # 3. Evaluate each fact
@@ -228,8 +239,8 @@ def _run(dry_run: bool, mode_label: str, _lock_fd) -> None:
                 continue
 
             old_text = fact.get("fact", "")
-            print(f"[stale-fact-rewrite] {mode_label}STALE #{fid}: {old_text[:70]}", flush=True)
-            print(f"  → {updated[:70]}", flush=True)
+            print(f"[stale-fact-rewrite] {mode_label}STALE #{fid}: {old_text[:70]}", file=sys.stderr, flush=True)
+            print(f"  → {updated[:70]}", file=sys.stderr, flush=True)
 
             if not dry_run:
                 # Expire the old fact (non-destructive — sets valid_until=today in DB)
@@ -239,12 +250,27 @@ def _run(dry_run: bool, mode_label: str, _lock_fd) -> None:
                 }, env)
                 time.sleep(INTER_CALL_SLEEP)
 
-                # Insert the updated fact via extraction pipeline
-                # Note: NOT setting is_dream_generated — that skips extraction entirely
-                gbrain_call("extract_facts", {
+                # Insert the updated fact via extraction pipeline.
+                # NOT setting is_dream_generated — that skips extraction entirely.
+                extract_result = gbrain_call("extract_facts", {
                     "turn_text": updated,
                 }, env, timeout=60)
                 time.sleep(INTER_CALL_SLEEP)
+
+                # Verify replacement was actually inserted
+                inserted = extract_result.get("inserted", 0)
+                if inserted == 0:
+                    log({
+                        "event": "rewrite_no_insertion",
+                        "fact_id": fid,
+                        "old_fact": old_text,
+                        "attempted_new_fact": updated,
+                        "reason": reason,
+                        "extract_result": extract_result,
+                    })
+                    errors += 1
+                    print(f"[stale-fact-rewrite] WARNING #{fid}: expired but extract_facts inserted 0 — logged", file=sys.stderr, flush=True)
+                    continue
 
             log({
                 "event": "rewrite",
@@ -259,7 +285,8 @@ def _run(dry_run: bool, mode_label: str, _lock_fd) -> None:
 
         except (urllib.error.URLError, OSError):
             # Ollama died mid-run — abort rather than leaving partial state
-            print("[stale-fact-rewrite] Ollama connection lost — aborting run", flush=True)
+            print("[stale-fact-rewrite] Ollama connection lost — aborting run", file=sys.stderr, flush=True)
+            errors += 1
             break
         except Exception as e:
             print(f"[stale-fact-rewrite] ERROR on #{fid}: {e}", file=sys.stderr, flush=True)
@@ -273,12 +300,15 @@ def _run(dry_run: bool, mode_label: str, _lock_fd) -> None:
     log({"event": "run_complete", "checked": n, "rewrites": rewrites,
          "errors": errors, "duration_s": duration, "dry_run": dry_run})
 
-    # Hermes --no-agent: empty stdout = silent. Only print if something happened.
+    # Hermes --no-agent: stdout delivery to Discord.
+    # Only write to stdout (→ Discord) if something happened.
+    # Diagnostic lines above all go to stderr → invisible to Hermes.
     if rewrites:
         print(f"\n🧠 Stale-fact-rewrite: {rewrites} rewrite(s), {errors} error(s) in {duration}s",
               flush=True)
-    if errors and not rewrites:
+    elif errors:
         print(f"⚠️ stale-fact-rewrite: {errors} error(s) — see {LOG_FILE}", flush=True)
+    # 0 rewrites + 0 errors → nothing printed to stdout → Hermes silent delivery
 
 
 if __name__ == "__main__":

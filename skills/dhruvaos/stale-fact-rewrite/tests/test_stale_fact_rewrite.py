@@ -11,10 +11,9 @@ Run: uvx pytest skills/dhruvaos/stale-fact-rewrite/tests/ -q
 
 import importlib.util
 import json
-import sys
-import textwrap
+import urllib.error
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
@@ -41,15 +40,11 @@ class TestSkillContract:
         assert "stale-fact-rewrite.py" in SKILL_TEXT
 
     def test_silent_on_zero_rewrites(self):
-        # Skill must not post to Discord when nothing changed
         assert "stay silent" in SKILL_TEXT
         assert "Do NOT post" in SKILL_TEXT
 
     def test_no_direct_pglite_access_mentioned(self):
-        # Skill body must not reference the PGLite path as a direct write target
         assert "brain.pglite/" not in SKILL_TEXT.replace("~/.gbrain/brain.pglite/", "")
-        # The note "Never writes directly to ~/.gbrain/brain.pglite/" is allowed
-        # as documentation; what's forbidden is instructing Drew to write there.
 
     def test_uses_gbrain_cli_not_direct_db(self):
         assert "gbrain call" in SKILL_TEXT
@@ -109,7 +104,7 @@ class TestEvaluateFact:
             "updated_fact": "Dhruva attended WeaveHacks on June 6-7, 2026",
         })
         with patch.object(_mod, "ollama_generate", return_value=ollama_resp):
-            is_stale, reason, updated = _mod.evaluate_fact(self._fact(), "", False)
+            is_stale, _, updated = _mod.evaluate_fact(self._fact(), "", False)
         assert is_stale is True
         assert updated == "Dhruva attended WeaveHacks on June 6-7, 2026"
 
@@ -125,22 +120,26 @@ class TestEvaluateFact:
         assert is_stale is False
 
     def test_returns_current_when_stale_but_no_updated_fact(self):
-        # stale=true without updated_fact → treat as current (can't update blindly)
         ollama_resp = json.dumps({"stale": True, "reason": "outdated", "updated_fact": None})
         with patch.object(_mod, "ollama_generate", return_value=ollama_resp):
             is_stale, _, _ = _mod.evaluate_fact(self._fact(), "", False)
         assert is_stale is False
 
     def test_re_raises_ollama_connection_error(self):
-        import urllib.error
         with patch.object(_mod, "ollama_generate",
                           side_effect=urllib.error.URLError("connection refused")):
             try:
                 _mod.evaluate_fact(self._fact(), "", False)
-                # Should re-raise — if we get here, test fails
                 assert False, "expected URLError to propagate"
             except urllib.error.URLError:
-                pass  # correct
+                pass
+
+    def test_returns_current_for_non_dict_json(self):
+        """Ollama returning a JSON array or string must not crash."""
+        for bad_resp in ['[{"stale": true}]', '"stale"', "true"]:
+            with patch.object(_mod, "ollama_generate", return_value=bad_resp):
+                is_stale, _, _ = _mod.evaluate_fact(self._fact(), "", False)
+            assert is_stale is False, f"non-dict JSON {bad_resp!r} should yield current"
 
 
 class TestLogEntry:
@@ -151,23 +150,127 @@ class TestLogEntry:
         line = log_path.read_text().strip()
         data = json.loads(line)
         assert data["event"] == "rewrite"
-        assert "ts" in data  # timestamp auto-added
+        assert "ts" in data
 
 
 class TestRunNoFacts:
     def test_exits_cleanly_with_no_facts(self, tmp_path, capsys):
         log_path = tmp_path / "rewrites.jsonl"
-        lock_path = tmp_path / "lock"
         with (
             patch.object(_mod, "LOG_FILE", log_path),
-            patch.object(_mod, "LOCK_FILE", lock_path),
             patch.object(_mod, "build_env", return_value={"ANTHROPIC_API_KEY": "sk-test"}),
             patch.object(_mod, "gbrain_call", return_value={"facts": []}),
         ):
             _mod._run(dry_run=False, mode_label="", _lock_fd=None)
 
         captured = capsys.readouterr()
-        assert "no facts yet" in captured.out
+        # diagnostics go to stderr; stdout must be empty (Hermes delivers stdout to Discord)
+        assert captured.out == "", "stdout must be empty on zero-rewrite run"
+        assert "no facts yet" in captured.err
         log_data = json.loads(log_path.read_text().strip())
         assert log_data["checked"] == 0
         assert log_data["rewrites"] == 0
+
+    def test_stdout_silent_on_current_facts(self, tmp_path, capsys):
+        """When facts exist but none are stale, stdout must be empty."""
+        log_path = tmp_path / "rewrites.jsonl"
+        with (
+            patch.object(_mod, "LOG_FILE", log_path),
+            patch.object(_mod, "build_env", return_value={"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.object(_mod, "gbrain_call", return_value={"facts": [
+                {"id": 1, "fact": "Dhruva is 22", "kind": "fact", "entity_slug": "dhruva"},
+            ]}),
+            patch.object(_mod, "ollama_generate", return_value='{"stale": false}'),
+            patch.object(_mod, "get_entity_page", return_value=""),
+        ):
+            _mod._run(dry_run=False, mode_label="", _lock_fd=None)
+
+        captured = capsys.readouterr()
+        assert captured.out == "", "stdout must be empty — Hermes would post it to Discord"
+
+
+class TestRunRewriteFlow:
+    def _make_fact(self):
+        return {"id": 42, "fact": "planning to attend WeaveHacks",
+                "kind": "commitment", "entity_slug": "dhruva", "created_at": "2026-05-01"}
+
+    def test_dry_run_skips_gbrain_writes(self, tmp_path):
+        log_path = tmp_path / "rewrites.jsonl"
+        calls = []
+
+        def fake_gbrain_call(tool, args, env, timeout=30):
+            calls.append(tool)
+            return {"facts": [self._make_fact()]} if tool == "recall" else {}
+
+        with (
+            patch.object(_mod, "LOG_FILE", log_path),
+            patch.object(_mod, "build_env", return_value={"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.object(_mod, "gbrain_call", side_effect=fake_gbrain_call),
+            patch.object(_mod, "ollama_generate",
+                         return_value='{"stale": true, "reason": "attended", "updated_fact": "attended WeaveHacks"}'),
+            patch.object(_mod, "get_entity_page", return_value=""),
+        ):
+            _mod._run(dry_run=True, mode_label="[DRY-RUN] ", _lock_fd=None)
+
+        assert "forget_fact" not in calls, "dry-run must not call forget_fact"
+        assert "extract_facts" not in calls, "dry-run must not call extract_facts"
+        lines = [json.loads(l) for l in log_path.read_text().strip().splitlines()]
+        summary = next(l for l in lines if l.get("event") == "run_complete")
+        assert summary["rewrites"] == 1
+        assert summary["dry_run"] is True
+
+    def test_no_insertion_counted_as_error(self, tmp_path):
+        """If extract_facts inserts 0 facts, the run counts it as an error."""
+        log_path = tmp_path / "rewrites.jsonl"
+
+        def fake_gbrain_call(tool, args, env, timeout=30):
+            if tool == "recall":
+                return {"facts": [self._make_fact()]}
+            if tool == "extract_facts":
+                return {"inserted": 0}
+            return {}
+
+        with (
+            patch.object(_mod, "LOG_FILE", log_path),
+            patch.object(_mod, "build_env", return_value={"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.object(_mod, "gbrain_call", side_effect=fake_gbrain_call),
+            patch.object(_mod, "ollama_generate",
+                         return_value='{"stale": true, "reason": "attended", "updated_fact": "attended WeaveHacks"}'),
+            patch.object(_mod, "get_entity_page", return_value=""),
+        ):
+            _mod._run(dry_run=False, mode_label="", _lock_fd=None)
+
+        lines = [json.loads(l) for l in log_path.read_text().strip().splitlines()]
+        warn = next((l for l in lines if l.get("event") == "rewrite_no_insertion"), None)
+        assert warn is not None, "must log rewrite_no_insertion event when extract inserts 0"
+        summary = next(l for l in lines if l.get("event") == "run_complete")
+        assert summary["errors"] == 1
+        assert summary["rewrites"] == 0
+
+    def test_is_dream_generated_not_set(self, tmp_path):
+        """extract_facts call must never include is_dream_generated=true."""
+        log_path = tmp_path / "rewrites.jsonl"
+        extract_args_seen = []
+
+        def fake_gbrain_call(tool, args, env, timeout=30):
+            if tool == "recall":
+                return {"facts": [self._make_fact()]}
+            if tool == "extract_facts":
+                extract_args_seen.append(args)
+                return {"inserted": 1}
+            return {}
+
+        with (
+            patch.object(_mod, "LOG_FILE", log_path),
+            patch.object(_mod, "build_env", return_value={"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.object(_mod, "gbrain_call", side_effect=fake_gbrain_call),
+            patch.object(_mod, "ollama_generate",
+                         return_value='{"stale": true, "reason": "attended", "updated_fact": "attended WeaveHacks"}'),
+            patch.object(_mod, "get_entity_page", return_value=""),
+        ):
+            _mod._run(dry_run=False, mode_label="", _lock_fd=None)
+
+        assert extract_args_seen, "extract_facts should have been called"
+        for args in extract_args_seen:
+            assert args.get("is_dream_generated") is not True, \
+                "is_dream_generated=true skips extraction entirely — must NOT be set"
