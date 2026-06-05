@@ -297,16 +297,21 @@ profile hermes-agent {
 EOF
 sudo apparmor_parser -r /etc/apparmor.d/hermes-agent
 sudo aa-complain /etc/apparmor.d/hermes-agent   # log-only mode — no blocking
+# Profile loads as: dhruvaos-hermes (verify: sudo aa-status | grep hermes)
 
 # Add to ~/.config/systemd/user/hermes-gateway.service under [Service]:
-# AppArmorProfile=hermes-agent
+# AppArmorProfile=dhruvaos-hermes
 # Then: systemctl --user daemon-reload && systemctl --user restart hermes-gateway
 
 # After 2 weeks of clean complain logs, switch to enforce:
-# sudo aa-enforce /etc/apparmor.d/hermes-agent
+# sudo aa-enforce dhruvaos-hermes
 ```
 
 **Done condition:** `sudo ufw status verbose` shows rules active; `sudo ausearch -k hermes-secrets` returns entries; Hermes still running after AppArmor complain mode.
+
+**Cron job IDs (Omen, as of June 2026):**
+- Morning briefing: `e5c41a6e8f1f` (8am PST) — resume if paused: `hermes cron resume e5c41a6e8f1f`
+- **Notion Tasks DB:** `NOTION_TASKS_DB_ID=d5257e87-f58d-4dc4-ae2f-4b969af052e7` (current value = Snoopy AI schema — replace with proper DhruvaOS Tasks DB once created)
 
 ---
 
