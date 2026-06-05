@@ -1,19 +1,42 @@
 # skills/ — Hermes Skill Library
 
-Purpose: Starting skill definitions for DhruvaOS. These are seeded to `~/.hermes/skills/`
-at deploy time and serve as the initial capability floor.
+Purpose: Starting skill definitions for DhruvaOS. Deployed to `~/.hermes/skills/dhruvaos/<name>/SKILL.md`.
 
 → Root context: [../CLAUDE.md](../CLAUDE.md)
 
 ---
 
+## Hermes Skill Format (verified June 2026)
+
+Hermes uses **SKILL.md markdown files** with YAML frontmatter. The old `.yaml` extension stubs
+in `skills/*.yaml` are kept as project-level stubs. Deployed skills go to:
+- `skills/dhruvaos/<name>/SKILL.md` → scp to → `~/.hermes/skills/dhruvaos/<name>/SKILL.md`
+
+**Fields Hermes enforces** (only 2 are required):
+- `name:` (required) — skill identifier
+- `description:` (required) — displayed in hermes skills list
+
+**DhruvaOS documentation conventions** (Hermes IGNORES these — for human reference only):
+- `tier:` — intended model tier (enforce manually via cron `--model` flag or config)
+- `outbound:` — flags skills that send to external services (check during review)
+- `requires_approval:` — implement via `clarify` tool calls in the skill BODY
+- `gbrain.reads/writes:` — parallel safety check; GBrain doesn't enforce this
+- `schedule:` — does NOT belong in skill YAML; set via `hermes cron create`
+- `tests:` — documentation only; `--mock-tools` doesn't exist in Hermes
+
+**Cron setup** (correct method):
+```bash
+hermes cron create "0 8 * * *" "Morning briefing" --skill morning-briefing --deliver discord
+```
+
 ## Key Files
 
 | What | Where |
 |------|-------|
-| Skill templates | `skills/*.yaml` |
-| Live skills (runtime) | `~/.hermes/skills/` |
-| Skill tests | `~/.hermes/skills/<name>/tests/` |
+| Old stubs (reference) | `skills/*.yaml` |
+| Phase 2-3 skills (deployed) | `skills/dhruvaos/*/SKILL.md` |
+| Phase 5 stubs (not active) | `skills/dhruvaos/linkedin-post/`, `skills/dhruvaos/github-update/` |
+| Live skills (runtime) | `~/.hermes/skills/dhruvaos/` |
 | Charlie stub | `skills/charlie-monitoring.yaml` (NOT IMPLEMENTED) |
 
 ---
