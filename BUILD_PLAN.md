@@ -311,7 +311,7 @@ sudo aa-complain /etc/apparmor.d/hermes-agent   # log-only mode — no blocking
 
 **Cron job IDs (Omen, as of June 2026):**
 - Morning briefing: `e5c41a6e8f1f` (8am PST) — resume if paused: `hermes cron resume e5c41a6e8f1f`
-- **Notion Tasks DB:** `NOTION_TASKS_DB_ID=d5257e87-f58d-4dc4-ae2f-4b969af052e7` (current value = Snoopy AI schema — replace with proper DhruvaOS Tasks DB once created)
+- **Notion Tasks DB:** `NOTION_TASKS_DB_ID=0bb697c4-b8c3-4f01-baed-7e86041dc99b` ✅ proper DhruvaOS schema (June 5, 2026)
 
 ---
 
