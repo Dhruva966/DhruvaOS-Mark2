@@ -206,23 +206,15 @@ Do NOT generate a canned insight like "Great work today!" — that is noise, not
 
 ---
 
-## Step 6 — Compose the Evening Recap
+## Step 6 — Compose the Evening Recap (3 Separate Messages)
 
-Using your reasoning, compose a concise recap from all gathered data.
+Using your reasoning, compose 3 separate Discord messages — one per section.
+Each message under 1800 characters. Use Discord markdown: `**bold**`, bullets with `-`.
+If a section has no content, say so explicitly — never skip silently.
 
-**Formatting rules:**
-- Total length: 200–450 words (shorter than morning briefing — end of day, be crisp)
-- Use Discord markdown: `**bold**`, bullets with `-`
-- If a section has no content (e.g. nothing done), say "Nothing logged as completed" — don't skip silently
-- Omit sections that had hard failures (note in footer)
-- Keep the total message under 1800 characters for Discord's 2000-character limit.
-
-**Template structure:**
-
+**Message 1 — Done + Carry Forward**
 ```
-**Evening recap — {{today_display}}**
-
----
+**Evening recap — {{today_display}}** | Drew @ 21:00 PT
 
 ✅ **Done today**
 {{bullet list of DONE tasks — or "Nothing logged as completed today."}}
@@ -230,21 +222,23 @@ Using your reasoning, compose a concise recap from all gathered data.
 🔄 **Carry forward**
 {{bullet list of CARRY_FORWARD tasks — or "Nothing carrying forward."}}
 _({{N}} task(s) dropped or deprioritized.)_
+```
 
----
-
+**Message 2 — Tomorrow's Calendar**
+```
 📅 **Tomorrow — {{tomorrow_display}}**
-{{tomorrow's calendar events — time + title, one per line}}
-_(Or: "No events on calendar." if empty.)_
 
----
+{{tomorrow's calendar events — `HH:MM AM/PM` + title + 📍location if present, one per line}}
+{{if no events: "No events scheduled for tomorrow."}}
+```
 
-💡 **One insight**
-{{the single insight from Step 5 — no bullet, just prose}}
+**Message 3 — Insight + Footer**
+```
+💡 **One insight — {{today_display}}**
 
----
-_{{Any section errors here, e.g. "Calendar unavailable."}}
-Drew | {{today_str}} 21:00 PT_
+{{the single insight from Step 5 — direct, concrete, no fluff}}
+
+_{{Any section errors, e.g. "Calendar unavailable."}} Drew | {{today_str}} 21:00 PT_
 ```
 
 Fill every section. Do not leave template placeholders unfilled.
@@ -297,16 +291,16 @@ higher-priority deliverable.
 
 ---
 
-## Step 8 — Post to Discord
+## Step 8 — Post to Discord (3 Separate Messages)
 
-Use the `messaging` tool to post the composed recap to Discord channel `1507031063296217189` (#briefings).
+Use the `messaging` tool to post **3 separate messages** to Discord channel `1507031063296217189` (#briefings).
+Post in order: Done+Carry → Tomorrow → Insight+Footer.
+Do NOT ask for approval. Do NOT combine into one message.
 
-Post the full recap text from Step 6 verbatim. Do NOT ask for approval. Do NOT truncate.
-
-If the post fails, log via `terminal`:
+If any message fails, log it and continue:
 
 ```bash
-echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] evening-briefing: Discord post failed" \
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] evening-briefing: message [N] failed" \
   >> ~/.hermes/logs/skill-errors.log
 ```
 
