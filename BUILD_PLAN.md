@@ -457,7 +457,7 @@ write is running concurrently on GBrain.
 
 **Goal:** agent handles routine requests. Quality firewall enforced end-to-end.
 
-**Status:** All command skills deployed + tested. github-update fully implemented as quality firewall test skill. P3.3 gate not yet run (needs Dhruva in Discord). 28/28 contract tests passing.
+**Status:** All command skills deployed + tested. github-update fully implemented as quality firewall test skill. P3.3 gate not yet run (needs Dhruva in Discord). 28/28 contract tests passing. XPosterOS integration complete.
 
 ### P3 Tasks
 
@@ -470,7 +470,8 @@ P3.3  [SEQUENTIAL] Quality firewall end-to-end test                ⬜ requires 
 P3.3b github-update skill fully implemented (quality firewall test skill) ✅ deployed June 5
 P3.3c GitHub MCP added to hermes config.yaml                       ✅ June 5
 P3.4  [after P3.3] All 8 starting skills verified working          ⬜ pending P3.3
-P3.5  [after P3.4] ntfy.sh setup for phone push notifications      ⬜ needs NTFY_TOPIC set
+P3.5  [after P3.4] ntfy.sh setup for phone push notifications      ✅ NTFY_TOPIC=dhruva-alerts-14a313f0dbe1 set (iPhone app still needed)
+P3.6  XPosterOS integration                                        ✅ complete June 5 (see HANDOFF.md XPosterOS section)
 ```
 
 ### P3.0 — AgentQL setup (OPTIONAL — Exa replaces for basic research)
@@ -555,8 +556,12 @@ Outbound gate fires 100% of the time.
 ### P4 Tasks
 
 ```
-P4.1  Dream cycle crontab installed                            ✅ 3am daily via system crontab
-P4.2  Knowledge graph built (gbrain extract links)             ⬜ run after brain has >100 pages
+P4.1  Dream cycle crontab installed                            ✅ 3am daily (user crontab, June 5 2026)
+P4.1b Embed cron at 2am                                        ✅ installed June 5 2026
+P4.1c brain.pglite rolling backup cron at 4:30am              ✅ installed June 5 2026
+P4.1d brain/dhruvaos/ self-documentation created + GBrain import ✅ 5 files, 45 pages total embedded
+P4.1e ntfy.sh configured: NTFY_TOPIC in .env, test push works  ✅ June 5 2026 (iPhone app still needed)
+P4.2  Knowledge graph built (gbrain extract links)             ⬜ run after brain has >100 pages (currently 45)
 P4.3  Skill authoring end-to-end test                         ⬜ requires Phase 3 gate pass
 P4.4  Tiered trust gate verified                               ⬜ requires Phase 3 gate pass
 P4.5  Braindump questionnaire completed (see MEMORY.md)        ⬜ Dhruva does this: 30-min session
@@ -595,9 +600,9 @@ if you want privacy or Cloudflare Tunnel is already running for other reasons.
 ```bash
 crontab -e
 # Add (use full paths — cron has no PATH):
-0 2 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale
+0 2 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale 2>&1 | logger -t gbrain-embed
 # Pipe failure to ntfy so silent crashes are visible:
-0 3 * * * flock -n /tmp/gbrain-write.lock sh -lc '/home/dhruva/.bun/bin/gbrain dream || curl -s -d "dream cycle FAILED — check: pm2 logs gbrain-mcp" ntfy.sh/dhruva-alerts-YOURSTRING'
+0 3 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain dream --dir /home/dhruva/brain 2>&1 | logger -t gbrain-dream || curl -s -d 'DhruvaOS: dream cycle FAILED — check journalctl -t gbrain-dream' https://ntfy.sh/dhruva-alerts-14a313f0dbe1
 # Rolling 7-day brain.pglite backup (run after dream cycle completes):
 30 4 * * * cp -r /home/dhruva/.gbrain/brain.pglite /home/dhruva/.gbrain/brain.pglite.$(date +\%Y\%m\%d) && find /home/dhruva/.gbrain/ -maxdepth 1 -name 'brain.pglite.*' -mtime +7 -exec rm -rf {} +
 
