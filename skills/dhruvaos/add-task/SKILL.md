@@ -102,6 +102,18 @@ Then use the `file` tool to:
 
 Do NOT overwrite — other tasks may already be in the inbox. Always read first, then write the full content including existing lines.
 
+## Step 3b — GBrain ingest (immediate searchability)
+
+After writing tasks-inbox.md, signal GBrain to index the new task:
+
+```bash
+gbrain import ~/brain/projects/tasks-inbox.md 2>&1 | head -3
+gbrain embed --stale 2>&1 | head -3
+```
+
+If gbrain not in PATH: use `/home/dhruva/.bun/bin/gbrain` as fallback.
+If ingest fails, continue — task-prioritization will still pick up the file.
+
 ## Step 4 — Post Confirmation to Discord
 
 Use the `messaging` tool to post to channel ID `1507031086226735236` (#tasks):
