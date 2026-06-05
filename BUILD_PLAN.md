@@ -117,11 +117,11 @@ pm2 startup && pm2 save
 
 ---
 
-## Phase 1: Alive ✅ MOSTLY COMPLETE (June 4, 2026)
+## Phase 1: Alive ✅ COMPLETE (June 5, 2026)
 
 **Goal:** Hermes responds in Discord. GBrain MCP connected. Brain has initial content.
 
-**Status:** Core done. P1.7 (skillpack scaffold) and security hardening deferred to do at home on SSH.
+**Status:** ALL tasks complete as of overnight June 4-5 session.
 
 ### P1 Tasks
 
@@ -132,11 +132,11 @@ P1.3  [parallel] Claude Sonnet Tier 2 verified                ✅
 P1.4  [parallel] Claude Opus Tier 3 verified                  ✅
 P1.5  [SEQUENTIAL] GBrain MCP connection verified             ✅ 88 tools discovered
 P1.6  [SEQUENTIAL after P1.5] Obsidian vault imported         ✅ 40 pages, 45 chunks, embedded
-P1.7  [after P1.6] GBrain built-in skills active              ⬜ gbrain skillpack scaffold --all (do at home)
-P1.8  [after P1.7] Morning briefing stub fires at 8am         ✅ cron set, PST timezone configured
+P1.7  [after P1.6] GBrain built-in skills active              ✅ category dirs in ~/.hermes/skills/ (scaffolded in prior session)
+P1.8  [after P1.7] Morning briefing stub fires at 8am         ✅ cron set, deliver=discord, model=claude-sonnet-4-6
 P1.9  Lid-close suspend disabled                              ✅ HandleLidSwitch=ignore, sleep.target masked
-P1.10 Security hardening (AppArmor + UFW + auditd)           ⬜ deferred — do at home on SSH
-P1.11 Cloudflare Tunnel (anywhere SSH)                        ⬜ deferred — cloudflared not installed yet
+P1.10 Security hardening (AppArmor + UFW + auditd)           ✅ UFW active, auditd rules loaded, AppArmor complain mode
+P1.11 Tailscale (anywhere SSH)                                ✅ v1.98.4 installed + authenticated. IP: 100.119.229.11
 ```
 
 P1.1-P1.4 parallel-safe (different providers, no shared state).
@@ -207,22 +207,110 @@ gbrain onboard --check --json    # verify 0 recommendations
 
 ### P1.7 — GBrain built-in skills
 
-GBrain ships 43 bundled skills. Scaffold them to the Hermes agent workspace:
+GBrain ships ~43-50 bundled skills. Scaffold them to the Hermes agent workspace:
 ```bash
 gbrain skillpack scaffold --all
 ```
+
+Skills land in the agent workspace `skills/` dir (i.e., `~/.hermes/skills/`). The command is idempotent — safe to re-run, will not overwrite edited files.
+
+**Done condition:** `~/.hermes/skills/RESOLVER.md` exists.
+
+Key always-on skills scaffolded: `signal-detector`, `brain-ops` (injected every message).
+Other notable skills: `briefing`, `daily-task-manager`, `skill-creator`, `query`, `enrich`, `capture`.
 
 Verify signal-detector is active:
 - Send a message with a named person or project to #briefings
 - Check GBrain: `gbrain search "<person name>"` — should return an entry
 
-**Done condition:** Dhruva sends "hello" in #briefings → Hermes responds using GBrain context.
+**Note:** If upgrading from pre-v0.36.0.0, run `gbrain skillpack migrate-fence` first.
+
+### P1.10 — Security hardening (UFW + auditd + AppArmor)
+
+**Order matters: UFW first (highest ROI), auditd second, AppArmor last in complain mode.**
+
+**Reality check:** `require_approval_always: true` already in Hermes config is the strongest control. OS hardening is defense-in-depth against a rogue skill or supply chain attack.
+
+**UFW (20 min):**
+```bash
+sudo ufw default deny incoming
+sudo ufw default deny outgoing
+sudo ufw default deny forward
+sudo ufw allow in on lo       # loopback — REQUIRED or GBrain/Ollama localhost connections break
+sudo ufw allow out on lo
+sudo ufw allow out 53/udp comment "DNS"
+sudo ufw allow out 53/tcp comment "DNS TCP fallback"
+sudo ufw allow out 123/udp comment "NTP"
+sudo ufw allow out 80/tcp comment "HTTP (apt)"
+sudo ufw allow out 443/tcp comment "HTTPS (APIs, Discord, apt-s)"
+sudo ufw allow out 22/tcp comment "SSH/git"
+sudo ufw enable
+sudo ufw status verbose
+```
+
+**auditd (30 min):**
+```bash
+sudo apt install auditd audispd-plugins
+sudo systemctl enable --now auditd
+
+# Create /etc/audit/rules.d/50-dhruvaos.rules:
+sudo tee /etc/audit/rules.d/50-dhruvaos.rules <<'EOF'
+-w /etc/crontab -p wa -k cron-modify
+-w /var/spool/cron/crontabs/ -p wa -k cron-modify
+-w /home/dhruva/.config/systemd/user/ -p wa -k user-systemd-units
+-w /var/log/wtmp -p wa -k logins
+-w /home/dhruva/.hermes/.env -p rwa -k hermes-secrets
+-a always,exit -F dir=/home/dhruva/.hermes -F perm=w -k hermes-dir-writes
+-w /etc/systemd/system/ -p wa -k systemd-system-units
+-w /etc/sudoers -p wa -k sudoers-modify
+EOF
+sudo augenrules --load
+
+# Query logs:
+sudo ausearch -k hermes-secrets
+sudo ausearch -k cron-modify
+```
+
+**AppArmor (complain mode — no service disruption):**
+```bash
+sudo apt install apparmor-utils
+
+# Create named profile — Hermes Python process:
+sudo tee /etc/apparmor.d/hermes-agent <<'EOF'
+profile hermes-agent {
+    #include <abstractions/base>
+    #include <abstractions/python>
+    #include <abstractions/nameservice>
+    /home/dhruva/.hermes/ r,
+    /home/dhruva/.hermes/** rw,
+    /home/dhruva/.hermes/.venv/bin/python3 ix,
+    /home/dhruva/.hermes/.venv/lib/** r,
+    network tcp,
+    network udp,
+    deny network raw,
+    deny /etc/** w,
+}
+EOF
+sudo apparmor_parser -r /etc/apparmor.d/hermes-agent
+sudo aa-complain /etc/apparmor.d/hermes-agent   # log-only mode — no blocking
+
+# Add to ~/.config/systemd/user/hermes-gateway.service under [Service]:
+# AppArmorProfile=hermes-agent
+# Then: systemctl --user daemon-reload && systemctl --user restart hermes-gateway
+
+# After 2 weeks of clean complain logs, switch to enforce:
+# sudo aa-enforce /etc/apparmor.d/hermes-agent
+```
+
+**Done condition:** `sudo ufw status verbose` shows rules active; `sudo ausearch -k hermes-secrets` returns entries; Hermes still running after AppArmor complain mode.
 
 ---
 
-## Phase 2: Inbox
+## Phase 2: Inbox ⬜ IN PROGRESS (June 5, 2026)
 
 **Goal:** email triage works, calendar read, morning briefing has real content.
+
+**Status:** Skills written + deployed. Keys merged. Cron jobs set. Awaiting: Tailscale auth, Notion DB creation (manual in UI), GBrain dream cron verification.
 
 ### P2 Tasks
 
@@ -235,17 +323,22 @@ P2.5  [after P2.1-P2.4] task-prioritization skill: implement + test
 P2.6  [after P2.5] Morning briefing fires with real email + calendar data
 ```
 
-### P2.0 — Notion database setup (one-time, do before P2.1)
+### P2.0 — Notion database setup (one-time, do before P2.1) — UPDATED June 2026
 
-Create the 4 core databases in Notion. Use Notion AI or the MCP tools to scaffold them:
+**Create the 4 databases manually in the Notion UI.** Programmatic creation via MCP is possible but complex (relation bootstrapping requires specific ordering + two-pass updates). Manual creation takes ~15 minutes and is lower risk.
 
-1. **Tasks** — Name (title), Status (select), Priority (select), Due (date), Project (relation), Source (select)
-2. **Projects** — Name (title), Status (select), Area (select), Tasks (relation+rollup), Notes URL
+1. **Tasks** — Name (title), Status (*status* type — not select), Priority (select), Due (date), Project (relation to Projects DB), Source (select)
+2. **Projects** — Name (title), Status (select), Area (select), Tasks (relation+rollup from Tasks DB), Notes URL
 3. **People** — Name (title), Company (relation), Role (text), Last Contact (date), Brain File URL
 4. **Daily Briefings** — Date (title), Type (select: Morning/Evening), Summary (text), Discord Link (URL)
 
-Store database IDs in `.env`:
+After creating each DB: open it in Notion → "..." menu → "Add connections" → add your integration.
+
+Get integration token: `https://www.notion.so/my-integrations` → New integration → copy token (starts with `ntn_` or `secret_`).
+
+Store in `~/.hermes/.env`:
 ```bash
+NOTION_API_KEY=ntn_xxxx    # your token value
 NOTION_TASKS_DB=<id>
 NOTION_PROJECTS_DB=<id>
 NOTION_PEOPLE_DB=<id>
@@ -261,35 +354,48 @@ mcp_servers:
     command: "npx"
     args: ["-y", "@notionhq/notion-mcp-server"]
     env:
-      NOTION_API_KEY: "${NOTION_API_KEY}"
+      NOTION_TOKEN: "${NOTION_API_KEY}"   # CRITICAL: process env key must be NOTION_TOKEN
 ```
 
-### P2.1 — Email triage implementation detail
+**Notion MCP notes (v2.2.1, June 2026):**
+- Use local npm package, NOT hosted `mcp.notion.com` (hosted requires browser OAuth, incompatible with headless Hermes)
+- All `*database*` tool names renamed to `*data-source*` in v2.0.0 (e.g., `create-a-data-source`)
+- Two unpatched CVEs in local npm server — mitigated by running as non-root dhruva user
+- `query-data-source` returns max 100 rows; handle `has_more: true` + `start_cursor` pagination
 
-**Gmail has no pre-built Hermes MCP.** Use Google API OAuth directly in the skill.
+### P2.1 — Email triage implementation detail — UPDATED June 2026
 
-Required setup before implementing the skill:
-1. Create a Google Cloud project at https://console.cloud.google.com
-2. Enable Gmail API
-3. Create OAuth 2.0 credentials (Desktop app type)
-4. Download `credentials.json` → store at `~/.config/gmail-credentials.json` (chmod 600)
-5. Add to `.env`: `GOOGLE_CLIENT_ID=...`, `GOOGLE_CLIENT_SECRET=...`
-6. First run does OAuth flow (open browser, grant access, token saved)
+**One-time OAuth setup (do on Mac, then copy token to Omen):**
 
-Alternatively: use a Hermes email/calendar tool if the upstream runtime ships one that fits the OAuth flow cleanly.
+Service accounts do NOT work with personal @gmail.com. Desktop app OAuth2 is correct.
+OOB (out-of-band) flow was killed in January 2023 — do not use redirect URI `urn:ietf:wg:oauth:2.0:oob`.
 
-Skill implementation uses:
+Setup steps:
+1. Create Google Cloud project → enable Gmail API + Google Calendar API
+2. Create OAuth 2.0 credentials (Desktop app type) → download `credentials.json`
+3. **CRITICAL: Publish OAuth app to "In production"** (not "Testing") — Testing mode makes refresh tokens expire after 7 days. For personal use: publish without verification (just fill placeholder privacy policy URL).
+4. Run the Mac-side auth script (see `scripts/gmail-oauth-setup.py` — created in Phase 2 prep)
+5. `scp ~/.hermes/token.json dhruva@omen:~/.hermes/token.json`
+
+From then on: Python library refreshes the token automatically using the refresh token. Refresh token is permanent as long as the app is "In production" and used regularly.
+
+**Combined scopes (Gmail + Calendar in ONE token):**
 ```python
-# In skill body — calls Google API directly
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-# Credentials managed by Hermes tool execution context
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.modify",    # read + mark as read; no send/delete
+    "https://www.googleapis.com/auth/calendar.readonly",
+]
 ```
 
-### P2.2 — Calendar skill
+Install on Omen (in Hermes venv):
+```bash
+source ~/.hermes/.venv/bin/activate
+pip install google-api-python-client google-auth-oauthlib google-auth-httplib2
+```
 
-Google Calendar API — same OAuth flow as Gmail (same Google Cloud project).
-Add `calendar.readonly` scope to the OAuth credentials from P2.1.
+### P2.2 — Calendar skill — UPDATED June 2026
+
+Google Calendar API uses the SAME `token.json` as Gmail (same OAuth credentials, combined scopes in P2.1). No separate OAuth flow needed.
 
 ```python
 # Calendar API call in skill
@@ -297,9 +403,29 @@ service = build('calendar', 'v3', credentials=creds)
 events = service.events().list(calendarId='primary', timeMin=now, maxResults=10).execute()
 ```
 
+### Hermes skill format clarification (June 2026 research)
+
+**Hermes uses SKILL.md markdown files**, not `.yaml` files. The DhruvaOS project stores stubs as `skills/*.yaml` with YAML frontmatter + markdown body (essentially the same format). When deploying to Hermes, copy to `~/.hermes/skills/<name>.md`.
+
+**Fields that Hermes IGNORES (DhruvaOS documentation conventions only):**
+- `tier:` — Hermes does NOT route by this. Set model via `hermes cron create --model` or `config.yaml`.
+- `outbound:` — behavioral contract only; Hermes has global `approvals.mode` in config.yaml
+- `requires_approval:` — implement via `clarify` tool calls in the skill body
+- `gbrain.reads/writes:` — documentation only; GBrain scoping happens through actual `gbrain search` queries in the body
+- `schedule:` — **not a skill field**; cron is separate (see below)
+
+**Cron setup (correct way):**
+```bash
+# Create scheduled job — separate from skill YAML:
+hermes cron create "0 8 * * *" "Run morning briefing" --skill morning-briefing --deliver discord --model anthropic/claude-sonnet-4-6
+hermes cron create "0 21 * * *" "Run evening briefing" --skill evening-briefing --deliver discord --model anthropic/claude-sonnet-4-6
+```
+
+**Skill-to-skill chaining:** Use Skill Bundles (`~/.hermes/skill-bundles/<slug>.yaml`) or write the skill body to instruct the agent to sequentially run sub-skills.
+
 ### Parallel worktree safety for P2
 
-P2.1-P2.4 each work on different skill YAML files — parallel-safe.
+P2.1-P2.4 each work on different skill files — parallel-safe.
 P2.5 (task-prioritization) writes `~/brain/projects/tasks.md` — ensure no other skill
 write is running concurrently on GBrain.
 
@@ -736,23 +862,28 @@ phi4-mini uses ~2.4GB VRAM on GTX 1660 Ti (6GB total). If GPU contention appears
 For SSH into Omen from anywhere (coffee shop, class, travel):
 
 ```bash
-# Install Tailscale on Omen (run as dhruva or admin)
+# Install Tailscale on Omen (verified June 2026):
 curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up
-# Get stable hostname:
-tailscale status | grep omen
+sudo tailscale up   # prints auth URL — open in browser, authenticate with Google/GitHub
+
+# Enable Tailscale SSH (eliminates authorized_keys management):
+sudo tailscale set --ssh
+
+# Verify:
+tailscale status    # shows online + tailnet IP (100.x.x.x)
 ```
 
-Then from any device (phone, laptop, another machine):
+Then from any device (phone, laptop, coffee shop):
 ```bash
-ssh dhruva@<omen-hostname>.ts.net
+ssh dhruva@omen                      # MagicDNS short name (if enabled on tailnet)
+ssh dhruva@<100.x.x.x>              # Tailscale IP always works
 ```
 
-Tailscale punches through university CGNAT the same way Cloudflare Tunnel does — no open inbound ports needed. This replaces the Cloudflare Tunnel for SSH use cases.
+**Free tier (April 2026 update):** unlimited devices, up to 6 users — fully uncapped for solo use.
 
-**Why not pi-remote-bridge (or similar jump-host setups):** those are for machines you can't directly install Tailscale on. You can install directly on the Omen — a Pi jump host adds hardware complexity for no benefit here.
+**CGNAT handling:** Tailscale uses STUN/ICE for direct peer-to-peer when possible, DERP relay fallback when both peers are behind symmetric NAT (common on university networks). Works automatically, no configuration needed.
 
-**Cloudflare Tunnel stays** for HTTP services (GBrain external access if ever needed, ntfy, etc.). Tailscale is for SSH. Both coexist fine.
+**Cloudflare Tunnel** is better for exposing HTTP services publicly (web dashboard, ntfy, etc.). Add only if needed — no urgency. Both coexist fine if installed later.
 
 ---
 
