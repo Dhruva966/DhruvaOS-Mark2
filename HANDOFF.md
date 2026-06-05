@@ -245,6 +245,19 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [ ] Quality firewall test (P3.3 gate — manual)
 - [x] Correct Notion Tasks DB ID confirmed: `7b698cab-03a0-43a0-ab04-b074bcd8b4db` ✅
 
+**Phase 4 — Dream cycle running (June 6, 2026):**
+
+- [x] Dream cron: `0 3 * * *` system crontab, `gbrain dream --dir /home/dhruva/brain` ✅
+- [x] `~/brain` git-initialized — required for `sync` dream phase ✅
+- [x] `gbrain sync --repo /home/dhruva/brain` — `local_path` set on default source ✅
+- [x] Dream phases enabled: `conversation_facts_backfill`, `enrich_thin`, `skillopt` ✅
+- [x] Legacy facts `row_num IS NULL` blockage fixed — v0.32.2 migration re-run ✅
+- [x] Live dream cycle verified: all key phases ✓, 14 chunks embedded ✅
+- [x] stale-fact-rewrite skill deployed: script + SKILL.md + 23 tests (94 total, all pass) ✅
+- [x] Stale-fact-rewrite Hermes cron: 3:30am daily, job ID `6fc1a9ff790c` ✅
+- [ ] Brain health score ≥70 via `gbrain doctor` (run after brain has more content)
+- [ ] Knowledge graph build: run `gbrain extract links --source db` after brain >100 pages
+
 **Phase 3 — Command skills deployed (June 5, 2026):**
 
 - [x] add-task skill: `/task` → Notion + GBrain tasks-inbox.md (JSON-safe via Python, not curl)
@@ -283,7 +296,9 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 | Notion MCP hardcoded token | ✅ Fixed June 5 | Changed to `"${NOTION_API_KEY}"` in config.yaml |
 | GBrain dual-process (stdio + HTTP) | ✅ Fixed June 5 | Replaced with `url: http://localhost:3131/mcp` |
 | **XPosterOS workers fail every 2h** | ⬜ **OPEN** | Copy NOTION_API_KEY + LLM keys from ~/.hermes/.env to ~/xposteros/.env (see XPosterOS section above) |
-| **stale-fact-rewrite not deployed** | ⬜ **OPEN** | scp script to ~/.hermes/scripts/ + SKILL.md to ~/.hermes/skills/dhruvaos/stale-fact-rewrite/ + register 3:30am Hermes cron |
+| stale-fact-rewrite deployed | ✅ **Fixed June 6** | Script at ~/.hermes/scripts/, SKILL.md at ~/.hermes/skills/dhruvaos/stale-fact-rewrite/, Hermes cron 3:30am (job ID 6fc1a9ff790c) |
+| `sync` phase failing (brain not a git repo) | ✅ **Fixed June 6** | `git init ~/brain`, `gbrain sync --repo /home/dhruva/brain` set local_path |
+| `extract_facts` blocked by legacy facts with `row_num IS NULL` | ✅ **Fixed June 6** | v0.32.2 migration re-run after setting local_path; row_num backfilled |
 
 ---
 

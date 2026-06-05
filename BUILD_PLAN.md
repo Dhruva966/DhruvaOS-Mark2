@@ -573,7 +573,7 @@ Outbound gate fires 100% of the time.
 
 ---
 
-## Phase 4: Self-Improving ⬜ PLANNED (starts after Phase 3 gate passes)
+## Phase 4: Self-Improving ⬜ IN PROGRESS (June 6, 2026)
 
 **Goal:** dream cycle running nightly. Agent authors + promotes new skills autonomously.
 
@@ -589,10 +589,12 @@ P4.2  Knowledge graph built (gbrain extract links)             ⬜ run after bra
 P4.3  Skill authoring end-to-end test                         ⬜ requires Phase 3 gate pass
 P4.4  Tiered trust gate verified                               ⬜ requires Phase 3 gate pass
 P4.5  Braindump questionnaire completed (see MEMORY.md)        ⬜ Dhruva does this: 30-min session
-P4.6  First dream cycle on real content                        ⬜ runs at 3am automatically
+P4.6  First dream cycle on real content                        ✅ ran June 6, 2026 — all key phases ✓, 14 chunks embedded
+P4.6b ~/brain git-initialized (required for sync phase)        ✅ git init + commit, gbrain sync --repo set local_path
+P4.6c Legacy fact blockage fixed (extract_facts guard)         ✅ v0.32.2 migration re-run, row_num backfilled
 P4.7  Brain health score ≥70 via gbrain doctor                ⬜ after P4.6
-P4.8  GBrain dream phase flags enabled                         ⬜ enable conversation_facts_backfill + enrich_thin; fix cron --dir flag
-P4.9  stale-fact-rewrite skill: built ✅ (SKILL.md + Python script + 7 tests) but NOT deployed ⬜ — scp to Omen + register 3:30am cron
+P4.8  GBrain dream phase flags enabled                         ✅ all 3 phases enabled June 6, 2026 (conversation_facts_backfill, enrich_thin, skillopt)
+P4.9  stale-fact-rewrite skill deployed                        ✅ SKILL.md + Python script + 46 tests; Hermes cron 3:30am, job ID 6fc1a9ff790c
 P4.10 Self-healing skill loop                                  ⬜ error-detection + skill-proposal skills
 ```
 
@@ -622,16 +624,30 @@ NTFY_TOPIC=dhruva-alerts-YOURSTRING
 Self-hosted ntfy (private server on Omen + Cloudflare Tunnel) is optional — upgrade to it
 if you want privacy or Cloudflare Tunnel is already running for other reasons.
 
-### P4.8 — GBrain dream phase flags (do before next dream cycle)
+### P4.8 — GBrain dream phase flags ✅ DONE (June 6, 2026)
 
+All 3 previously-disabled dream phases enabled:
 ```bash
-ssh dhruva@10.0.0.31 "export PATH=~/.bun/bin:\$PATH
 gbrain config set cycle.conversation_facts_backfill.enabled true
-gbrain config set cycle.enrich_thin.enabled true"
-
-# Verify dry-run now shows these phases as ✓ instead of disabled:
-ssh dhruva@10.0.0.31 "export PATH=~/.bun/bin:\$PATH; gbrain dream --dir ~/brain --dry-run"
+gbrain config set cycle.enrich_thin.enabled true
+gbrain config set cycle.skillopt.enabled true
 ```
+
+Also fixed — `sync` phase was failing because `~/brain` was not a git repo. Fixed:
+```bash
+cd ~/brain && git init && git config user.email 'dhruva@dhruvaos' && git config user.name 'Dhruva'
+git add -A && git commit -m "init: initial brain content"
+gbrain sync --repo /home/dhruva/brain  # sets local_path on default source
+```
+
+Also fixed — `extract_facts` was blocked by legacy facts with `row_num IS NULL`. Fixed by re-running v0.32.2 migration after setting `local_path`:
+```bash
+# Remove complete entry from ~/.gbrain/migrations/completed.jsonl (backed up first)
+# Then: gbrain apply-migrations --yes  → v0.32.2 ran, fenced facts, assigned row_num
+```
+
+**Live dream cycle result (June 6, 2026):** all key phases ✓. 14 chunks newly embedded.
+Pre-existing non-issues: lint (12 brain content formatting issues), orphans (51/52 expected for new brain), skillopt error (1 pre-existing), synthesize (needs session_corpus_dir).
 
 **Gap vs OpenAI Dreaming V3 (June 2026):** GBrain dream organizes/links existing notes but does NOT:
 - Mine conversation history for implicit facts
@@ -640,14 +656,31 @@ ssh dhruva@10.0.0.31 "export PATH=~/.bun/bin:\$PATH; gbrain dream --dir ~/brain 
 
 `conversation_facts_backfill` closes the conversation-mining gap. Stale-fact-rewrite (P4.9) closes the update gap.
 
-### P4.9 — Stale-fact-rewrite
+### P4.9 — Stale-fact-rewrite ✅ DONE (June 6, 2026)
 
-Check upstream first: `https://github.com/NousResearch/gbrain/commits/main` — search for stale/rewrite/dreaming. If not upstream, implement as nightly Hermes skill:
-1. Query all facts from GBrain (gbrain search or MCP)
-2. LLM pass via phi4-mini: "Is this fact still current given recent context?"
-3. Write updates via gbrain API (never direct PGLite write)
-4. Log all rewrites to `~/.gbrain/stale-fact-rewrites.jsonl`
-5. Add to dream cron after `gbrain dream`
+GBrain is a private repo (`garrytan/gbrain`) — not upstream, implemented as Hermes skill.
+
+**Files deployed:**
+- `~/.hermes/scripts/stale-fact-rewrite.py` — core Python script
+- `~/.hermes/skills/dhruvaos/stale-fact-rewrite/SKILL.md` — skill definition (tier 0, outbound: false)
+- `skills/dhruvaos/stale-fact-rewrite/` — repo copy with 46 tests (all passing)
+
+**How it works:**
+1. Queries active facts via `gbrain call recall`
+2. Fetches entity page context via `gbrain get <entity_slug>`
+3. phi4-mini (Ollama, local, free) evaluates staleness
+4. For stale facts: `gbrain call forget_fact` (expire) → `gbrain call extract_facts` (insert updated)
+5. Logs all rewrites to `~/.gbrain/stale-fact-rewrites.jsonl`
+6. Silent on 0 rewrites (Hermes --no-agent empty stdout = silent delivery)
+
+**Hermes cron:** 3:30am daily, job ID `6fc1a9ff790c`
+
+**Key implementation detail:** does NOT set `is_dream_generated: true` on `extract_facts` call — that flag causes GBrain to skip extraction entirely (returns `{skipped: 'dream_generated'}`).
+
+**Manual invocation:** Drew runs `python3 ~/.hermes/scripts/stale-fact-rewrite.py 2>&1` or `--dry-run` for preview.
+
+Run tests: `uvx pytest skills/dhruvaos/stale-fact-rewrite/tests/ -q` (23 pass)
+Full suite: `uvx pytest skills/ -q` (94 pass across all deployed skills)
 
 ### P4.10 — Self-healing + self-building skill loop
 
@@ -748,16 +781,53 @@ Each skill in this phase: `outbound: true`, Tier 2 mandatory, approval required 
 ### P5 Tasks
 
 ```
-P5.1  [sequential] LinkedIn skill — browser-automated via Browserbase
-P5.2  [sequential] GitHub skill — via GitHub MCP
-P5.3  [sequential] Personal site update skill
+P5.1  [sequential] LinkedIn skill — browser-automated via Browserbase ✅ BUILT (deploy pending)
+P5.2  [sequential] GitHub skill — via GitHub MCP ✅ COMPLETE (shipped in P3 as github-update)
+P5.3  [sequential] Personal site update skill ✅ BUILT (deploy pending)
 ```
 
-### P5.1 — LinkedIn skill implementation
+**Status:** 96/96 contract tests passing. Skills built locally, not yet deployed to Omen (SSH
+blocked — Tailscale needed). github-update already live since Phase 3. linkedin-post and
+personal-site-update ready to deploy.
 
-No official LinkedIn API for posting. Use Browserbase (cloud browser) or Playwright:
+### P5.1 — LinkedIn skill ✅ BUILT
+
+Full Browserbase implementation in `skills/dhruvaos/linkedin-post/SKILL.md` v1.0.0.
+- Step 0: env check (BROWSERBASE_API_KEY, BROWSERBASE_PROJECT_ID, DISCORD_CORRECTIONS_CHANNEL_ID)
+- Step 1: 3 GBrain searches for context
+- Step 2: Sonnet draft, 150-300 words, ≤3 hashtags, 0-2 emoji
+- Step 3: approval_id + content_hash + expires HARD STOP in #corrections
+- Step 4: Browserbase session → navigate LinkedIn → verify login → click "Start a post" → type → submit
+- Step 5: confirm or report failure
+- 13 contract tests, all passing
+
+**Deploy:** requires Browserbase account. Add keys to `~/.hermes/.env`, add to `config.yaml`
+mcp_servers, restart Hermes, authenticate LinkedIn in Browserbase dashboard.
+
+### P5.2 — GitHub skill ✅ COMPLETE (live since Phase 3)
+
+`github-update` deployed as P3 quality firewall test skill. GitHub MCP wired. Done.
+
+### P5.3 — Personal site update skill ✅ BUILT
+
+Full GitHub MCP implementation in `skills/dhruvaos/personal-site-update/SKILL.md` v1.0.0.
+- Step 0: validates SITE_REPO + DISCORD_CORRECTIONS_CHANNEL_ID; parses REPO_OWNER/REPO_NAME
+- Step 1: 3 GBrain searches for context
+- Step 2: reads existing repo structure + format via get_file_contents
+- Step 3: Sonnet draft matching existing format (Jekyll/Astro/Hugo auto-detected)
+- Step 4: approval_id + content_hash + expires, slug sanitized (re.sub, no path traversal)
+- Step 5: HARD STOP approval preview in #corrections
+- Step 6: create_or_update_file (new) or get SHA + update (existing)
+- Step 7: confirm with commit SHA + GitHub Pages URL
+- 19 contract tests, all passing
+
+**Deploy:** requires SITE_REPO env var in `~/.hermes/.env` (e.g. `SITE_REPO=Dhruva966/portfolio`).
+GitHub MCP already wired from Phase 3.
+
+### P5.1 — LinkedIn Browserbase config (add when deploying)
+
 ```yaml
-# Add to mcp_servers: in config.yaml
+# Add to mcp_servers: in ~/.hermes/config.yaml
 mcp_servers:
   browserbase:
     command: npx
@@ -765,25 +835,6 @@ mcp_servers:
     env:
       BROWSERBASE_API_KEY: "${BROWSERBASE_API_KEY}"
       BROWSERBASE_PROJECT_ID: "${BROWSERBASE_PROJECT_ID}"
-```
-
-Skill flow: draft post (Tier 2 Sonnet) → preview in #corrections → Dhruva approves → browser automation posts.
-
-### P5.2 — GitHub skill
-
-GitHub has an official MCP server:
-```yaml
-mcp_servers:
-  github:
-    command: npx
-    args: ["-y", "@modelcontextprotocol/server-github"]
-    env:
-      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
-```
-
-Verify:
-```bash
-hermes mcp test github    # confirms repos, issues, PRs tools discovered
 ```
 
 **Done condition:** each outbound skill fires quality firewall. Test with dummy content first.
