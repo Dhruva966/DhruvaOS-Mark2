@@ -131,6 +131,19 @@ Every non-trivial task:
 Parallel dispatch: independent tasks only (different skill files, no shared GBrain DB writes).
 Sequential: GBrain DB operations, Hermes config.yaml changes, process restarts.
 
+## Claude Code Skills
+
+Active skills live in `~/.claude/skills/` and appear in the system reminder automatically.
+Inactive skills (pruned for context efficiency) live in `~/.claude/inactive_skills/`.
+
+**If a requested skill isn't in the active list:** check inactive before saying it doesn't exist:
+```bash
+ls ~/.claude/inactive_skills/ | grep <name>
+# if found:
+mv ~/.claude/inactive_skills/<name> ~/.claude/skills/
+```
+Restore takes effect immediately. Re-inactive after use if it was a one-off.
+
 ## Subsystem Docs
 
 For task-specific patterns, see the module docs — loaded lazily per task:
