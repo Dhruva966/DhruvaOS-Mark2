@@ -7,9 +7,9 @@
 | Local (primary) | HP Omen 15 gaming laptop, Ubuntu | Current |
 | VPS (future) | DigitalOcean/Fly.io | Migration-ready, not yet |
 
-> **Note:** The HP Omen 15 is a portable gaming laptop — it is always with Dhruva, not a
-> stationary home server. Cloudflare Tunnel is useful when the laptop is left at home
-> unattended, but is not required for daily use since Dhruva has direct physical access.
+> **Current status (June 5, 2026):** Phase 1 complete. All services running.
+> SSH: `ssh dhruva@100.119.229.11` (Tailscale) or `ssh dhruva@10.0.0.31` (LAN).
+> Health check: `ssh dhruva@100.119.229.11 'bash -s' < scripts/health-check.sh`
 
 ---
 
@@ -73,11 +73,15 @@ HP Omen 15 gaming laptop (portable — always with Dhruva)
 │   └── GTX 1660 Ti GPU via CUDA
 │   └── port 11434 (localhost only)
 │
-├── Cloudflare Tunnel (systemd service, optional)
-│   └── useful when laptop is left at home unattended
-│   └── NOT required for daily use (Dhruva has physical access)
+├── Tailscale (systemd service) ← PRIMARY remote SSH
+│   └── IP: 100.119.229.11 | authenticated June 5, 2026
+│   └── Tailscale SSH enabled (no authorized_keys needed)
 │
-└── AppArmor + UFW + auditd (kernel-level security)
+├── Cloudflare Tunnel (PM2 process, trycloudflare.com fallback)
+│   └── URL: changes on restart (not permanent without domain)
+│   └── Use Tailscale for SSH instead
+│
+└── AppArmor (complain mode) + UFW (deny-all + allowlist) + auditd
 ```
 
 ---
