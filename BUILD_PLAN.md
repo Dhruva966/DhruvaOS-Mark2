@@ -316,7 +316,7 @@ sudo aa-complain /etc/apparmor.d/hermes-agent   # log-only mode — no blocking
 
 ---
 
-## Phase 2: Inbox ⬜ IN PROGRESS (June 5, 2026)
+## Phase 2: Inbox ✅ COMPLETE (June 5, 2026)
 
 **Goal:** email triage works, calendar read, morning briefing has real content.
 
@@ -457,8 +457,7 @@ write is running concurrently on GBrain.
 
 **Goal:** agent handles routine requests. Quality firewall enforced end-to-end.
 
-**Status:** research-synthesis, correction-handler, add-task deployed as P2.E extras.
-Quality firewall test and outbound skills still needed.
+**Status:** All command skills deployed + tested. github-update fully implemented as quality firewall test skill. P3.3 gate not yet run (needs Dhruva in Discord). 28/28 contract tests passing.
 
 ### P3 Tasks
 
