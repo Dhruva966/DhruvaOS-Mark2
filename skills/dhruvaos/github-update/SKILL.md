@@ -9,7 +9,7 @@ schedule: null
 gbrain:
   reads: ["projects/*"]
   writes: []
-tests: tests/github-update/
+tests: tests/
 platforms: [linux]
 prerequisites:
   env_vars:
@@ -75,15 +75,20 @@ Execute directly via GitHub MCP tools. Return results to Discord.
 Draft the exact GitHub action:
 ```
 📤 [APPROVAL REQUIRED] github-update
+Approval ID: [opaque id generated for this GitHub write]
 Repo: [owner/repo]
 Action: [create issue / comment / etc.]
+Content SHA-256: [hash of exact GitHub payload]
+Expires: [ISO timestamp, 10 minutes from now]
 ---
 [EXACT CONTENT that will be written to GitHub]
 ---
-React 👍 to execute · Reply /deny to discard
+React 👍 to execute · Reply /deny [approval-id] to discard
 ```
 
 Post to #corrections. Wait for approval (up to 10 min).
+Reject approval if the reaction is not from `DISCORD_ALLOWED_USER`, the preview message was
+edited, the content hash no longer matches, or the approval ID is expired/mismatched.
 
 ## Step 4 — Execute via GitHub MCP
 

@@ -1,9 +1,9 @@
 name: add-task
 version: 1.0.0
-tier: 0
+tier: 1
 outbound: false
-requires_approval: false
-description: "Append a new task to the task list in GBrain"
+requires_approval: true
+description: "Parse natural-language task from Discord, add to Notion Tasks DB + GBrain tasks-inbox"
 schedule: null
 gbrain:
   reads: []
@@ -22,7 +22,7 @@ Steps:
      - Priority marker: any urgency signal ("urgent", "asap", "important")
   3. Format task entry:
      - [ ] <task text> [due: <date if found>] [added: <today's date>]
-  4. Append new task line to ~/brain/projects/tasks-inbox.md via gbrain ingest
+  4. Append new task line to ~/brain/projects/tasks-inbox.md and ingest with `/tmp/gbrain-write.lock`
   5. Post confirmation to Discord #tasks: "Added: <task text>"
 
 Note: Writes to tasks-inbox.md (staging), NOT tasks.md.

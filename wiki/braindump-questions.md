@@ -10,7 +10,11 @@ Your answers become the content of `~/brain/` and fuel the dream cycle.
 
 1. Who are you? Give the full picture — not just the résumé version. Where did you grow up, what shaped you, what do you care about at your core?
 
+Okay the full.A full picture. I grew up so firstly I was born in Baldwin Park, um, California. Uh then we moved to Fremont. Fremont is where I grew up. I went to learn play Montessari school for elementary and then for el elementary school I came to Dublin, California, where I grew up until eighth grade. And during eighth grade, I spent my eighth grade year at Hart Middle School in Pleasanton. So I moved from Los Angeles to Dublin to Pleasanton. And then I ended up going to Foothill High School. So then after I moved from Dublin to Pleasanton to Now I live in Livermore, so I'm gonna give you the addresses for the Dublin, Pleasanton and Livermore houses so you can have those Yeah. (Dublin = 3270 Vittoria Loop, Dublin, CA) (Pleasanton = 4410 Clovewood Lane, Pleasanton, CA) (Livermore = 5825 Dresslar Circle, Livermore, CA), What really shaped me would be a lot of things, but throughout my childhood it would probably be my parents, my nurturing, my mom and dad are very supportive of the things I do my mom specifically holds me to high standards, my dad as well. But of course, my mom makes it clear that um she uh with the privileges I have um Um which are like v like far greater than the struggles or the privileges that I had, which are far greater greater than what they had growing up. Because they grew up in India, uh rel uh like a lot less wealthier family compared to like what they made for me and my sister. My sister's name is Suma. She's a year younger than me. Specifically nineteen months younger than me. here bday is june 4th 2009, my mom's bday is july 31 1977, my dad's bday is july 23 1974. My sister is going into the premed path. She's applying to college now and of course as, you know, I'm going to UCLA in the fall for electrical computer engineering, specifically the computer engineering major. I'm in the fast track to success program at UCLA.
+
 2. What's your origin story with technology? When did you first get into it, and how has your relationship with it evolved?
+
+
 
 3. What do you want to be known for in 10 years? Not what you want to achieve — what do you want people to say about you?
 

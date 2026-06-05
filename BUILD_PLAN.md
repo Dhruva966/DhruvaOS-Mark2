@@ -136,7 +136,7 @@ P1.7  [after P1.6] GBrain built-in skills active              ✅ category dirs 
 P1.8  [after P1.7] Morning briefing stub fires at 8am         ✅ cron set, deliver=discord, model=claude-sonnet-4-6
 P1.9  Lid-close suspend disabled                              ✅ HandleLidSwitch=ignore, sleep.target masked
 P1.10 Security hardening (AppArmor + UFW + auditd)           ✅ UFW active, auditd rules loaded, AppArmor complain mode
-P1.11 Tailscale (anywhere SSH)                                ✅ v1.98.4 installed + authenticated. IP: 100.119.229.11
+P1.11 Tailscale (anywhere SSH)                                ✅ v1.98.4 installed + authenticated. IP stored in private ops note
 ```
 
 P1.1-P1.4 parallel-safe (different providers, no shared state).
@@ -144,10 +144,14 @@ P1.5 + P1.6 sequential (both write to GBrain PGLite DB).
 
 ### P1.5 — GBrain MCP verification ✅ DONE
 
-**Actual wire-up command** (not in original plan — `hermes mcp add` required):
+**Actual wire-up** (production contract):
 ```bash
-hermes mcp add gbrain --command gbrain --args serve
-hermes mcp list    # verify appears
+# ~/.hermes/config.yaml
+mcp_servers:
+  gbrain:
+    url: "http://localhost:3131/mcp"
+
+hermes mcp list          # verify appears
 hermes mcp test gbrain   # 88 tools discovered
 ```
 
@@ -180,11 +184,11 @@ Install Obsidian Git plugin on Mac → auto-commit every 5 min.
 Copied via rsync to Omen at `~/vault/obsidian/` (not `~/brain/`):
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""   # Mac — generate key first
-ssh-copy-id dhruva@10.0.0.31                         # authorize on Omen
-ssh dhruva@10.0.0.31 "mkdir -p ~/vault/obsidian"
+ssh-copy-id dhruva@<LAN_IP>                         # authorize on Omen
+ssh dhruva@<LAN_IP> "mkdir -p ~/vault/obsidian"
 rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
   "$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/dhruva's wiki/" \
-  dhruva@10.0.0.31:~/vault/obsidian/
+  dhruva@<LAN_IP>:~/vault/obsidian/
 ```
 
 **OLLAMA_BASE_URL gotcha (Ubuntu 24.04):** IPv6 localhost resolution fails. Must set:
@@ -310,7 +314,7 @@ sudo aa-complain /etc/apparmor.d/hermes-agent   # log-only mode — no blocking
 
 **Goal:** email triage works, calendar read, morning briefing has real content.
 
-**Status:** Skills written + deployed. Keys merged. Cron jobs set. Awaiting: Tailscale auth, Notion DB creation (manual in UI), GBrain dream cron verification.
+**Status:** Skills written + deployed. Keys merged. Cron jobs set. Awaiting: Notion DB creation (manual in UI), first live briefing verification, command end-to-end tests, and quality firewall gate.
 
 ### P2 Tasks
 
@@ -613,14 +617,14 @@ Give Hermes a novel task it has no skill for:
 Expected behavior:
 1. Hermes uses browser tool to look up the account
 2. Returns the follower count
-3. Writes `~/.hermes/skills/twitter-follower-count.yaml` with implementation
-4. Quality gate runs: `pytest tests/ --mock-tools` passes
+3. Writes `~/.hermes/skills/dhruvaos/twitter-follower-count/SKILL.md` with implementation
+4. Repo-local contract tests pass; Hermes does not provide `--mock-tools`
 5. Trust gate: read-only → auto-promotes (no DM needed)
 
 Verify skill was written:
 ```bash
 ls ~/.hermes/skills/    # new skill file should appear
-cat ~/.hermes/skills/twitter-follower-count.yaml
+cat ~/.hermes/skills/dhruvaos/twitter-follower-count/SKILL.md
 ```
 
 ### P4.4 — Trust gate verification
@@ -976,7 +980,7 @@ Example:
 ```
 Task: Implement email-triage skill
 Dominant risk: Gmail OAuth setup fails (credentials.json missing or wrong scope)
-Done condition: pytest tests/email-triage/ --mock-tools passes; /email in Discord returns triage
+Done condition: repo-local contract tests pass; `/email` in Discord returns triage
 GBrain touch: reads only (people/)
 Hermes config touch: no
 Parallel-safe: yes (skill file is independent)

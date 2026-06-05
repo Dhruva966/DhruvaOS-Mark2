@@ -9,7 +9,7 @@ schedule: null
 gbrain:
   reads: ["projects/*", "goals/*"]
   writes: ["projects/tasks.md"]
-tests: tests/task-prioritization/
+tests: tests/
 platforms: [linux]
 prerequisites:
   env_vars:
@@ -113,7 +113,7 @@ If zero tasks: post "✅ **Task Priorities** — No open tasks. Notion DB is cle
 
 ## Step 5 — Post to Discord
 
-Use the `messaging` tool to post to channel ID `1507031086226735236` (DISCORD_TASKS_CHANNEL_ID).
+Use the `messaging` tool to post to `DISCORD_TASKS_CHANNEL_ID` (#tasks).
 No approval needed — internal briefing.
 Keep the message under 1800 characters for Discord's 2000-character limit. If more than 10 tasks, show the top 10 and add '_…and [X] more in tasks.md_'
 

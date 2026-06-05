@@ -20,7 +20,7 @@ prerequisites:
 gbrain:
   reads: ["daily/briefing-{{date}}.md", "daily/*", "projects/*"]
   writes: ["daily/recap-{{date}}.md"]
-tests: tests/evening-briefing/
+tests: tests/
 metadata:
   hermes:
     tags: [briefing, recap, evening, daily, discord]
@@ -71,7 +71,7 @@ Use the `file` tool to read:
 
 **GUARD — if the file does not exist or is empty:**
 
-Use the `messaging` tool to post to Discord channel `1507031063296217189`:
+Use the `messaging` tool to post to `DISCORD_BRIEFINGS_CHANNEL_ID` (#briefings):
 
 ```
 No morning briefing found for {{today_display}} — evening recap skipped.
@@ -293,7 +293,7 @@ higher-priority deliverable.
 
 ## Step 8 — Post to Discord (3 Separate Messages)
 
-Use the `messaging` tool to post **3 separate messages** to Discord channel `1507031063296217189` (#briefings).
+Use the `messaging` tool to post **3 separate messages** to `DISCORD_BRIEFINGS_CHANNEL_ID` (#briefings).
 Post in order: Done+Carry → Tomorrow → Insight+Footer.
 Do NOT ask for approval. Do NOT combine into one message.
 
@@ -325,4 +325,4 @@ The only hard stop is the guard in Step 1. All other failures degrade gracefully
 Skill is complete when:
 1. Recap text is composed
 2. File written to `~/brain/daily/recap-{{today_str}}.md`
-3. Message posted to Discord #briefings (channel `1507031063296217189`)
+3. Message posted to `DISCORD_BRIEFINGS_CHANNEL_ID` (#briefings)

@@ -71,7 +71,7 @@ Save to: `~/brain/resources/learning-list.md`
 After writing the files, run:
 
 ```bash
-ssh dhruva@100.119.229.11 "
+ssh dhruva@<TAILSCALE_IP> "
 export PATH=/home/dhruva/.bun/bin:$PATH
 gbrain import ~/brain/goals/ 2>&1
 gbrain import ~/brain/projects/ 2>&1
@@ -91,7 +91,7 @@ Verify: `gbrain onboard --check --json` should show 0 recommendations and stats 
 Test that GBrain knows you:
 
 ```bash
-ssh dhruva@100.119.229.11 "
+ssh dhruva@<TAILSCALE_IP> "
 export PATH=/home/dhruva/.bun/bin:$PATH
 gbrain think 'What are Dhruva\\'s current goals and priorities?'
 gbrain search 'active projects status'

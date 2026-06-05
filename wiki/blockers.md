@@ -8,8 +8,8 @@ _Last updated: 2026-06-05 (overnight autonomous session)_
 
 ### 1. Tailscale ✅ DONE — Authenticated
 
-Omen IP: `100.119.229.11` | Hostname: `dhruva-omen-by-hp-laptop-15-dh1xxx`
-SSH from anywhere: `ssh dhruva@100.119.229.11`
+Omen IP: `<TAILSCALE_IP>` | Hostname: `dhruva-omen-by-hp-laptop-15-dh1xxx`
+SSH from anywhere: `ssh dhruva@<TAILSCALE_IP>`
 
 ---
 
@@ -54,7 +54,7 @@ Currently in **complain mode** (logs violations, doesn't block). Safe to leave f
 
 After running for 2 weeks without issues:
 ```bash
-ssh dhruva@10.0.0.31 "sudo aa-enforce dhruvaos-hermes"
+ssh dhruva@<LAN_IP> "sudo aa-enforce dhruvaos-hermes"
 ```
 
 Then add to `~/.config/systemd/user/hermes-gateway.service` under `[Service]`:
@@ -69,12 +69,12 @@ AppArmorProfile=dhruvaos-hermes
 ### 5. Morning Briefing — Verify First Run (8am PST June 5)
 
 Check Discord #briefings for 4 messages (calendar, inbox, tasks, research).
-If fails, check logs: `ssh dhruva@10.0.0.31 "tail -100 ~/.hermes/logs/gateway.log"`
+If fails, check logs: `ssh dhruva@<LAN_IP> "tail -100 ~/.hermes/logs/gateway.log"`
 
 ### 6. Google Calendar Verification
 
 ```bash
-ssh dhruva@10.0.0.31 "set -a; source ~/.hermes/.env; set +a; \
+ssh dhruva@<LAN_IP> "set -a; source ~/.hermes/.env; set +a; \
   source ~/.hermes/hermes-agent/venv/bin/activate && \
   python3 ~/.hermes/scripts/google_api_helper.py calendar | head -20"
 ```
@@ -85,7 +85,7 @@ Should return JSON with calendar events.
 
 Check crontab has the dream cron:
 ```bash
-ssh dhruva@10.0.0.31 "crontab -l"
+ssh dhruva@<LAN_IP> "crontab -l"
 ```
 
 Expected: `0 3 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain dream ...`

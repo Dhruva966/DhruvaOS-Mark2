@@ -83,7 +83,7 @@ Hermes should include citations when responding to Dhruva if `chunks` is non-emp
 |-------|---------|---------|--------------|
 | Message with `/` prefix | any | command | Route to skill dispatcher |
 | Message without `/` | #briefings | conversation | Respond conversationally |
-| 👍 reaction to Hermes message | #corrections | approval | Execute queued outbound action |
+| 👍 reaction to Hermes message | #corrections | approval | Execute queued outbound action only if approval_id, content hash, expiry, and approver ID all match |
 | `/deny <id>` message | #corrections | rejection | Discard queued outbound action, log |
 | `/correct <text>` | #corrections | correction | Run correction-handler skill |
 | `/approve <skill>` DM | DM | skill approval | Promote skill to trusted |
@@ -103,15 +103,26 @@ Hermes should include citations when responding to Dhruva if `chunks` is non-emp
 **Outbound preview format:**
 ```
 📤 [APPROVAL REQUIRED] <skill-name>
+Approval ID: <opaque-id>
 Destination: <email/LinkedIn/GitHub/etc.>
 Model: claude-sonnet-4-6 (Tier 2)
+Content SHA-256: <hash of exact outbound payload>
+Expires: <ISO timestamp, max 10 minutes unless explicitly configured>
 
 ---
 <full text of outbound message>
 ---
 
-React 👍 to approve • Reply /deny to reject
+React 👍 to approve • Reply /deny <approval-id> to reject
 ```
+
+Approval validation rules:
+- approver must be `DISCORD_ALLOWED_USER`
+- approval message must be unedited and still in `#corrections`
+- content hash must match the queued payload exactly
+- destination must match the preview exactly
+- expired approvals are denied and logged
+- reactions on copied, edited, or stale previews are ignored
 
 ---
 
@@ -173,7 +184,7 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [x] UFW active: deny all, allow SSH/HTTPS/DNS/NTP
 - [x] auditd rules loaded: watching .env, config, crontab
 - [x] AppArmor complain mode: dhruvaos-hermes profile
-- [x] Tailscale: authenticated, IP 100.119.229.11
+- [x] Tailscale: authenticated, IP <TAILSCALE_IP>
 
 **Phase 2 — Skills deployed (June 5, 2026):**
 
@@ -185,6 +196,15 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [ ] Notion Tasks DB proper schema created (current: Snoopy AI schema)
 - [ ] /task /research /correct commands tested end-to-end
 - [ ] Quality firewall test (P3.3 gate — manual)
+
+**Phase 3 — Command skills deployed (June 5, 2026):**
+
+- [x] add-task skill: `/task` → Notion + GBrain tasks-inbox.md (JSON-safe via Python, not curl)
+- [x] research-synthesis skill: `/research` → GBrain-first, Exa content fetch, Sonnet synthesis, GBrain ingest before Discord post
+- [x] correction-handler skill: `/correct` → classifies BEHAVIOR/FACT/PREFERENCE/FORMAT, appends corrections.md, GBrain ingest
+- [x] All 3 Codex-reviewed + fixes applied (JSON injection, step ordering, shell portability, trust gate compliance)
+- [ ] P3.3 quality firewall gate: test `/test-outbound` in #corrections (manual — needs Dhruva + Discord)
+- [ ] ntfy.sh phone push: set NTFY_TOPIC in .env, install ntfy app (deferred)
 
 ---
 

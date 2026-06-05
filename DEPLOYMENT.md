@@ -7,9 +7,10 @@
 | Local (primary) | HP Omen 15 gaming laptop, Ubuntu | Current |
 | VPS (future) | DigitalOcean/Fly.io | Migration-ready, not yet |
 
-> **Current status (June 5, 2026):** Phase 1 complete. All services running.
-> SSH: `ssh dhruva@100.119.229.11` (Tailscale) or `ssh dhruva@10.0.0.31` (LAN).
-> Health check: `ssh dhruva@100.119.229.11 'bash -s' < scripts/health-check.sh`
+> **Current status (June 5, 2026):** Phase 1 complete. Services are documented as deployed,
+> but remote SSH should be verified before relying on it. Keep live Tailscale/LAN addresses in
+> a private ops note, not in committed docs.
+> Health check: `ssh dhruva@<TAILSCALE_IP> 'bash -s' < scripts/health-check.sh`
 
 ---
 
@@ -74,7 +75,7 @@ HP Omen 15 gaming laptop (portable — always with Dhruva)
 │   └── port 11434 (localhost only)
 │
 ├── Tailscale (systemd service) ← PRIMARY remote SSH
-│   └── IP: 100.119.229.11 | authenticated June 5, 2026
+│   └── IP: keep in private ops note | authenticated June 5, 2026
 │   └── Tailscale SSH enabled (no authorized_keys needed)
 │
 ├── Cloudflare Tunnel (PM2 process, trycloudflare.com fallback)
@@ -285,11 +286,11 @@ Add a post-dream backup cron alongside the dream cycle cron:
 ```bash
 crontab -e
 # Add (as dhruva — actual deploy user):
-0 2 * * * /home/dhruva/.bun/bin/gbrain embed --stale
+0 2 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale
 # ntfy.sh cloud alert — set up NTFY_TOPIC in Phase 4 first (P4.0)
-0 3 * * * /home/dhruva/.bun/bin/gbrain dream || curl -s -d "dream cycle FAILED" ntfy.sh/dhruva-alerts-YOURSTRING
+0 3 * * * flock -n /tmp/gbrain-write.lock sh -lc '/home/dhruva/.bun/bin/gbrain dream || curl -s -d "dream cycle FAILED" ntfy.sh/dhruva-alerts-YOURSTRING'
 # Rolling 7-day backup — brain.pglite is a directory, use cp -r
-30 4 * * * cp -r /home/dhruva/.gbrain/brain.pglite /home/dhruva/.gbrain/brain.pglite.$(date +\%Y\%m\%d) && find /home/dhruva/.gbrain/ -maxdepth 1 -name 'brain.pglite.*' -mtime +7 -exec rm -rf {} +
+30 4 * * * flock -n /tmp/gbrain-write.lock sh -lc 'cp -r /home/dhruva/.gbrain/brain.pglite /home/dhruva/.gbrain/brain.pglite.$(date +\%Y\%m\%d) && find /home/dhruva/.gbrain/ -maxdepth 1 -name "brain.pglite.*" -mtime +7 -exec rm -rf {} +'
 ```
 
 The 4:30am step: keeps 7 rolling daily backups, deletes older ones. Zero external cost.

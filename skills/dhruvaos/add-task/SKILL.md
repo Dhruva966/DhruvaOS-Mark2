@@ -9,7 +9,7 @@ schedule: null
 gbrain:
   reads: []
   writes: ["projects/tasks-inbox.md"]
-tests: tests/add-task/
+tests: tests/
 platforms: [linux]
 prerequisites:
   env_vars:
@@ -42,15 +42,27 @@ Format the task for display:
 
 ## Step 2 — Add to Notion Tasks DB
 
-Use `terminal` with a Python heredoc to safely JSON-encode the task text (prevents injection from quotes/backslashes in task text):
+Use `code_execution` first to build a JSON payload with exactly these fields:
+`task_text`, `due_date`, and `priority`. Base64-encode that JSON payload and pass only
+the base64 string into the shell snippet below.
+
+Do **not** substitute raw task text into Python source code or shell arguments. User task
+text may contain quotes, backslashes, shell metacharacters, or newlines.
 
 ```bash
-source ~/.hermes/hermes-agent/venv/bin/activate && python3 - <<'PYEOF'
-import os, json, urllib.request, urllib.error
+TASK_PAYLOAD_B64="[BASE64 JSON PAYLOAD FROM code_execution]"
+source ~/.hermes/hermes-agent/venv/bin/activate && TASK_PAYLOAD_B64="$TASK_PAYLOAD_B64" python3 - <<'PYEOF'
+import base64, os, json, urllib.request, urllib.error
 
-task_text = "[TASK TEXT FROM STEP 1]"  # agent substitutes actual task text
-due_date = "[DUE DATE OR None]"         # agent substitutes ISO date or None
-priority = "[High or Normal]"           # agent substitutes from Step 1
+payload = json.loads(base64.b64decode(os.environ["TASK_PAYLOAD_B64"]).decode("utf-8"))
+
+task_text = str(payload["task_text"]).strip()
+due_date = payload.get("due_date")
+priority = payload.get("priority", "Normal")
+if priority not in {"High", "Normal"}:
+    priority = "Normal"
+if not task_text:
+    raise SystemExit("TASK_ERROR: empty task text")
 
 properties = {
     "Name": {"title": [{"text": {"content": task_text}}]},
@@ -107,16 +119,17 @@ Do NOT overwrite — other tasks may already be in the inbox. Always read first,
 After writing tasks-inbox.md, signal GBrain to index the new task:
 
 ```bash
-gbrain import ~/brain/projects/tasks-inbox.md 2>&1 | head -3
-gbrain embed --stale 2>&1 | head -3
+GBRAIN_BIN="$(command -v gbrain || echo /home/dhruva/.bun/bin/gbrain)"
+flock -n /tmp/gbrain-write.lock sh -lc "$GBRAIN_BIN import ~/brain/projects/tasks-inbox.md 2>&1 | head -3 && $GBRAIN_BIN embed --stale 2>&1 | head -3"
 ```
 
-If gbrain not in PATH: use `/home/dhruva/.bun/bin/gbrain` as fallback.
+If the lock is busy, skip immediate ingest and mention it in the confirmation. The durable
+file write still succeeded, and the 2am stale embed cron will index it later.
 If ingest fails, continue — task-prioritization will still pick up the file.
 
 ## Step 4 — Post Confirmation to Discord
 
-Use the `messaging` tool to post to channel ID `1507031086226735236` (#tasks):
+Use the `messaging` tool to post to `DISCORD_TASKS_CHANNEL_ID` (#tasks):
 
 ```
 ✅ Task added: [task text]
@@ -124,7 +137,8 @@ Use the `messaging` tool to post to channel ID `1507031086226735236` (#tasks):
 📋 In Notion + GBrain tasks-inbox
 ```
 
-No approval needed — this is a confirmation message for an internal add operation.
+No outbound approval is needed for this confirmation message because it stays inside #tasks.
+The skill itself still follows its frontmatter/runtime approval policy for write/shell operations.
 
 ## Step 5 — Done
 

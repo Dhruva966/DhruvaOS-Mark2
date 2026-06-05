@@ -33,6 +33,10 @@ personal website update, Twitter/X post, any message to a third party.
 **Not outbound (no approval needed):** internal Discord channels, GBrain writes, task lists,
 calendar creates, local file writes, research synthesis (internal), briefings to self.
 
+Internal Discord is still third-party infrastructure. Internal posts should minimize retained
+personal data: avoid full email bodies, redact unnecessary third-party personal details, and
+verify private channel ACLs before posting sensitive summaries. Internal does not mean public-safe.
+
 ---
 
 ## Hermes config.yaml (complete routing section)
