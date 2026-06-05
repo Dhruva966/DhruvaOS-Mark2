@@ -200,10 +200,15 @@ Check: `hermes cron list` — look for job ID `144fcb74af5c`.
 | Calendar | Google Calendar API | OAuth refresh token (headless) | morning-briefing, calendar-read | ✅ token in .env |
 | Email | Gmail API | OAuth refresh token (headless) | email-triage, morning-briefing | ✅ token in .env |
 | Notion MCP | @notionhq/notion-mcp-server | `NOTION_TOKEN` | all Notion operations | ✅ MCP registered |
+| GitHub MCP | @modelcontextprotocol/server-github | `GITHUB_TOKEN` | github-update, Phase 5 | ✅ MCP registered June 5 |
 | XPosterOS API | localhost:8081 | `XPOSTEROS_API_TOKEN` | xposteros-control skill | ✅ service running |
 | Web extraction (structured) | AgentQL | `AGENTQL_API_KEY` | research-synthesis (optional upgrade) | ⬜ no key yet |
-| Browser automation | Browserbase | `BROWSERBASE_API_KEY` | Phase 5 LinkedIn/GitHub | ⬜ Phase 5 |
-| Code hosting | GitHub MCP | `GITHUB_TOKEN` | GitHub skill (Phase 5) | ⬜ Phase 5 |
+| Browser automation | Browserbase | `BROWSERBASE_API_KEY` | Phase 5 LinkedIn | ⬜ Phase 5 |
+| Image generation (optional) | MiniMax image-01 | `MINIMAX_API_KEY` | /image Discord skill | ⬜ Phase 6 — credits available, safe for non-sensitive prompts |
+| Video generation (optional) | MiniMax Hailuo 2.3 | `MINIMAX_API_KEY` | /video Discord skill | ⬜ Phase 6 — burn credits on demo/marketing content |
+| TTS (optional cloud) | MiniMax TTS | `MINIMAX_API_KEY` | voice output, non-sensitive text only | ⬜ Phase 6 — Piper (local) is default; MiniMax for quality upgrade |
+| Voice call-in | Twilio | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Twilio → Whisper → Hermes → TTS | ⬜ Phase 6 — call Drew on phone |
+| STT (local) | Whisper via Ollama | none | voice input | ⬜ Phase 6 — upgrade config to `model: small` |
 
 **Google API helper script:** `~/.hermes/scripts/google_api_helper.py`
 Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; set +a; source ~/.hermes/hermes-agent/venv/bin/activate && python3 ~/.hermes/scripts/google_api_helper.py test`

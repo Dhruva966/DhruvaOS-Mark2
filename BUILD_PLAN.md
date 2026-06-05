@@ -567,6 +567,9 @@ P4.4  Tiered trust gate verified                               ⬜ requires Phas
 P4.5  Braindump questionnaire completed (see MEMORY.md)        ⬜ Dhruva does this: 30-min session
 P4.6  First dream cycle on real content                        ⬜ runs at 3am automatically
 P4.7  Brain health score ≥70 via gbrain doctor                ⬜ after P4.6
+P4.8  GBrain dream phase flags enabled                         ⬜ enable conversation_facts_backfill + enrich_thin; fix cron --dir flag
+P4.9  Stale-fact-rewrite phase                                 ⬜ check upstream first; implement custom phase if absent
+P4.10 Self-healing skill loop                                  ⬜ error-detection + skill-proposal skills
 ```
 
 ### P4.0 — ntfy.sh cloud setup (prerequisite for dream cycle alerts)
@@ -595,7 +598,44 @@ NTFY_TOPIC=dhruva-alerts-YOURSTRING
 Self-hosted ntfy (private server on Omen + Cloudflare Tunnel) is optional — upgrade to it
 if you want privacy or Cloudflare Tunnel is already running for other reasons.
 
+### P4.8 — GBrain dream phase flags (do before next dream cycle)
+
+```bash
+ssh dhruva@10.0.0.31 "export PATH=~/.bun/bin:\$PATH
+gbrain config set cycle.conversation_facts_backfill.enabled true
+gbrain config set cycle.enrich_thin.enabled true"
+
+# Verify dry-run now shows these phases as ✓ instead of disabled:
+ssh dhruva@10.0.0.31 "export PATH=~/.bun/bin:\$PATH; gbrain dream --dir ~/brain --dry-run"
+```
+
+**Gap vs OpenAI Dreaming V3 (June 2026):** GBrain dream organizes/links existing notes but does NOT:
+- Mine conversation history for implicit facts
+- Detect stale facts + rewrite them ("going to Singapore" → "went to Singapore")
+- Auto-update memories as circumstances change
+
+`conversation_facts_backfill` closes the conversation-mining gap. Stale-fact-rewrite (P4.9) closes the update gap.
+
+### P4.9 — Stale-fact-rewrite
+
+Check upstream first: `https://github.com/NousResearch/gbrain/commits/main` — search for stale/rewrite/dreaming. If not upstream, implement as nightly Hermes skill:
+1. Query all facts from GBrain (gbrain search or MCP)
+2. LLM pass via phi4-mini: "Is this fact still current given recent context?"
+3. Write updates via gbrain API (never direct PGLite write)
+4. Log all rewrites to `~/.gbrain/stale-fact-rewrites.jsonl`
+5. Add to dream cron after `gbrain dream`
+
+### P4.10 — Self-healing + self-building skill loop
+
+Two skills:
+1. **error-detection**: cron reads `~/.hermes/logs/gateway.log`, identifies failing skills, posts to #corrections
+2. **skill-proposal**: tracks unhandled Discord requests, proposes new SKILL.md drafts to #tasks for 👍 approval before deploy
+
+`require_approval_always: true` stays. Proposal → approval → auto-deploy is the safe pattern.
+
 ### P4.1 — Dream cycle setup
+
+**CRITICAL:** dream cron MUST include `--dir ~/brain` or synthesize/extract/lint phases are skipped (they require a local brain directory). Dry-run confirmed this June 5, 2026.
 
 ```bash
 crontab -e
@@ -729,12 +769,25 @@ hermes mcp test github    # confirms repos, issues, PRs tools discovered
 ## Phase 6: Voice + Mobile (future, post-UCLA move-in)
 
 ```
-P6.1  STT: NVIDIA Parakeet-TDT-1.1B (local, GPU or CPU fallback)
-P6.2  TTS: Piper (local, CPU-only, zero VRAM)
+P6.1  STT: local Whisper (already configured — upgrade to 'small' model for accuracy)
+      NVIDIA Parakeet-TDT-1.1B is the long-term upgrade target (state-of-art, ~1.5GB VRAM)
+P6.2  TTS: Piper (local, CPU-only, zero VRAM) — primary option
+      MiniMax TTS optional: cloud, higher quality, safe for non-sensitive text (not for notes/tasks)
 P6.3  Wake: two-clap detector + 10s silence auto-off
 P6.4  iPhone: geofencing via Shortcuts + webhook to Hermes
-P6.5  Remote SSH access: Tailscale on Omen
+P6.5  Remote SSH access: Tailscale on Omen  ✅ done
+P6.6  Twilio voice call-in: call a Twilio number → audio streams → Whisper STT → Hermes → TTS reply
+      Architecture: Twilio → Hermes webhook → Whisper → skill routing → TTS → Twilio speak back
 ```
+
+**STT note:** Hermes already has `stt.provider: local` with `model: base`. Upgrade to `model: small` for better accuracy. Never use MiniMax STT — voice biometrics are sensitive.
+
+**TTS note (MiniMax):** MiniMax TTS sends text (not audio) to Chinese servers. Safe for generic/non-personal strings. Avoid for brain notes, tasks, personal context. Use Piper for those. MiniMax credentials: `MINIMAX_API_KEY` in `~/.hermes/.env` — add when ready to use. Hermes `tts.provider` config supports `minimax` natively.
+
+**Image/video gen (MiniMax — optional, burn credits):**
+- Image: `image-01` model, `POST https://api.minimax.io/v1/t2i_v2` — use for `/image` Discord command, marketing assets
+- Video: Hailuo 2.3, text-to-video or image-to-video, ~1 credit/6s clip at 768p — use for demo content
+- Both: zero sensitive data (prompts only), safe to use freely
 
 ### P6 — Full voice pipeline
 
