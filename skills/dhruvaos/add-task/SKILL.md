@@ -66,7 +66,7 @@ if not task_text:
 
 properties = {
     "Name": {"title": [{"text": {"content": task_text}}]},
-    "Status": {"status": {"name": "Not started"}},
+    "Status": {"select": {"name": "Not started"}},
     "Source": {"select": {"name": "Discord"}},
     "Priority": {"select": {"name": priority}},
 }
