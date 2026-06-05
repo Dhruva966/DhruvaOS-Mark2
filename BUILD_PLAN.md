@@ -457,7 +457,7 @@ write is running concurrently on GBrain.
 
 **Goal:** agent handles routine requests. Quality firewall enforced end-to-end.
 
-**Status:** All command skills deployed + tested. github-update fully implemented as quality firewall test skill. P3.3 gate not yet run (needs Dhruva in Discord). 28/28 contract tests passing. XPosterOS integration complete.
+**Status:** All command skills deployed + tested. github-update fully implemented as quality firewall test skill. P3.3 gate not yet run (needs Dhruva in Discord). 61/61 contract tests passing (15 new xposteros-control tests added June 5). XPosterOS integration complete. **KNOWN ISSUE:** XPosterOS workers fail every 2h — see P3.6b fix.
 
 ### P3 Tasks
 
@@ -472,6 +472,30 @@ P3.3c GitHub MCP added to hermes config.yaml                       ✅ June 5
 P3.4  [after P3.3] All 8 starting skills verified working          ⬜ pending P3.3
 P3.5  [after P3.4] ntfy.sh setup for phone push notifications      ✅ NTFY_TOPIC=dhruva-alerts-14a313f0dbe1 set (iPhone app still needed)
 P3.6  XPosterOS integration                                        ✅ complete June 5 (see HANDOFF.md XPosterOS section)
+P3.7  xposteros-control contract tests                             ✅ 15/15 passing June 5
+```
+
+### P3.6b — XPosterOS .env fix (URGENT — workers fail every 2h)
+
+Confirmed from 10am cron output: DraftGenerator + XPoster fail with `notion_or_llm_not_configured`.
+The 6 Notion DB IDs are in `~/xposteros/.env` but the API auth token and LLM keys are missing.
+
+```bash
+# SSH to Omen, then:
+export PATH="/home/dhruva/.nvm/versions/node/v24.16.0/bin:/home/dhruva/.bun/bin:/home/dhruva/.local/bin:/home/dhruva/.hermes/bin:$PATH"
+
+# Copy keys from hermes .env (both already present there):
+NOTION_KEY=$(grep "^NOTION_API_KEY=" ~/.hermes/.env | cut -d= -f2-)
+ANTHRO_KEY=$(grep "^ANTHROPIC_API_KEY=" ~/.hermes/.env | cut -d= -f2-)
+cat >> ~/xposteros/.env <<EOF
+NOTION_API_KEY=${NOTION_KEY}
+LLM_DEFAULT_PROVIDER=anthropic
+ANTHROPIC_API_KEY=${ANTHRO_KEY}
+EOF
+
+systemctl --user restart xposteros-api
+curl -s http://127.0.0.1:8081/system/health
+# Next cron run (≤2h) should show DraftGenerator without notion_or_llm_not_configured
 ```
 
 ### P3.0 — AgentQL setup (OPTIONAL — Exa replaces for basic research)
@@ -568,7 +592,7 @@ P4.5  Braindump questionnaire completed (see MEMORY.md)        ⬜ Dhruva does t
 P4.6  First dream cycle on real content                        ⬜ runs at 3am automatically
 P4.7  Brain health score ≥70 via gbrain doctor                ⬜ after P4.6
 P4.8  GBrain dream phase flags enabled                         ⬜ enable conversation_facts_backfill + enrich_thin; fix cron --dir flag
-P4.9  Stale-fact-rewrite phase                                 ⬜ check upstream first; implement custom phase if absent
+P4.9  stale-fact-rewrite skill: built ✅ (SKILL.md + Python script + 7 tests) but NOT deployed ⬜ — scp to Omen + register 3:30am cron
 P4.10 Self-healing skill loop                                  ⬜ error-detection + skill-proposal skills
 ```
 
