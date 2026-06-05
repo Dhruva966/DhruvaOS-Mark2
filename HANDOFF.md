@@ -141,34 +141,50 @@ Coordinate by writing to date-stamped files:
 
 ## Hermes ↔ External APIs: Tool Contract
 
-| Tool | Provider | Auth | Used by |
-|------|---------|------|---------|
-| Web search | Exa | `EXA_API_KEY` | research-synthesis, morning-briefing |
-| Web extraction | AgentQL (Firecrawl fallback) | `AGENTQL_API_KEY` (`FIRECRAWL_API_KEY` optional) | research-synthesis |
-| Browser automation | Browserbase | `BROWSERBASE_API_KEY` | novel tasks, LinkedIn, GitHub |
-| Calendar | Google Calendar API / Hermes calendar tool | OAuth | morning-briefing, calendar-read |
-| Email | Gmail API / Hermes email tool | OAuth | email-triage |
-| Code hosting | GitHub MCP | `GITHUB_TOKEN` (future) | GitHub skill (Phase 5) |
+| Tool | Provider | Auth | Used by | Status |
+|------|---------|------|---------|--------|
+| Web search + extract | Exa | `EXA_API_KEY` | research-synthesis, morning-briefing | ✅ key in .env |
+| Task DB | Notion API | `NOTION_API_KEY` / `NOTION_TOKEN` | add-task, task-prioritization | ✅ key in .env |
+| Calendar | Google Calendar API | OAuth refresh token (headless) | morning-briefing, calendar-read | ✅ token in .env |
+| Email | Gmail API | OAuth refresh token (headless) | email-triage, morning-briefing | ✅ token in .env |
+| Notion MCP | @notionhq/notion-mcp-server | `NOTION_TOKEN` | all Notion operations | ✅ MCP registered |
+| Web extraction (structured) | AgentQL | `AGENTQL_API_KEY` | research-synthesis (optional upgrade) | ⬜ no key yet |
+| Browser automation | Browserbase | `BROWSERBASE_API_KEY` | Phase 5 LinkedIn/GitHub | ⬜ Phase 5 |
+| Code hosting | GitHub MCP | `GITHUB_TOKEN` | GitHub skill (Phase 5) | ⬜ Phase 5 |
+
+**Google API helper script:** `~/.hermes/scripts/google_api_helper.py`
+Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; set +a; source ~/.hermes/hermes-agent/venv/bin/activate && python3 ~/.hermes/scripts/google_api_helper.py test`
 
 ---
 
-## Integration Checklist (Phase 1 verification)
+## Integration Checklist
 
-**Status as of 2026-06-04:**
+**Phase 1 — Complete (June 5, 2026):**
 
 - [x] `systemctl --user status hermes-gateway` is active
-- [x] `pm2 list` shows `gbrain-mcp` online (708MB RAM, PID 21690)
-- [x] Hermes sends a message to Discord #briefings (drew#4878 alive)
-- [x] `gbrain search "test"` from CLI returns results
-- [x] `hermes mcp test gbrain` — 88 tools discovered, connected in 2285ms
+- [x] `pm2 list` shows `gbrain-mcp` online
+- [x] Drew responds in Discord #briefings
+- [x] `hermes mcp test gbrain` — 88 tools discovered
+- [x] `hermes mcp list` — notion + gbrain both ✓ enabled
 - [x] `gbrain onboard --check --json` — 0 recommendations, fully onboarded
-- [x] Morning briefing cron set: `0 8 * * *` America/Los_Angeles
-- [x] Obsidian vault imported: 40 pages, 45 chunks, 85 tags, embedded
-- [ ] Hermes skill calls `gbrain search` and receives valid response (verify in logs)
-- [ ] phi4-mini Tier 0 routing verified in Hermes logs
-- [ ] Claude Sonnet Tier 2 verified in Hermes logs
-- [ ] Outbound approval gate test (do when security hardening done)
-- [ ] `gbrain skillpack scaffold --all` (deferred — do at home on SSH)
+- [x] Morning briefing cron: 8am PST, deliver=discord
+- [x] Evening briefing cron: 9pm PST, deliver=discord
+- [x] Dream cron: 3am, system crontab
+- [x] UFW active: deny all, allow SSH/HTTPS/DNS/NTP
+- [x] auditd rules loaded: watching .env, config, crontab
+- [x] AppArmor complain mode: dhruvaos-hermes profile
+- [x] Tailscale: authenticated, IP 100.119.229.11
+
+**Phase 2 — Skills deployed (June 5, 2026):**
+
+- [x] `hermes skills list` shows all 8 dhruvaos skills enabled
+- [x] Google API credentials tested OK on Omen
+- [x] All 18 API keys in ~/.hermes/.env (Notion, Gmail, Calendar, Discord, Supabase, etc.)
+- [x] Hermes config: cron_mode=approve, timezone=LA, Notion MCP
+- [ ] Morning briefing 8am run verified in #briefings (pending — June 5 8am)
+- [ ] Notion Tasks DB proper schema created (current: Snoopy AI schema)
+- [ ] /task /research /correct commands tested end-to-end
+- [ ] Quality firewall test (P3.3 gate — manual)
 
 ---
 

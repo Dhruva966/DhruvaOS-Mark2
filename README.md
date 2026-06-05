@@ -4,7 +4,7 @@
 > Built to handle the operational layer of a human life — inbox, calendar, research,
 > outbound communication — while compounding knowledge every night.
 
-[![Status](https://img.shields.io/badge/status-Phase_1_active-brightgreen?style=flat-square)](https://github.com/Dhruva966/DhruvaOS-Mark2)
+[![Status](https://img.shields.io/badge/status-Phase_2_active-brightgreen?style=flat-square)](https://github.com/Dhruva966/DhruvaOS-Mark2)
 [![Runtime](https://img.shields.io/badge/Hermes_Agent-v1.0.0-blueviolet?style=flat-square)](https://github.com/NousResearch/hermes-agent)
 [![Memory](https://img.shields.io/badge/GBrain-v0.42.25.0-blue?style=flat-square)](https://github.com/garrytan/gbrain)
 [![Model](https://img.shields.io/badge/Claude_Sonnet_4.6-outbound_writing-red?style=flat-square)](#model-routing)
@@ -168,14 +168,21 @@ should stay enabled on Anthropic and the actual hit rate should be verified from
 
 | Phase | Name | Milestone | State |
 |-------|------|-----------|-------|
-| 0 | Infrastructure | Hermes + GBrain wired, Discord live | **Complete** |
-| 0.5 | Hardening | AppArmor/UFW/auditd + service hardening | In progress |
-| 1 | Alive | Responds in Discord with GBrain context | **Active** |
-| 2 | Inbox | Email triage, calendar, morning briefing with real data | ○ |
-| 3 | Menial tasks | Research, corrections, quality firewall verified end-to-end | ○ |
-| 4 | Self-improving | Dream cycle running, novel task → skill authored + promoted | ○ |
-| 5 | Network | LinkedIn, GitHub, personal site — all through quality firewall | ○ |
-| 6 | Voice + mobile | TTS, STT, iPhone geofencing | ○ Future |
+| 0 | Infrastructure | Hermes + GBrain wired, Discord live | ✅ Complete |
+| 1 | Alive | Responds in Discord, GBrain context, security hardened, Tailscale | ✅ Complete (June 5, 2026) |
+| 2 | Inbox | Email triage, calendar, morning briefing with real data | ⚡ Active — skills deployed, 8am briefing pending |
+| 3 | Menial tasks | Research synthesis, corrections, add-task, quality firewall test | ⚡ Active — skills deployed |
+| 4 | Self-improving | Dream cycle running, skill authoring, brain health ≥70 | ⬜ Dream cron set, rest after Phase 3 gate |
+| 5 | Network | LinkedIn, GitHub, personal site — all through quality firewall | ⬜ |
+| 6 | Voice + mobile | TTS, STT, iPhone geofencing, two-clap wake | ⬜ Future (post-UCLA) |
+
+**Live capabilities (June 5, 2026):**
+- Discord `/task`, `/research`, `/correct` commands → Notion + GBrain
+- 8am morning briefing (calendar + email + tasks + research) → #briefings
+- 9pm evening recap → #briefings
+- 3am dream cycle (GBrain consolidation)
+- SSH anywhere: `ssh dhruva@100.119.229.11` (Tailscale)
+- UFW + AppArmor (complain) + auditd active
 
 Phase 4 is the architectural milestone. Before it, DhruvaOS runs the skills it was given.
 After it, it authors new skills from experience. The system becomes qualitatively different.

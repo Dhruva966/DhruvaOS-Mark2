@@ -315,13 +315,23 @@ sudo aa-complain /etc/apparmor.d/hermes-agent   # log-only mode — no blocking
 ### P2 Tasks
 
 ```
-P2.1  [parallel] email-triage skill: implement + test
-P2.2  [parallel] calendar skill: implement + test
-P2.3  [parallel] morning-briefing skill: stub → full implementation
-P2.4  [parallel] evening-briefing skill: stub → full implementation
-P2.5  [after P2.1-P2.4] task-prioritization skill: implement + test
-P2.6  [after P2.5] Morning briefing fires with real email + calendar data
+P2.0  [one-time] Notion 4-DB setup                            ⬜ create manually in Notion UI (NOTION_TASKS_DB_ID set)
+P2.1  [parallel] email-triage skill                           ✅ deployed, Gmail+classify+mark-read, 4-msg Discord
+P2.2  [parallel] calendar skill                               ✅ deployed, 7-day agenda, composable
+P2.3  [parallel] morning-briefing skill                       ✅ deployed, 4-msg Discord format (calendar+inbox+tasks+research)
+P2.4  [parallel] evening-briefing skill                       ✅ deployed, 3-msg Discord format
+P2.5  [after P2.1-P2.4] task-prioritization skill             ✅ deployed, Notion+GBrain scoring
+P2.6  [after P2.5] Morning briefing fires with real data      ⬜ verify 8am June 5 run in #briefings
+
+Phase 2 EXTRAS deployed (Phase 3 territory):
+P2.E1 add-task skill                                          ✅ deployed, /task command, Notion+GBrain
+P2.E2 research-synthesis skill                                ✅ deployed, Exa+GBrain, /research command
+P2.E3 correction-handler skill                                ✅ deployed, /correct command, permanent GBrain facts
 ```
+
+**All skills enabled:** `hermes skills list` shows all 8 dhruvaos skills as enabled.
+**MCPs connected:** GBrain (88 tools) + Notion MCP both ✅.
+**Crons:** morning=8am, evening=9pm, dream=3am — all active.
 
 ### P2.0 — Notion database setup (one-time, do before P2.1) — UPDATED June 2026
 
@@ -433,84 +443,94 @@ write is running concurrently on GBrain.
 
 ---
 
-## Phase 3: Menial Tasks
+## Phase 3: Menial Tasks ⬜ IN PROGRESS (June 5, 2026)
 
 **Goal:** agent handles routine requests. Quality firewall enforced end-to-end.
+
+**Status:** research-synthesis, correction-handler, add-task deployed as P2.E extras.
+Quality firewall test and outbound skills still needed.
 
 ### P3 Tasks
 
 ```
-P3.0  [SEQUENTIAL first] AgentQL setup: install SDK, get API key, verify
-P3.1  [parallel] research-synthesis skill: implement + test (uses AgentQL)
-P3.2  [parallel] correction-handler skill: implement + test
-P3.3  [SEQUENTIAL] Quality firewall end-to-end test (gate — must pass before Phase 4)
-P3.4  [after P3.3] All 8 starting skills verified working
+P3.0  [OPTIONAL] AgentQL setup: install SDK, get API key           ⬜ no key yet — Exa replaces for now
+P3.1  [parallel] research-synthesis skill                          ✅ deployed (Exa native content extraction, no AgentQL)
+P3.2  [parallel] correction-handler skill                          ✅ deployed
+P3.2b [parallel] add-task skill                                    ✅ deployed (/task command)
+P3.3  [SEQUENTIAL] Quality firewall end-to-end test                ⬜ requires manual testing (Dhruva)
+P3.4  [after P3.3] All 8 starting skills verified working          ⬜ pending P3.3
+P3.5  [after P3.4] ntfy.sh setup for phone push notifications      ⬜ needs NTFY_TOPIC set
 ```
 
-### P3.0 — AgentQL setup
+### P3.0 — AgentQL setup (OPTIONAL — Exa replaces for basic research)
 
-AgentQL replaces raw HTML extraction in all browser-reading skills. Prevents 10k-50k token
-page dumps from reaching Sonnet.
+**Status update June 2026:** research-synthesis now uses Exa's native content extraction feature.
+Exa returns full article text without needing AgentQL. AgentQL is still valuable for
+structured data extraction from non-article pages (dashboards, product pages, forms).
+
+**Add AgentQL when:** research quality needs improvement on complex pages, or a new skill
+needs structured form/dashboard extraction. Current research-synthesis works without it.
 
 ```bash
-# Install in Hermes venv
-source ~/.hermes-src/.venv/bin/activate
+# When ready:
+source ~/.hermes/hermes-agent/venv/bin/activate
 pip install agentql
 
-# Add to .env
-AGENTQL_API_KEY=...   # sign up at agentql.com — free tier: 50 calls/mo, then $0.02/call
+# Add to ~/.hermes/.env
+AGENTQL_API_KEY=...   # sign up at agentql.com
 ```
 
-Verify:
-```python
-import agentql
-# Should import without error; no API call at import time
-print(agentql.__version__)
+### P3.1 — Research synthesis (DEPLOYED — uses Exa native content extraction)
+
+**How it works (June 2026):**
+- `/research <topic>` in Discord #research
+- Step 1: GBrain search first (brain-first principle)
+- Step 2-3: Exa search + Exa content fetch (full article text, no raw HTML)
+- Step 4: Sonnet synthesis (known + new + open questions)
+- Step 5: Write to ~/brain/resources/research-[topic]-[date].md
+- Step 6: Discord #research summary (≤1800 chars)
+- Step 7: GBrain ingest of new research note
+
+**No AgentQL needed** — Exa's `contents` parameter returns clean article text natively.
+
+### P3.2 — Correction handler (DEPLOYED)
+
+`/correct <text>` in Discord #corrections. Interprets correction → classifies (BEHAVIOR/FACT/PREFERENCE/FORMAT) → appends to ~/brain/concepts/corrections.md → GBrain ingest → Discord acknowledgment.
+
+### P3.3 — Quality firewall mandatory test
+
+**GATE: must pass before enabling any outbound skill (Phase 5).**
+
+Run this exact sequence manually from Discord:
+```
+1. Send in #corrections: "/test-outbound Hello this is a test message"
+2. Verify Hermes uses claude-sonnet-4-6 (check: ssh omen "tail ~/.hermes/logs/gateway.log | grep model")
+3. Verify preview appears in #corrections with [APPROVAL REQUIRED] header
+4. Verify Hermes is BLOCKING — message not sent without approval
+5. React 👍 in #corrections → verify action executes only after approval
+6. Send "/deny" on second test → verify action discarded and logged
 ```
 
-**Token math:** 1 research run (5 pages) without AgentQL → ~$0.45 Sonnet cost.
-With AgentQL → ~$0.10 total. Pays for itself at >3 research runs/week.
+**Done condition:** approval gate fires 100% of the time on outbound actions.
 
-### P3.1 — Research synthesis implementation detail
+### P3.5 — ntfy.sh phone push setup
 
-Uses Exa + AgentQL. Exa finds sources; AgentQL extracts structured content from each page.
-Add to `.env`:
+Free push notifications to phone for approval requests and alerts.
+
 ```bash
-EXA_API_KEY=...
-AGENTQL_API_KEY=...   # required for structured extraction (see P3.0)
-# FIRECRAWL_API_KEY no longer needed — AgentQL replaces it for article extraction
+# Pick a random secret topic string:
+NTFY_TOPIC="dhruva-alerts-$(openssl rand -hex 6)"
+
+# Test from Omen:
+ssh dhruva@omen "curl -s -d 'DhruvaOS test' ntfy.sh/$NTFY_TOPIC"
+
+# iPhone: install ntfy app → subscribe to: ntfy.sh/$NTFY_TOPIC
+
+# Add to ~/.hermes/.env:
+NTFY_TOPIC=dhruva-alerts-xxxxxxxxxxxx
 ```
 
-Brain-first check before any web search:
-```python
-# Always check GBrain first
-brain_result = await hermes.tools.gbrain.search(query)
-if brain_result.confidence > 0.8:
-    return brain_result  # skip web search
-# else: proceed to Exa + AgentQL extraction
-```
-
-AgentQL extraction pattern (used inside research-synthesis):
-```python
-import agentql
-from playwright.sync_api import sync_playwright
-
-with sync_playwright() as p:
-    # Lightpanda CDP endpoint — fast, low RAM
-    browser = p.chromium.connect_over_cdp("ws://127.0.0.1:9222")
-    page = agentql.wrap(browser.new_page())
-    page.goto(article_url)
-    data = page.query_data("""
-    {
-        title
-        author
-        published_date
-        key_points[]
-        summary
-    }
-    """)
-    # data is a dict — send to Sonnet as JSON, not raw HTML
-```
+Use for: approval request notifications, skill errors, dream cycle failures.
 
 ### P3.3 — Quality firewall mandatory test
 
@@ -534,20 +554,20 @@ Outbound gate fires 100% of the time.
 
 ---
 
-## Phase 4: Self-Improving
+## Phase 4: Self-Improving ⬜ PLANNED (starts after Phase 3 gate passes)
 
 **Goal:** dream cycle running nightly. Agent authors + promotes new skills autonomously.
 
 ### P4 Tasks
 
 ```
-P4.1  [sequential] Dream cycle crontab installed + verified
-P4.2  [sequential] Knowledge graph built (gbrain extract links)
-P4.3  [sequential] Skill authoring end-to-end test
-P4.4  [sequential] Tiered trust gate verified
-P4.5  [after P4.3] Braindump questionnaire completed (see MEMORY.md)
-P4.6  [after P4.4] First dream cycle on real content
-P4.7  [after P4.6] Brain health score ≥70 via gbrain doctor
+P4.1  Dream cycle crontab installed                            ✅ 3am daily via system crontab
+P4.2  Knowledge graph built (gbrain extract links)             ⬜ run after brain has >100 pages
+P4.3  Skill authoring end-to-end test                         ⬜ requires Phase 3 gate pass
+P4.4  Tiered trust gate verified                               ⬜ requires Phase 3 gate pass
+P4.5  Braindump questionnaire completed (see MEMORY.md)        ⬜ Dhruva does this: 30-min session
+P4.6  First dream cycle on real content                        ⬜ runs at 3am automatically
+P4.7  Brain health score ≥70 via gbrain doctor                ⬜ after P4.6
 ```
 
 ### P4.0 — ntfy.sh cloud setup (prerequisite for dream cycle alerts)
