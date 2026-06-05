@@ -13,6 +13,8 @@ def test_add_task_uses_safe_notion_json_encoding():
     assert "urllib.request.Request" in TEXT
     assert "NOTION_TASKS_DB_ID" in TEXT
     assert "NOTION_API_KEY" in TEXT
+    # Status is select type in actual DB schema (not status type)
+    assert '"Status": {"select"' in TEXT
 
 
 def test_add_task_preserves_existing_gbrain_inbox():
