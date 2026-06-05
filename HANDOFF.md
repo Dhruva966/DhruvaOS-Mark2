@@ -196,6 +196,7 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [ ] Notion Tasks DB proper schema created (current: Snoopy AI schema)
 - [ ] /task /research /correct commands tested end-to-end
 - [ ] Quality firewall test (P3.3 gate — manual)
+- [x] Correct Notion Tasks DB ID confirmed: `7b698cab-03a0-43a0-ab04-b074bcd8b4db` ✅
 
 **Phase 3 — Command skills deployed (June 5, 2026):**
 
@@ -205,6 +206,16 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [x] All 3 Codex-reviewed + fixes applied (JSON injection, step ordering, shell portability, trust gate compliance)
 - [ ] P3.3 quality firewall gate: test `/test-outbound` in #corrections (manual — needs Dhruva + Discord)
 - [ ] ntfy.sh phone push: set NTFY_TOPIC in .env, install ntfy app (deferred)
+
+---
+
+## Known Issues (flagged June 5, 2026 — fix before P3.3 gate)
+
+| Issue | File | Fix |
+|-------|------|-----|
+| `DISCORD_*_CHANNEL_ID` env vars may not be set | `~/.hermes/.env` on Omen | `grep DISCORD ~/.hermes/.env \| grep CHANNEL` — add missing ones |
+| Notion MCP has hardcoded token literal | `~/.hermes/config.yaml` → `mcp_servers.notion.env.NOTION_TOKEN` | Change to `"${NOTION_API_KEY}"` |
+| GBrain dual-process (stdio + HTTP PM2) | `~/.hermes/config.yaml` → `mcp_servers.gbrain` | Replace `command: gbrain / args: serve` with `url: http://localhost:3131/mcp` |
 
 ---
 
