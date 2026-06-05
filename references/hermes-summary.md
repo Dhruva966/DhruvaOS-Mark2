@@ -1,6 +1,6 @@
 # Hermes Agent — Reference Summary
 
-Fetched: 2025-06-01. Source: https://github.com/NousResearch/hermes-agent
+Fetched: 2026-06-04. Source: https://github.com/NousResearch/hermes-agent
 
 ## Version
 
@@ -36,7 +36,7 @@ Discord ✅, Telegram, Slack, WhatsApp, Signal, Email
 
 | Category | Tools |
 |----------|-------|
-| Web | Exa (search), Firecrawl (extraction) |
+| Web | Exa (search), browser/extraction stack delegated by project policy (AgentQL primary, Firecrawl fallback) |
 | Browser | Browserbase (cloud), agent-browser (npm) |
 | Images | FAL.ai |
 | Terminal | subprocess with docker/local isolation |

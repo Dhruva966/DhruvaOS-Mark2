@@ -45,6 +45,7 @@ DhruvaOS Mark 2/
 │   └── CLAUDE.md          # GBrain ingest, search, memory patterns
 ├── skills/
 │   ├── CLAUDE.md          # Skill authoring rules + trust gate
+│   ├── calendar-read.yaml
 │   ├── morning-briefing.yaml
 │   ├── evening-briefing.yaml
 │   ├── email-triage.yaml
@@ -57,7 +58,7 @@ DhruvaOS Mark 2/
 ├── discord/
 │   ├── CLAUDE.md          # Channel purposes + message routing
 │   └── channels.md        # Channel definitions
-├── references/            # Fetched official docs (Hermes, GBrain, OpenRouter)
+├── references/            # Fetched official docs and dated research notes
 ├── wiki/                  # Long-form context docs
 ├── decisions/             # Architecture decision records
 └── docs/superpowers/plans/
@@ -134,65 +135,14 @@ Every non-trivial task:
 Parallel dispatch: independent tasks only (different skill files, no shared GBrain DB writes).
 Sequential: GBrain DB operations, Hermes config.yaml changes, process restarts.
 
-## Common Task Patterns
+## Subsystem Docs
 
-### Adding a new Hermes skill
-1. Copy skill YAML template from `skills/` into `~/.hermes/skills/<name>.yaml`
-2. Set frontmatter: `tier`, `outbound`, `requires_approval`, `gbrain.reads`, `gbrain.writes`
-3. Write implementation steps in YAML body
-4. Write tests in `~/.hermes/skills/<name>/tests/test_basic.py` (mock all tools)
-5. Run `pytest ~/.hermes/skills/<name>/tests/ --mock-tools` — must pass
-6. If `outbound: true` — verify quality firewall fires before approval
-7. Seed into Hermes: restart or `hermes skill reload`
+For task-specific patterns, see the module docs — loaded lazily per task:
 
-### Ingesting new content into GBrain
-```bash
-gbrain import ~/path/to/content --no-embed
-gbrain embed --stale
-gbrain onboard --check --json    # verify health
-```
-
-### Debugging model routing
-1. Check `tier` and `outbound` fields in skill YAML
-2. Check `~/.hermes/config.yaml` — verify provider + model for that tier
-3. Check Hermes logs for escalation events
-4. If escalation rate >30%/week → promote skill to next tier permanently
-
-### Running the dream cycle manually
-```bash
-gbrain dream
-# Check output for consolidation summary
-```
-
-### Reviewing an agent-authored skill
-1. Hermes writes skill to `~/.hermes/skills/<name>.yaml`
-2. Quality gate runs automatically (tests must pass)
-3. For write/shell skills: Discord DM arrives with code preview
-4. Review: check tier assignment, outbound flag, shell commands
-5. Approve via `/approve <skill>` in Discord DM or deny via `/deny <skill>`
-
-## gstack + Superpowers Workflow
-
-| Phase | Tools |
-|-------|-------|
-| 1 IDEATION | /office-hours |
-| 2 PLANNING | /autoplan → writing-plans → blueprint |
-| 3 IMPLEMENT | subagent-driven-development + using-git-worktrees |
-| 4 REVIEW | /review → /qa → /cso → /health |
-| 5 RELEASE | /ship → /land-and-deploy → /canary |
-| 6 REFLECT | /retro → /learn → context-save |
-
-## Environment Setup
-
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `OPENAI_API_KEY` | Yes | Tier 1 — burns platform.openai.com credits directly |
-| `ANTHROPIC_API_KEY` | Yes | Tier 2 (Sonnet 4.6) + Tier 3 (Opus 4.8) |
-| `OPENROUTER_API_KEY` | No (post-credits fallback) | Tier 1 when OpenAI credits < $50 |
-| `DISCORD_BOT_TOKEN` | Yes | Hermes Discord gateway |
-| `DISCORD_ALLOWED_USER` | Yes | Dhruva's Discord user ID (allowlist — only user who can command) |
-| `BROWSERBASE_API_KEY` | Phase 5 | Cloud browser — LinkedIn, auth-walled sites (Developer plan $20/mo) |
-| `BROWSERBASE_PROJECT_ID` | Phase 5 | Browserbase project ID (pair with API key) |
-| `AGENTQL_API_KEY` | Phase 3 | Structured extraction — prevents raw HTML reaching Sonnet ($0.02/call) |
-| `EXA_API_KEY` | No | Web search tool |
-| `FIRECRAWL_API_KEY` | No | Web content extraction (may be replaced by AgentQL) |
+| When working on… | Load |
+|------------------|------|
+| Hermes skills, cron, MCP, restarts | [`hermes/CLAUDE.md`](hermes/CLAUDE.md) |
+| GBrain ingest, embed, jobs, CLI gotchas | [`gbrain/CLAUDE.md`](gbrain/CLAUDE.md) |
+| Skill YAML authoring, trust gate | [`skills/CLAUDE.md`](skills/CLAUDE.md) |
+| Discord channels, routing | [`discord/CLAUDE.md`](discord/CLAUDE.md) |
+| Environment variables, API keys | [`ENVIRONMENT.md`](ENVIRONMENT.md) |

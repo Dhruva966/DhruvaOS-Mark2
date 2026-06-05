@@ -13,7 +13,7 @@ tests: tests/email-triage/
 # Email Triage — Implementation
 
 Steps:
-  1. Connect to email via Gmail MCP (OAuth configured in Hermes)
+  1. Connect to Gmail via Google API OAuth (Hermes tool or direct API helper)
   2. Fetch unread threads (max 50, last 48 hours)
   3. For each thread:
      - Check sender against ~/brain/people/ for context

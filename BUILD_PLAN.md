@@ -35,8 +35,8 @@ All tasks done. Phase 1 active.
 | P0.15 | Write `~/.hermes/config.yaml` | 4-tier routing configured | ✅ |
 | P0.16 | Install Lightpanda binary | `lightpanda --version` returns; PM2 shows `lightpanda` online at :9222 |
 | P0.17 | Start GBrain HTTP server via PM2 | `pm2 list` shows `gbrain-mcp` online |
-| P0.18 | Start Hermes via PM2 | `pm2 list` shows `hermes` online |
-| P0.19 | Security hardening complete | AppArmor, UFW, auditd, YOLO=false, sudo removed from dhruvaos |
+| P0.18 | Start Hermes gateway via systemd user service | `systemctl --user status hermes-gateway` = active |
+| P0.19 | Baseline hardening in progress | Approval gates, allowlist, and non-root runtime set; AppArmor/UFW/auditd still phase 0.5 |
 
 ### P0.8 — Hermes install (current method, verified June 2026)
 
@@ -61,7 +61,7 @@ uv sync           # preferred (uses uv.lock for hash-verified install)
 mkdir -p ~/brain/{people,companies,concepts,projects,daily,resources,UCLA,goals,charlie}
 mkdir -p ~/.gbrain
 # Write config (see MEMORY.md for content)
-gbrain init       # initializes PGLite schema at ~/.gbrain/brain.db
+gbrain init       # initializes PGLite schema at ~/.gbrain/brain.pglite/
 ```
 
 ### P0.15 — Hermes config.yaml (MCP section)
@@ -98,57 +98,60 @@ lightpanda --version   # verify install
 **Beta caveat:** Lightpanda is production-capable for scraping but may crash on heavy JS pages.
 Skills must handle retry. Critical outbound skills use Browserbase fallback.
 
-### P0.17-18 — PM2 startup
+### P0.17-18 — service startup
 
 ```bash
 # Lightpanda CDP server (Hermes connects via WebSocket)
 pm2 start "lightpanda --host 127.0.0.1 --port 9222" --name lightpanda
 
 # GBrain HTTP mode — PM2 daemon is safe because HTTP (not stdio pipe)
-pm2 start "/home/dhruvaos/.bun/bin/gbrain serve --http --port 3131 --host 127.0.0.1" --name gbrain-mcp
+pm2 start "/home/dhruva/.bun/bin/gbrain serve --http --port 3131 --host 127.0.0.1" --name gbrain-mcp
 
-# Hermes
-pm2 start "hermes" --name hermes    # if installed via official installer
-# or if manual install:
-pm2 start "~/.hermes-src/.venv/bin/python ~/.hermes-src/run_agent.py" --name hermes
+# Hermes gateway
+set -a; source ~/.hermes/.env; set +a
+hermes gateway install
+systemctl --user status hermes-gateway
 
 pm2 startup && pm2 save
 ```
 
 ---
 
-## Phase 1: Alive
+## Phase 1: Alive ✅ MOSTLY COMPLETE (June 4, 2026)
 
 **Goal:** Hermes responds in Discord. GBrain MCP connected. Brain has initial content.
+
+**Status:** Core done. P1.7 (skillpack scaffold) and security hardening deferred to do at home on SSH.
 
 ### P1 Tasks
 
 ```
-P1.1  [parallel] Hermes Discord end-to-end test
-P1.2  [parallel] phi4-mini Tier 0 routing verified
-P1.3  [parallel] Claude Sonnet Tier 2 verified
-P1.4  [parallel] Claude Opus Tier 3 verified
-P1.5  [SEQUENTIAL] GBrain MCP connection verified
-P1.6  [SEQUENTIAL after P1.5] Obsidian vault imported into GBrain
-P1.7  [after P1.6] GBrain built-in skills active (signal-detector, brain-ops)
-P1.8  [after P1.7] Morning briefing stub fires at 8am
+P1.1  [parallel] Hermes Discord end-to-end test              ✅ Drew responds in DMs + #briefings
+P1.2  [parallel] phi4-mini Tier 0 routing verified            ✅
+P1.3  [parallel] Claude Sonnet Tier 2 verified                ✅
+P1.4  [parallel] Claude Opus Tier 3 verified                  ✅
+P1.5  [SEQUENTIAL] GBrain MCP connection verified             ✅ 88 tools discovered
+P1.6  [SEQUENTIAL after P1.5] Obsidian vault imported         ✅ 40 pages, 45 chunks, embedded
+P1.7  [after P1.6] GBrain built-in skills active              ⬜ gbrain skillpack scaffold --all (do at home)
+P1.8  [after P1.7] Morning briefing stub fires at 8am         ✅ cron set, PST timezone configured
+P1.9  Lid-close suspend disabled                              ✅ HandleLidSwitch=ignore, sleep.target masked
+P1.10 Security hardening (AppArmor + UFW + auditd)           ⬜ deferred — do at home on SSH
+P1.11 Cloudflare Tunnel (anywhere SSH)                        ⬜ deferred — cloudflared not installed yet
 ```
 
 P1.1-P1.4 parallel-safe (different providers, no shared state).
 P1.5 + P1.6 sequential (both write to GBrain PGLite DB).
 
-### P1.5 — GBrain MCP verification
+### P1.5 — GBrain MCP verification ✅ DONE
 
+**Actual wire-up command** (not in original plan — `hermes mcp add` required):
 ```bash
-hermes mcp list          # shows registered MCP servers — gbrain should appear
-hermes mcp test gbrain   # confirms tools discovered (search, think, ingest, etc.)
+hermes mcp add gbrain --command gbrain --args serve
+hermes mcp list    # verify appears
+hermes mcp test gbrain   # 88 tools discovered
 ```
 
-Expected output from `hermes mcp test gbrain`:
-```
-✓ Connected to gbrain at http://localhost:3131/mcp
-✓ Tools discovered: search, think, ingest, embed, dream, onboard
-```
+**Actual output:** `✓ Connected (2285ms) ✓ Tools discovered: 88`
 
 If this fails: `pm2 logs gbrain-mcp --lines 50` to debug.
 
@@ -165,37 +168,42 @@ git init && git remote add origin git@github.com:Dhruva966/dhruvaos-brain.git
 git push -u origin main
 
 # On Omen — add to crontab:
-*/5 * * * * cd /home/dhruvaos/brain && git pull --ff-only && /home/dhruvaos/.bun/bin/gbrain embed --stale
+*/5 * * * * flock -n /tmp/gbrain-write.lock sh -lc 'cd /home/dhruva/brain && git pull --ff-only && /home/dhruva/.bun/bin/gbrain embed --stale'
 ```
 
 Install Obsidian Git plugin on Mac → auto-commit every 5 min.
 
-### P1.6 — Obsidian vault import
+### P1.6 — Obsidian vault import ✅ DONE
 
-**Vault confirmed:** `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/dhruva's wiki` (iCloud-synced, on Mac)
+**Vault location (Mac):** `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/dhruva's wiki` (40 files, iCloud)
 
-Copy vault to Omen before importing (run on Mac):
+Copied via rsync to Omen at `~/vault/obsidian/` (not `~/brain/`):
 ```bash
-VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/dhruva's wiki"
-rsync -av "$VAULT/" dhruvaos@<omen-ip>:/home/dhruvaos/brain/
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""   # Mac — generate key first
+ssh-copy-id dhruva@10.0.0.31                         # authorize on Omen
+ssh dhruva@10.0.0.31 "mkdir -p ~/vault/obsidian"
+rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+  "$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/dhruva's wiki/" \
+  dhruva@10.0.0.31:~/vault/obsidian/
 ```
 
-Then on Omen, initialize git sync (see MEMORY.md → Brain Sync Architecture):
+**OLLAMA_BASE_URL gotcha (Ubuntu 24.04):** IPv6 localhost resolution fails. Must set:
 ```bash
-cd ~/brain && git init
-git remote add origin git@github.com:Dhruva966/dhruvaos-brain.git
-git add . && git commit -m "initial import from obsidian vault" && git push -u origin main
+echo 'export OLLAMA_BASE_URL=http://127.0.0.1:11434/v1' >> ~/.bashrc
 ```
 
-Then import into GBrain:
+Import into GBrain (corrected commands — `onboard --apply` is a no-op, use `jobs submit`):
 ```bash
-gbrain import ~/brain --no-embed
-gbrain embed --stale
-gbrain onboard --check --json    # verify all checks green
-gbrain extract links --source db
-gbrain extract timeline --source db
-gbrain stats                     # verify links > 0
+gbrain init --pglite --embedding-model ollama:nomic-embed-text
+gbrain import ~/vault/obsidian --no-embed
+gbrain embed --all
+gbrain jobs submit extract-timeline-from-meetings --follow
+gbrain jobs submit extract-ner --follow
+gbrain jobs submit unify-types --params '{"target_pack":"gbrain-base-v2"}' --follow
+gbrain onboard --check --json    # verify 0 recommendations
 ```
+
+**Result:** 40 pages, 45 chunks, 85 tags, fully embedded, pack upgraded to gbrain-base-v2.
 
 ### P1.7 — GBrain built-in skills
 
@@ -264,11 +272,11 @@ Required setup before implementing the skill:
 1. Create a Google Cloud project at https://console.cloud.google.com
 2. Enable Gmail API
 3. Create OAuth 2.0 credentials (Desktop app type)
-4. Download `credentials.json` → store at `~/.config/dhruvaos/gmail-credentials.json` (chmod 600)
+4. Download `credentials.json` → store at `~/.config/gmail-credentials.json` (chmod 600)
 5. Add to `.env`: `GOOGLE_CLIENT_ID=...`, `GOOGLE_CLIENT_SECRET=...`
 6. First run does OAuth flow (open browser, grant access, token saved)
 
-Alternatively: register a community Gmail MCP server in `mcp_servers:` if one exists upstream.
+Alternatively: use a Hermes email/calendar tool if the upstream runtime ships one that fits the OAuth flow cleanly.
 
 Skill implementation uses:
 ```python
@@ -416,19 +424,42 @@ P4.6  [after P4.4] First dream cycle on real content
 P4.7  [after P4.6] Brain health score ≥70 via gbrain doctor
 ```
 
-### P4.1 — Dream cycle setup
+### P4.0 — ntfy.sh cloud setup (prerequisite for dream cycle alerts)
 
-Note: The phase0-setup.sh script now installs the dream cycle crontab automatically.
-If installing manually:
+No install needed. ntfy.sh is a free public service — Drew sends HTTP, phone gets push.
+
+```bash
+# Pick a random topic string (this is your "password" — keep it unpredictable):
+# Example: dhruva-alerts-x7k3q9   ← replace with your own random string
+
+# Test from Omen:
+curl -d "ntfy test" ntfy.sh/dhruva-alerts-YOURSTRING
+# Should appear on iPhone immediately
+
+# iPhone setup:
+# 1. Install ntfy app (App Store, free)
+# 2. Server: ntfy.sh (default)
+# 3. Subscribe to topic: dhruva-alerts-YOURSTRING
+```
+
+Record your topic string in `~/.hermes/.env`:
+```bash
+NTFY_TOPIC=dhruva-alerts-YOURSTRING
+```
+
+Self-hosted ntfy (private server on Omen + Cloudflare Tunnel) is optional — upgrade to it
+if you want privacy or Cloudflare Tunnel is already running for other reasons.
+
+### P4.1 — Dream cycle setup
 
 ```bash
 crontab -e
 # Add (use full paths — cron has no PATH):
-0 2 * * * /home/dhruvaos/.bun/bin/gbrain embed --stale
+0 2 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale
 # Pipe failure to ntfy so silent crashes are visible:
-0 3 * * * /home/dhruvaos/.bun/bin/gbrain dream || curl -s -d "dream cycle FAILED" ntfy.sh/dhruva-alerts
-# Rolling 7-day brain.db backup (run after dream cycle completes):
-30 4 * * * cp /home/dhruvaos/.gbrain/brain.db /home/dhruvaos/.gbrain/brain.db.$(date +\%Y\%m\%d) && find /home/dhruvaos/.gbrain/ -name 'brain.db.*' -mtime +7 -delete
+0 3 * * * flock -n /tmp/gbrain-write.lock sh -lc '/home/dhruva/.bun/bin/gbrain dream || curl -s -d "dream cycle FAILED — check: pm2 logs gbrain-mcp" ntfy.sh/dhruva-alerts-YOURSTRING'
+# Rolling 7-day brain.pglite backup (run after dream cycle completes):
+30 4 * * * cp -r /home/dhruva/.gbrain/brain.pglite /home/dhruva/.gbrain/brain.pglite.$(date +\%Y\%m\%d) && find /home/dhruva/.gbrain/ -maxdepth 1 -name 'brain.pglite.*' -mtime +7 -exec rm -rf {} +
 
 # Verify:
 gbrain dream --dry-run    # simulate 8 phases, check for errors
@@ -591,10 +622,10 @@ python -c "import nemo.collections.asr as nemo_asr; \
 
 - VRAM: ~1.5GB on GPU. Can run CPU-only if VRAM tight (slower but acceptable)
 - Accuracy: state-of-art for English, ~word-error-rate <4% on clean audio
-- Latency: real-time or faster on RTX 2060
+- Latency: real-time or faster on GTX 1660 Ti
 - Cost: $0, no limits
 
-**phi4-mini + Parakeet on RTX 2060 (6GB):** don't run simultaneously. Pipeline is sequential — STT finishes before Hermes calls phi4-mini. No VRAM collision.
+**phi4-mini + Parakeet on GTX 1660 Ti (6GB):** don't run simultaneously. Pipeline is sequential — STT finishes before Hermes calls phi4-mini. No VRAM collision.
 
 ### P6.2 — TTS: Piper (CPU, zero VRAM)
 
@@ -686,7 +717,7 @@ Two viable approaches:
 
 **Gemma 4 12B architecture insight:** removes audio encoder entirely, projects raw 40ms audio frames directly into LLM token space. One model for text + audio instead of whisper + LLM. Latency benefit: LLM starts processing before audio encoder finishes (encoder-free = no encoder queue).
 
-**RTX 2060 constraint:** Gemma 4 12B needs 12–16GB VRAM; RTX 2060 has 6GB. Does not fit local today. Options when Phase 6 arrives:
+**GTX 1660 Ti constraint:** Gemma 4 12B needs 12–16GB VRAM; GTX 1660 Ti has 6GB. Does not fit local today. Options when Phase 6 arrives:
 - Use Gemma 4 12B via Google Vertex AI API (Tier 1/2, cloud inference, no local VRAM)
 - Upgrade to GPU with ≥12GB VRAM (RTX 3080 Ti, 4070, etc.)
 - Keep faster-whisper + phi4-mini two-model approach (works now, more infrastructure)
@@ -695,7 +726,7 @@ Two viable approaches:
 
 ### P6 — Tier 0 model note: 1-bit models
 
-phi4-mini uses ~2.4GB VRAM on RTX 2060 (6GB total). If GPU contention appears (desktop + phi4-mini + any other GPU task), consider swapping Tier 0 to a 1-bit CPU model (BitNet b1.58 3B or similar):
+phi4-mini uses ~2.4GB VRAM on GTX 1660 Ti (6GB total). If GPU contention appears (desktop + phi4-mini + any other GPU task), consider swapping Tier 0 to a 1-bit CPU model (BitNet b1.58 3B or similar):
 - Runs on CPU using 32GB system RAM — zero GPU VRAM used
 - Integer arithmetic (1-bit) → CPU inference speed comparable to phi4-mini on GPU for short triage/classification tasks
 - Only relevant if VRAM pressure becomes real — verify with `nvidia-smi` on Day 1 before switching
@@ -705,7 +736,7 @@ phi4-mini uses ~2.4GB VRAM on RTX 2060 (6GB total). If GPU contention appears (d
 For SSH into Omen from anywhere (coffee shop, class, travel):
 
 ```bash
-# Install Tailscale on Omen (run as dhruvaos or admin)
+# Install Tailscale on Omen (run as dhruva or admin)
 curl -fsSL https://tailscale.com/install.sh | sh
 sudo tailscale up
 # Get stable hostname:
@@ -714,7 +745,7 @@ tailscale status | grep omen
 
 Then from any device (phone, laptop, another machine):
 ```bash
-ssh dhruvaos@<omen-hostname>.ts.net
+ssh dhruva@<omen-hostname>.ts.net
 ```
 
 Tailscale punches through university CGNAT the same way Cloudflare Tunnel does — no open inbound ports needed. This replaces the Cloudflare Tunnel for SSH use cases.
@@ -737,13 +768,13 @@ Not every scheduled task needs Hermes or an LLM call. Deterministic tasks = pure
 | File existence / backup verify | bash | Trivial |
 | "Did dream cycle run today?" | bash check cron log | Log grep |
 
-These go in `/home/dhruvaos/scripts/` as standalone bash scripts on their own cron lines — NOT Hermes skills. Zero tokens, lower latency, no PM2 dependency.
+These go in `/home/dhruva/scripts/` as standalone bash scripts on their own cron lines — NOT Hermes skills. Zero tokens, lower latency, no PM2 dependency.
 
 Pattern:
 ```bash
 #!/usr/bin/env bash
 # Zero-LLM cron: check disk space, alert if >85%
-USAGE=$(df /home/dhruvaos | awk 'NR==2 {print $5}' | tr -d '%')
+USAGE=$(df /home/dhruva | awk 'NR==2 {print $5}' | tr -d '%')
 [ "$USAGE" -gt 85 ] && curl -s -d "Disk ${USAGE}% full on Omen" ntfy.sh/dhruva-alerts
 ```
 
@@ -761,7 +792,7 @@ Rule: if you can write the logic in bash without any "understand this" step → 
 | GBrain PGLite DB | Single-writer embedded DB; concurrent writes corrupt |
 | `gbrain import`, `gbrain embed`, `gbrain dream`, `gbrain init`, `gbrain doctor` | All write to same DB |
 | `~/.hermes/config.yaml` | Concurrent edits → invalid YAML → Hermes fails to start |
-| Hermes process restarts (`pm2 restart hermes`) | Must be atomic |
+| Hermes process restarts (`systemctl --user restart hermes-gateway`) | Must be atomic |
 | Crontab edits | `crontab -e` not concurrent-safe |
 | `mcp_servers:` registration | Hermes reloads config on restart — only one editor at a time |
 
@@ -784,7 +815,7 @@ git worktree add ../dhruvaos-p2-calendar -b phase2-calendar
 
 # Each Claude Code session works in its own dir
 # email-triage skill: ../dhruvaos-p2-email/skills/email-triage.yaml
-# calendar skill:     ../dhruvaos-p2-calendar/skills/calendar.yaml
+# calendar skill:     ../dhruvaos-p2-calendar/skills/calendar-read.yaml
 
 # Merge when done
 git checkout main
@@ -823,7 +854,8 @@ Parallel-safe: yes (skill file is independent)
 
 ```bash
 # Phase 0 → Phase 1
-pm2 list                              # hermes + gbrain-mcp + lightpanda all online
+pm2 list                              # gbrain-mcp + lightpanda online
+systemctl --user status hermes-gateway
 hermes mcp list                       # gbrain registered
 hermes mcp test gbrain                # GBrain tools discovered
 ollama list                           # phi4-mini present

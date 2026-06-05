@@ -11,7 +11,7 @@ Purpose: Hermes Agent config overrides, skill seeds, and development patterns fo
 | What | Where |
 |------|-------|
 | Hermes runtime config | `~/.hermes/config.yaml` (not in repo — secrets) |
-| Config template | `hermes/config.template.yaml` |
+| Canonical routing spec | `MODEL_ROUTING.md` |
 | Starting skills | `skills/*.yaml` (seeded to `~/.hermes/skills/`) |
 | Hermes source | `~/.hermes-src/` (cloned from GitHub) |
 | All live skills | `~/.hermes/skills/` |
@@ -105,14 +105,15 @@ run_shell("rm -rf /tmp/output")    # WRONG: shell requires requires_approval: tr
 ## What NOT to Do
 
 1. **Never set `tier: 0` for anything that touches external APIs.** Tier 0 (phi4-mini) is
-   for internal triage only. If a skill queries Exa, Firecrawl, or any external service,
+   for internal triage only. If a skill queries Exa, AgentQL, Gmail, Calendar, or any external service,
    tier is minimum 1.
 
 2. **Never write a skill without tests.** The quality gate runs `pytest --mock-tools`.
    No tests = skill fails quality gate = never promoted. Write the test first.
 
 3. **Never edit `~/.hermes/config.yaml` while Hermes is running.** Stop Hermes
-   (`pm2 stop hermes`), edit, restart (`pm2 start hermes`). Concurrent config edits
+   (`systemctl --user stop hermes-gateway`), edit, restart (`systemctl --user start hermes-gateway`).
+   Concurrent config edits
    produce undefined behavior.
 
 4. **Never bypass the approval gate for convenience.** If a skill's approval requirement
@@ -120,5 +121,68 @@ run_shell("rm -rf /tmp/output")    # WRONG: shell requires requires_approval: tr
    The friction is the feature.
 
 5. **Never hardcode API keys in skill YAML or test files.** All secrets via environment
-   variables from `~/.config/dhruvaos/.env`. If a key appears in a skill file, it's a
+   variables from `~/.hermes/.env`. If a key appears in a skill file, it's a
    security incident.
+
+---
+
+## Common Task Patterns
+
+### Add a new skill
+```bash
+cp skills/<name>.yaml ~/.hermes/skills/<name>.yaml
+# Set frontmatter: tier, outbound, requires_approval, gbrain.reads, gbrain.writes
+pytest ~/.hermes/skills/<name>/tests/ --mock-tools   # must pass
+systemctl --user restart hermes-gateway
+```
+
+### Wire GBrain MCP (first-time setup)
+```bash
+hermes mcp add gbrain --command gbrain --args serve
+hermes mcp list          # verify gbrain appears
+hermes mcp test gbrain   # verify 88 tools discovered
+```
+
+### Schedule a skill via cron
+```bash
+# Add timezone FIRST — without it, 8am fires at 8am UTC (wrong)
+grep -q "timezone:" ~/.hermes/config.yaml || \
+  echo "timezone: America/Los_Angeles" >> ~/.hermes/config.yaml
+
+hermes cron create "0 8 * * *" "Morning briefing" --skill morning-briefing
+hermes cron list   # verify next fire time shows correct local time
+hermes cron run <job_id>   # test immediately without waiting
+```
+
+### Restart sequence
+```bash
+# Config change only:
+systemctl --user restart hermes-gateway
+
+# GBrain config change only:
+pm2 restart gbrain-mcp && sleep 5 && hermes mcp test gbrain
+
+# Both changed:
+pm2 restart gbrain-mcp
+systemctl --user restart hermes-gateway
+```
+
+### Debug model routing
+```bash
+# 1. Check skill frontmatter: tier + outbound fields
+# 2. Check ~/.hermes/config.yaml — provider + model per tier
+tail -f ~/.hermes/logs/gateway.log   # watch escalation events
+# 3. If escalation rate >30%/week → bump tier permanently in skill YAML
+```
+
+---
+
+## CLI Gotchas — Check `--help` First
+
+**Rule:** Run `hermes --help` or `hermes <cmd> --help` before any unfamiliar command.
+
+| Wrong assumption | Correct |
+|-----------------|---------|
+| `hermes mcp test gbrain` before adding | `hermes mcp add gbrain --command gbrain --args serve` first |
+| Edit `config.yaml` while Hermes running | `systemctl --user stop hermes-gateway` → edit → start |
+| Drew can restart itself | Always restart from terminal — `systemctl --user restart hermes-gateway` |

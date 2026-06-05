@@ -1,6 +1,6 @@
 # Local Model — Tier 0 Finding
 
-Researched: 2025-06-01.
+Researched: 2025-06-01. Reviewed against current Omen deployment on 2026-06-04.
 
 ## Target: Bonsai (PrismML)
 
@@ -22,7 +22,7 @@ Hermes's Ollama integration.
 
 | Model | VRAM | `ollama pull` | Tokens/sec (est.) |
 |-------|------|--------------|------------------|
-| phi4-mini | ~2.5 GB | ✅ | ~20-30 tok/s on RTX 2060 |
+| phi4-mini | ~2.5 GB | ✅ | ~20-30 tok/s on GTX 1660 Ti |
 | gemma3:4b | ~3.3 GB | ✅ | ~15-25 tok/s |
 | qwen3:8b | ~5.2-6.0 GB | ✅ | MARGINAL — swap risk |
 
@@ -46,4 +46,4 @@ ollama pull phi4-mini
 ollama run phi4-mini "test"    # expect ~2.5 GB VRAM usage
 ```
 
-Ollama auto-installs as systemd service, auto-detects NVIDIA GPU (RTX 2060).
+Ollama auto-installs as systemd service, auto-detects the NVIDIA GPU in the Omen (GTX 1660 Ti in the current machine).

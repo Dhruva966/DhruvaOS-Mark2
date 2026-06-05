@@ -7,6 +7,10 @@
 brain.db
 *.db
 .gbrain/brain.db
+brain.pglite
+brain.pglite/
+.gbrain/brain.pglite
+.gbrain/brain.pglite/
 
 # Python
 __pycache__/

@@ -1,5 +1,8 @@
 # DhruvaOS Mark 2 — Phase 0 Execution Report
 
+> Historical snapshot from the initial June 2026 bring-up. For current setup and canonical
+> commands, use `CLAUDE.md`, `ENVIRONMENT.md`, and `DEPLOYMENT.md`.
+
 **Date:** June 2026  
 **Status:** Phase 0 COMPLETE — Hermes alive, Discord connected, GBrain running
 

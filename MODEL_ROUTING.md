@@ -46,11 +46,11 @@ providers:
     api_key: "dummy"           # Ollama ignores the key
 
   openai_direct:
-    api_key: "${OPENAI_API_KEY}"            # from ~/.config/dhruvaos/.env
+    api_key: "${OPENAI_API_KEY}"            # from ~/.hermes/.env
     base_url: "https://api.openai.com/v1"  # direct — bills platform.openai.com
 
   anthropic:
-    api_key: "${ANTHROPIC_API_KEY}"         # from ~/.config/dhruvaos/.env
+    api_key: "${ANTHROPIC_API_KEY}"         # from ~/.hermes/.env
 
   openrouter:                               # FALLBACK ONLY — own OpenRouter billing
     base_url: "https://openrouter.ai/api/v1"
@@ -123,9 +123,7 @@ routing:
     require_approval: true
     approval_timeout_hours: 24    # deny + log if no response in 24h
     approval_channel: "corrections"
-    # Briefing channels auto-approve — Dhruva is the only reader, no third-party risk
-    auto_approve_channels:
-      - "briefings"              # morning-briefing, evening-briefing post here
+    # Internal briefings are not outbound; they should stay outbound:false at the skill level.
 
   escalation:
     on_reasoning_failure: "bump_one_tier"
@@ -221,7 +219,7 @@ Set a monthly dashboard check + $50 alert as Tier 1 fallback trigger.
 2. Edit `~/.hermes/config.yaml`:
    - Set `tier_1.active_backend: "fallback"`
    - Ensure `OPENROUTER_API_KEY` is set in `.env`
-3. Restart Hermes: `pm2 restart hermes`
+3. Restart Hermes: `systemctl --user restart hermes-gateway`
 4. Verify: run a Tier 1 task, check logs for `deepseek/deepseek-v3` provider hit
 5. Log the switch date in `decisions/` as an ADR
 

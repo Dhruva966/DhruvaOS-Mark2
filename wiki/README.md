@@ -18,7 +18,7 @@ and history that isn't apparent from the codebase.
 - Architecture diagrams (→ ARCHITECTURE.md)
 - Setup instructions (→ ENVIRONMENT.md, DEPLOYMENT.md)
 - Short reference material (→ subsystem CLAUDE.mds)
-- Secrets or API keys (→ ~/.config/dhruvaos/.env — never in the repo)
+- Secrets or API keys (→ `~/.hermes/.env` — never in the repo)
 
 ## Format
 

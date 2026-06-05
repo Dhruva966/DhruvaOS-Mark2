@@ -37,7 +37,11 @@ Why this over alternatives?
 What changes as a result? What becomes harder?
 ```
 
-## Existing Decisions (from planning phase)
+## Existing Decisions
+
+ADR files currently checked into the repo start at ADR-007. ADR-001 through ADR-006 are
+planning-era decisions summarized here for continuity, but the individual markdown files
+have not been reconstructed yet.
 
 | ADR | Decision | Date |
 |-----|---------|------|
@@ -46,7 +50,7 @@ What changes as a result? What becomes harder?
 | ADR-003 | phi4-mini over Bonsai for Tier 0 (Bonsai not in Ollama) | 2026-06-01 |
 | ADR-004 | Direct OPENAI_API_KEY over OpenRouter for Tier 1 (credits stranded) | 2026-06-01 |
 | ADR-005 | PGLite over Postgres+Supabase (brain <1000 files, zero-ops) | 2026-06-01 |
-| ADR-006 | PM2 over systemd for initial process management | 2026-06-01 |
+| ADR-006 | Initial PM2-first process plan (later superseded by Hermes systemd gateway + PM2 only for GBrain/Lightpanda) | 2026-06-01 |
 | ADR-007 | Rejected Supermemory (redundant with GBrain, data sovereignty) | 2026-06-04 |
 | ADR-008 | Rejected PlanetScale (MySQL, no pgvector, cloud-hosted) | 2026-06-04 |
 | ADR-009 | Rejected Karpathy AutoResearch (wrong layer — skill/memory not weights) | 2026-06-04 |
