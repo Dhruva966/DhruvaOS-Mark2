@@ -10,6 +10,7 @@ platforms: [linux]
 gbrain:
   reads: ["*"]
   writes: ["*"]
+tests: tests/
 metadata:
   hermes:
     tags: [gbrain, dream, maintenance, facts, nightly]

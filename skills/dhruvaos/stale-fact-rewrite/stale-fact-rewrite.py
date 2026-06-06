@@ -23,6 +23,7 @@ import fcntl
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -30,11 +31,14 @@ import time
 import urllib.error
 import urllib.request
 
-GBRAIN = "/home/dhruva/.bun/bin/gbrain"
+GBRAIN = os.environ.get("GBRAIN_BIN") or shutil.which("gbrain") or "/home/dhruva/.bun/bin/gbrain"
 HERMES_ENV = pathlib.Path.home() / ".hermes" / ".env"
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 LOG_FILE = pathlib.Path.home() / ".gbrain" / "stale-fact-rewrites.jsonl"
-LOCK_FILE = pathlib.Path.home() / ".gbrain" / ".stale-fact-rewrite.lock"
+# Use the SAME lock file as dream/embed crons (/tmp is cleared on reboot;
+# ~/.gbrain/ is persistent and survives across reboots).
+# This prevents stale-fact-rewrite from running concurrently with gbrain dream or embed.
+LOCK_FILE = pathlib.Path.home() / ".gbrain" / "gbrain-write.lock"
 MAX_FACTS = 50          # cap per run; keeps runtime under 5 min
 OLLAMA_TIMEOUT = 90     # seconds per LLM call
 INTER_CALL_SLEEP = 0.3  # pause between gbrain calls to avoid hammering
@@ -51,16 +55,27 @@ def load_hermes_env() -> dict[str, str]:
             continue
         key, _, val = line.partition("=")
         key = key.strip()
-        val = val.strip().strip("'\"")
+        val = val.strip()
+        # Strip a matched outer quote pair only (avoids stripping embedded quotes).
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in ('"', "'"):
+            val = val[1:-1]
         if key:
             env[key] = val
     return env
 
 
 def build_env() -> dict[str, str]:
-    """Merge system env + hermes env (hermes wins on conflicts)."""
+    """Merge system env + hermes env + ensure bun/gbrain are in PATH."""
     result = dict(os.environ)
     result.update(load_hermes_env())
+    # Ensure bun + local bins are in PATH — they're absent in non-login SSH sessions
+    extra = ":".join([
+        str(pathlib.Path.home() / ".bun" / "bin"),
+        str(pathlib.Path.home() / ".nvm" / "versions" / "node" / "v24.16.0" / "bin"),
+        str(pathlib.Path.home() / ".local" / "bin"),
+        str(pathlib.Path.home() / ".hermes" / "bin"),
+    ])
+    result["PATH"] = extra + ":" + result.get("PATH", "/usr/bin:/bin")
     return result
 
 
@@ -78,7 +93,13 @@ def gbrain_call(tool: str, args: dict, env: dict, timeout: int = 30) -> dict:
     )
     if r.returncode != 0:
         raise RuntimeError(f"gbrain call {tool}: {r.stderr.strip() or f'exit {r.returncode}'}")
-    return json.loads(r.stdout)
+    # Find the first JSON object/array in stdout — skips any warning banners gbrain
+    # may emit before the actual result.
+    stdout = r.stdout
+    start = next((i for i, c in enumerate(stdout) if c in ("{", "[")), -1)
+    if start < 0:
+        raise RuntimeError(f"gbrain call {tool}: no JSON in stdout: {stdout[:200]!r}")
+    return json.loads(stdout[start:])
 
 
 def ollama_generate(prompt: str, model: str = "phi4-mini") -> str:
@@ -86,7 +107,7 @@ def ollama_generate(prompt: str, model: str = "phi4-mini") -> str:
         "model": model,
         "prompt": prompt,
         "stream": False,
-        "options": {"temperature": 0.1, "num_predict": 256},
+        "options": {"temperature": 0.1, "num_predict": 512},
     }).encode()
     req = urllib.request.Request(
         OLLAMA_URL, data=payload, headers={"Content-Type": "application/json"}
@@ -111,7 +132,7 @@ def get_entity_page(entity_slug: str, env: dict) -> str:
     return ""
 
 
-def evaluate_fact(fact: dict, context: str, dry_run: bool) -> tuple[bool, str, str]:
+def evaluate_fact(fact: dict, context: str) -> tuple[bool, str, str]:
     """
     Ask phi4-mini: is this fact stale given recent entity context?
     Returns (is_stale, reason, updated_fact_text).
@@ -142,19 +163,33 @@ def evaluate_fact(fact: dict, context: str, dry_run: bool) -> tuple[bool, str, s
         If stale:   {{"stale": true, "reason": "one sentence", "updated_fact": "corrected text"}}
     """)
 
+    def _parse_json(text: str) -> dict | None:
+        """Extract first JSON object from text, handling markdown code fences."""
+        # Strip ```json ... ``` fences if present
+        import re as _re
+        stripped = _re.sub(r"```(?:json)?\s*", "", text).strip()
+        for candidate in (text, stripped):
+            s = candidate.find("{")
+            e = candidate.rfind("}") + 1
+            if s < 0 or e <= s:
+                continue
+            try:
+                data = json.loads(candidate[s:e])
+                if isinstance(data, dict):
+                    return data
+            except json.JSONDecodeError:
+                continue
+        return None
+
     try:
         response = ollama_generate(prompt)
-        start = response.find("{")
-        end = response.rfind("}") + 1
-        if start < 0 or end <= start:
-            return False, "", ""
-        data = json.loads(response[start:end])
-        if not isinstance(data, dict):
+        data = _parse_json(response)
+        if data is None:
+            log({"event": "eval_parse_error", "fact_id": fact.get("id"),
+                 "error": "no JSON object found in response"})
             return False, "", ""
         if data.get("stale") and data.get("updated_fact"):
             return True, str(data.get("reason", "")), str(data["updated_fact"])
-    except json.JSONDecodeError as e:
-        log({"event": "eval_parse_error", "fact_id": fact.get("id"), "error": str(e)})
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         log({"event": "eval_ollama_error", "fact_id": fact.get("id"), "error": str(e)})
         raise  # re-raise Ollama errors so caller can abort the whole run
@@ -217,9 +252,11 @@ def _run(dry_run: bool, mode_label: str, _lock_fd) -> None:
              "duration_s": 0, "dry_run": dry_run})
         return
 
-    # 2. Verify Ollama is reachable before iterating all facts
+    # 2. Verify Ollama is reachable — use /api/tags (free list, no inference cost)
     try:
-        ollama_generate("test", model="phi4-mini")
+        req = urllib.request.Request("http://127.0.0.1:11434/api/tags")
+        with urllib.request.urlopen(req, timeout=10):
+            pass
     except (urllib.error.URLError, OSError) as e:
         msg = f"ERROR: Ollama unreachable: {e}"
         print(f"[stale-fact-rewrite] {msg}", file=sys.stderr, flush=True)
@@ -233,7 +270,7 @@ def _run(dry_run: bool, mode_label: str, _lock_fd) -> None:
         fid = fact.get("id", "?")
         try:
             context = get_entity_page(fact.get("entity_slug") or "", env)
-            is_stale, reason, updated = evaluate_fact(fact, context, dry_run)
+            is_stale, reason, updated = evaluate_fact(fact, context)
 
             if not is_stale:
                 continue
@@ -243,21 +280,15 @@ def _run(dry_run: bool, mode_label: str, _lock_fd) -> None:
             print(f"  → {updated[:70]}", file=sys.stderr, flush=True)
 
             if not dry_run:
-                # Expire the old fact (non-destructive — sets valid_until=today in DB)
-                gbrain_call("forget_fact", {
-                    "id": int(fid),
-                    "reason": f"stale-fact-rewrite: {reason[:120]}",
-                }, env)
-                time.sleep(INTER_CALL_SLEEP)
-
-                # Insert the updated fact via extraction pipeline.
-                # NOT setting is_dream_generated — that skips extraction entirely.
+                # INSERT the updated fact FIRST via extraction pipeline.
+                # NOT setting is_dream_generated — that flag skips extraction entirely.
+                # Insert-before-expire ensures no fact is permanently lost if the process
+                # crashes between the two operations.
                 extract_result = gbrain_call("extract_facts", {
                     "turn_text": updated,
                 }, env, timeout=60)
                 time.sleep(INTER_CALL_SLEEP)
 
-                # Verify replacement was actually inserted
                 inserted = extract_result.get("inserted", 0)
                 if inserted == 0:
                     log({
@@ -269,8 +300,21 @@ def _run(dry_run: bool, mode_label: str, _lock_fd) -> None:
                         "extract_result": extract_result,
                     })
                     errors += 1
-                    print(f"[stale-fact-rewrite] WARNING #{fid}: expired but extract_facts inserted 0 — logged", file=sys.stderr, flush=True)
+                    print(f"[stale-fact-rewrite] WARNING #{fid}: extract_facts inserted 0 — old fact preserved, logged", file=sys.stderr, flush=True)
                     continue
+
+                # Expire the old fact only after the replacement is confirmed inserted.
+                try:
+                    gbrain_call("forget_fact", {
+                        "id": int(fid),
+                        "reason": f"stale-fact-rewrite: {reason[:120]}",
+                    }, env)
+                except (TypeError, ValueError):
+                    log({"event": "fact_error", "fact_id": fid,
+                         "error": f"non-integer fact id, cannot expire: {fid!r}"})
+                    errors += 1
+                    continue
+                time.sleep(INTER_CALL_SLEEP)
 
             log({
                 "event": "rewrite",
