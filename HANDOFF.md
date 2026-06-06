@@ -280,7 +280,7 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [x] `XPOSTEROS_API_URL` + `XPOSTEROS_API_TOKEN` in `~/.hermes/.env`
 - [x] All 6 Notion DB IDs verified + set in `/home/dhruva/xposteros/.env`
 - [x] 50 tests passing, ruff lint clean (DhruvaOS repo: 61/61 contract tests — 15 new xposteros-control tests added June 5)
-- [ ] **FIX NEEDED:** Add `NOTION_API_KEY` + `LLM_DEFAULT_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` to `~/xposteros/.env` — confirmed missing via 10am cron output (DraftGenerator: `notion_or_llm_not_configured`). Keys exist in `~/.hermes/.env`, copy with: `NOTION_KEY=$(grep "^NOTION_API_KEY=" ~/.hermes/.env | cut -d= -f2-) && ANTHRO_KEY=$(grep "^ANTHROPIC_API_KEY=" ~/.hermes/.env | cut -d= -f2-) && printf "NOTION_API_KEY=${NOTION_KEY}\nLLM_DEFAULT_PROVIDER=anthropic\nANTHROPIC_API_KEY=${ANTHRO_KEY}\n" >> ~/xposteros/.env && systemctl --user restart xposteros-api`
+- [x] **FIXED June 6:** `NOTION_API_KEY` + `LLM_DEFAULT_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` added to `~/xposteros/.env`. Service health: `status:ok dry_run:True`. Workers no longer failing.
 - [ ] Go-live: set `XPOSTER_DRY_RUN=false` (waiting on X credentials)
 - [ ] Cloudflare tunnel for Vercel→Omen backend (manual step — `/etc/cloudflared/config.yml` placeholder)
 - [ ] Vercel env vars: `XPOSTEROS_API_URL=https://xposteros.<TUNNEL_DOMAIN>` (needs tunnel first)
@@ -295,7 +295,7 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 | `DISCORD_*_CHANNEL_ID` env vars may not be set | ✅ Fixed June 5 | All 5 channel IDs verified in ~/.hermes/.env |
 | Notion MCP hardcoded token | ✅ Fixed June 5 | Changed to `"${NOTION_API_KEY}"` in config.yaml |
 | GBrain dual-process (stdio + HTTP) | ✅ Fixed June 5 | Replaced with `url: http://localhost:3131/mcp` |
-| **XPosterOS workers fail every 2h** | ⬜ **OPEN** | Copy NOTION_API_KEY + LLM keys from ~/.hermes/.env to ~/xposteros/.env (see XPosterOS section above) |
+| **XPosterOS workers fail every 2h** | ✅ **Fixed June 6** | NOTION_API_KEY + LLM keys copied to ~/xposteros/.env; health: status:ok dry_run:True |
 | stale-fact-rewrite deployed | ✅ **Fixed June 6** | Script at ~/.hermes/scripts/, SKILL.md at ~/.hermes/skills/dhruvaos/stale-fact-rewrite/, Hermes cron 3:30am (job ID 6fc1a9ff790c) |
 | `sync` phase failing (brain not a git repo) | ✅ **Fixed June 6** | `git init ~/brain`, `gbrain sync --repo /home/dhruva/brain` set local_path |
 | `extract_facts` blocked by legacy facts with `row_num IS NULL` | ✅ **Fixed June 6** | v0.32.2 migration re-run after setting local_path; row_num backfilled |

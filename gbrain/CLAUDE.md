@@ -142,7 +142,7 @@ gbrain jobs submit extract-ner --follow
 gbrain jobs submit unify-types --params '{"target_pack":"gbrain-base-v2"}' --follow
 ```
 
-**Ollama embedding on Ubuntu 24.04:** use `127.0.0.1` not `localhost` — IPv6 resolution mismatch.
+**Ollama embedding on Ubuntu 24.04 only:** use `127.0.0.1` not `localhost` — IPv6 resolution mismatch (not an issue on macOS).
 ```bash
 export OLLAMA_BASE_URL=http://127.0.0.1:11434/v1   # add to ~/.bashrc
 ```

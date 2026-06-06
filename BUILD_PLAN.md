@@ -172,7 +172,7 @@ git init && git remote add origin git@github.com:Dhruva966/dhruvaos-brain.git
 git push -u origin main
 
 # On Omen — add to crontab:
-*/5 * * * * flock -n /tmp/gbrain-write.lock sh -lc 'cd /home/dhruva/brain && git pull --ff-only && /home/dhruva/.bun/bin/gbrain embed --stale'
+*/5 * * * * flock -n ~/.gbrain/gbrain-write.lock sh -lc 'cd /home/dhruva/brain && git pull --ff-only && /home/dhruva/.bun/bin/gbrain embed --stale'
 ```
 
 Install Obsidian Git plugin on Mac → auto-commit every 5 min.
@@ -311,12 +311,12 @@ sudo aa-complain /etc/apparmor.d/hermes-agent   # log-only mode — no blocking
 
 **Cron job IDs (Omen, as of June 2026):**
 - Morning briefing: `e5c41a6e8f1f` (8am PST) — resume if paused: `hermes cron resume e5c41a6e8f1f`
-- **Notion Tasks DB:** `NOTION_TASKS_DB_ID=7b698cab-03a0-43a0-ab04-b074bcd8b4db` ✅ verified write OK (June 5, 2026). Status field = `select` type (not `status`).
+- **Notion Tasks DB:** `NOTION_TASKS_DB_ID=7b698cab-03a0-43a0-ab04-b074bcd8b4db` ✅ verified write OK (June 5, 2026). Status field = `status` type (not `select`).
 - **Other DB IDs now in .env:** NOTION_PROJECTS_DB_ID, NOTION_PEOPLE_DB_ID, NOTION_BRIEFINGS_DB_ID
 
 ---
 
-## Phase 2: Inbox ✅ COMPLETE (June 5, 2026)
+## Phase 2: Inbox ⚠️ COMPLETE (June 5, 2026) (except P2.0: Notion DB creation — manual step pending)
 
 **Goal:** email triage works, calendar read, morning briefing has real content.
 
@@ -485,10 +485,11 @@ The 6 Notion DB IDs are in `~/xposteros/.env` but the API auth token and LLM key
 export PATH="/home/dhruva/.nvm/versions/node/v24.16.0/bin:/home/dhruva/.bun/bin:/home/dhruva/.local/bin:/home/dhruva/.hermes/bin:$PATH"
 
 # Copy keys from hermes .env (both already present there):
-NOTION_KEY=$(grep "^NOTION_API_KEY=" ~/.hermes/.env | cut -d= -f2-)
+# Note: .env stores NOTION_API_KEY; Hermes config maps it to NOTION_TOKEN; use NOTION_API_KEY here
+NOTION_API_KEY=$(grep "^NOTION_API_KEY=" ~/.hermes/.env | cut -d= -f2-)
 ANTHRO_KEY=$(grep "^ANTHROPIC_API_KEY=" ~/.hermes/.env | cut -d= -f2-)
 cat >> ~/xposteros/.env <<EOF
-NOTION_API_KEY=${NOTION_KEY}
+NOTION_API_KEY=${NOTION_API_KEY}
 LLM_DEFAULT_PROVIDER=anthropic
 ANTHROPIC_API_KEY=${ANTHRO_KEY}
 EOF

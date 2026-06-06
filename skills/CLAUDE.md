@@ -43,46 +43,7 @@ hermes cron create "0 8 * * *" "Morning briefing" --skill morning-briefing --del
 
 ## Allowed Patterns ✅
 
-```yaml
-# ✅ Complete skill frontmatter — all fields present, all correct
-name: task-prioritization
-version: 1.0.0
-tier: 1
-outbound: false
-requires_approval: false
-description: "Load task list, rank by urgency+importance, update GBrain"
-schedule: null
-gbrain:
-  reads: ["projects/*", "goals/*"]
-  writes: ["projects/tasks.md"]
-tests: tests/task-prioritization/
----
-# Implementation body follows
-```
-
-```yaml
-# ✅ Outbound skill with all required safety fields
-name: email-reply
-version: 1.0.0
-tier: 2                   # minimum tier for outbound
-outbound: true            # required — triggers quality firewall
-requires_approval: true   # required for outbound
-description: "Draft and send an email reply, requires Dhruva approval"
-```
-
-```python
-# ✅ Skill test with full mocking
-from unittest.mock import patch, MagicMock
-import pytest
-
-@pytest.mark.asyncio
-async def test_task_prioritization_ranks_by_urgency():
-    mock_tasks = ["task A (due tomorrow)", "task B (due next week)"]
-    with patch("hermes.tools.gbrain.search") as mock_search:
-        mock_search.return_value = {"answer": "\n".join(mock_tasks)}
-        result = await run_skill("task-prioritization")
-    assert result["tasks"][0] == "task A (due tomorrow)"
-```
+→ See [hermes/CLAUDE.md](../hermes/CLAUDE.md) for the canonical SKILL.md frontmatter example and outbound skill pattern.
 
 ---
 

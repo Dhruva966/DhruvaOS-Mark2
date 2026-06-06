@@ -11,7 +11,7 @@ acting on anything high-stakes.
 
 | Layer | Technology |
 |-------|-----------|
-| Agent runtime | Hermes Agent (verify installed version with `hermes --version`; Python 3.12 host, systemd user service) |
+| Agent runtime | Hermes Agent (verify installed version with `hermes --version`; Python 3.11+ host, 3.12 on Omen, systemd user service) |
 | Memory | GBrain v0.42.25.0 (Bun 1.3.14, PGLite at ~/.gbrain/brain.pglite/) |
 | Interface | Discord (6 channels) — bot name: drew#4878 |
 | Tier 0 model | phi4-mini via Ollama (local, GTX 1660 Ti 6GB, nomic-embed-text for embeddings) |
@@ -110,6 +110,24 @@ Schema migrations are handled automatically by `gbrain upgrade` + `gbrain apply-
 3. Discord allowlist: only Dhruva's Discord user ID can issue commands
 4. YOLO mode disabled — `require_approval_always: true` in config.yaml, always
 5. Outbound text ALWAYS Tier 2+ AND requires explicit Discord approval — no cost override, ever
+
+## Agent Behavior Rules (from /insights — enforce always)
+
+1. **CLI: --help first, never trial-and-error.** Before running any CLI tool (gbrain, hermes,
+   ntfy, codex, etc.) you're unsure about, run `<tool> --help`, read the output, then show the
+   exact command you plan to use. No guessing flags or subcommands.
+
+2. **Tests: update then run after any signature change.** After making integration or signature
+   changes, update ALL affected tests to match the new shape and run the full test suite
+   (`pytest skills/dhruvaos/<skill>/tests/`) before committing. Never commit with known failing tests.
+
+3. **Specs: confirm before writing to docs.** Never write hardware specs, config keys, or
+   product/project names into docs without verifying them. 'Forge', 'Drew', 'Hermes', HP Omen
+   specs — confirm against live system or ask. Don't infer from context.
+
+4. **Context: save before long autonomous tasks.** Before starting any multi-skill build, phase
+   deployment, or task that may hit token/credit limits, run context-save and write a HANDOFF.md
+   checkpoint. Mid-task loss ≠ clean stopping point.
 
 ## Testing Standard
 
