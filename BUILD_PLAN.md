@@ -33,9 +33,9 @@ All tasks done. Phase 1 active.
 | P0.13 | Create Discord bot (drew#4878) + 6 channels | bot connected | ✅ |
 | P0.14 | Create `~/.hermes/.env` (chmod 600) | keys in place | ✅ |
 | P0.15 | Write `~/.hermes/config.yaml` | 4-tier routing configured | ✅ |
-| P0.16 | Install Lightpanda binary | `lightpanda --version` returns; PM2 shows `lightpanda` online at :9222 |
-| P0.17 | Start GBrain HTTP server via PM2 | `pm2 list` shows `gbrain-mcp` online |
-| P0.18 | Start Hermes gateway via systemd user service | `systemctl --user status hermes-gateway` = active |
+| P0.16 | Install Lightpanda binary | `lightpanda --version` returns; PM2 shows `lightpanda` online at :9222 | ✅ |
+| P0.17 | Start GBrain HTTP server via PM2 | `pm2 list` shows `gbrain-mcp` online | ✅ |
+| P0.18 | Start Hermes gateway via systemd user service | `systemctl --user status hermes-gateway` = active | ✅ |
 | P0.19 | Baseline hardening in progress | Approval gates, allowlist, and non-root runtime set; AppArmor/UFW/auditd still phase 0.5 |
 
 ### P0.8 — Hermes install (current method, verified June 2026)
@@ -470,7 +470,7 @@ P3.3  [SEQUENTIAL] Quality firewall end-to-end test                ⬜ requires 
 P3.3b github-update skill fully implemented (quality firewall test skill) ✅ deployed June 5
 P3.3c GitHub MCP added to hermes config.yaml                       ✅ June 5
 P3.4  [after P3.3] All 8 starting skills verified working          ⬜ pending P3.3
-P3.5  [after P3.4] ntfy.sh setup for phone push notifications      ✅ NTFY_TOPIC=dhruva-alerts-14a313f0dbe1 set (iPhone app still needed)
+P3.5  [after P3.4] ntfy.sh setup for phone push notifications      ✅ NTFY_TOPIC set in ~/.hermes/.env (rotate topic — value was committed; iPhone app still needed)
 P3.6  XPosterOS integration                                        ✅ complete June 5 (see HANDOFF.md XPosterOS section)
 P3.7  xposteros-control contract tests                             ✅ 15/15 passing June 5
 ```
@@ -594,8 +594,8 @@ P4.6b ~/brain git-initialized (required for sync phase)        ✅ git init + co
 P4.6c Legacy fact blockage fixed (extract_facts guard)         ✅ v0.32.2 migration re-run, row_num backfilled
 P4.7  Brain health score ≥70 via gbrain doctor                ⬜ after P4.6
 P4.8  GBrain dream phase flags enabled                         ✅ all 3 phases enabled June 6, 2026 (conversation_facts_backfill, enrich_thin, skillopt)
-P4.9  stale-fact-rewrite skill deployed                        ✅ SKILL.md + Python script + 46 tests; Hermes cron 3:30am, job ID 6fc1a9ff790c
-P4.10 Self-healing skill loop                                  ⬜ error-detection + skill-proposal skills
+P4.9  stale-fact-rewrite skill deployed                        ✅ SKILL.md + Python script + 25 tests; Hermes cron 3:30am, job ID 6fc1a9ff790c
+P4.10 Self-healing skill loop                                  ✅ error-detection (every 6h) + skill-proposal deployed June 6, 2026
 ```
 
 ### P4.0 — ntfy.sh cloud setup (prerequisite for dream cycle alerts)
@@ -663,7 +663,7 @@ GBrain is a private repo (`garrytan/gbrain`) — not upstream, implemented as He
 **Files deployed:**
 - `~/.hermes/scripts/stale-fact-rewrite.py` — core Python script
 - `~/.hermes/skills/dhruvaos/stale-fact-rewrite/SKILL.md` — skill definition (tier 0, outbound: false)
-- `skills/dhruvaos/stale-fact-rewrite/` — repo copy with 46 tests (all passing)
+- `skills/dhruvaos/stale-fact-rewrite/` — repo copy with 25 tests (all passing)
 
 **How it works:**
 1. Queries active facts via `gbrain call recall`
@@ -697,11 +697,14 @@ Two skills:
 ```bash
 crontab -e
 # Add (use full paths — cron has no PATH):
-0 2 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale 2>&1 | logger -t gbrain-embed
-# Pipe failure to ntfy so silent crashes are visible:
-0 3 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain dream --dir /home/dhruva/brain 2>&1 | logger -t gbrain-dream || curl -s -d 'DhruvaOS: dream cycle FAILED — check journalctl -t gbrain-dream' https://ntfy.sh/dhruva-alerts-14a313f0dbe1
-# Rolling 7-day brain.pglite backup (run after dream cycle completes):
-30 4 * * * cp -r /home/dhruva/.gbrain/brain.pglite /home/dhruva/.gbrain/brain.pglite.$(date +\%Y\%m\%d) && find /home/dhruva/.gbrain/ -maxdepth 1 -name 'brain.pglite.*' -mtime +7 -exec rm -rf {} +
+# IMPORTANT: use ~/.gbrain/gbrain-write.lock (persistent across reboots) NOT /tmp/gbrain-write.lock
+0 2 * * * flock -n /home/dhruva/.gbrain/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale 2>&1 | logger -t gbrain-embed
+# Pipe failure to ntfy — use sh -c to capture gbrain exit code BEFORE piping to logger.
+# (Piping to logger swallows gbrain's exit code; sh -c captures it in $EC first.)
+# NTFY_TOPIC: set crontab env var at top of crontab: NTFY_TOPIC=<your-topic-from-~/.hermes/.env>
+0 3 * * * flock -n /home/dhruva/.gbrain/gbrain-write.lock sh -c '/home/dhruva/.bun/bin/gbrain dream --dir /home/dhruva/brain; EC=$?; [ $EC -ne 0 ] && { curl -s -d "DhruvaOS: dream cycle FAILED exit=$EC" "https://ntfy.sh/${NTFY_TOPIC}" || echo "dream FAILED exit=$EC ntfy unreachable $(date)" >> /home/dhruva/.gbrain/dream-failures.log; }; exit $EC' 2>&1 | logger -t gbrain-dream
+# Rolling 7-day brain.pglite backup — use flock to wait for dream to finish before copying:
+30 4 * * * flock /home/dhruva/.gbrain/gbrain-write.lock cp -r /home/dhruva/.gbrain/brain.pglite /home/dhruva/.gbrain/brain.pglite.$(date +\%Y\%m\%d) && find /home/dhruva/.gbrain/ -maxdepth 1 -name 'brain.pglite.*' -mtime +7 -exec rm -rf {} +
 
 # Verify:
 gbrain dream --dry-run    # simulate 8 phases, check for errors
@@ -838,6 +841,53 @@ mcp_servers:
 ```
 
 **Done condition:** each outbound skill fires quality firewall. Test with dummy content first.
+
+---
+
+## Phase 8: Research Compounding ✅ DEPLOYED (June 6, 2026)
+
+5 skills deployed to Omen with cron jobs:
+- **paper-monitor** (daily 7am, job 8482d6f67713): arxiv cs.AI/cs.LG/cs.CL + HN RSS → phi4 filter → Sonnet summary → brain
+- **youtube-ingest** (/ingest <url>): transcript → synthesis → brain → connection-detector
+- **podcast-ingest** (/ingest <audio>): whisper STT → same pipeline
+- **weekly-learning-synthesis** (Sun 9pm, job a31252c957ff): brain additions → weekly digest in #briefings
+- **connection-detector** (post-import trigger): surfaces 3 related concepts per new note
+
+## Phase 9: Social Graph ✅ DEPLOYED (June 6, 2026)
+
+4 skills deployed:
+- **contact-health-check** (daily 8:30am, job d24c69d0f054): alerts on overdue relationships (>30d friend, >90d acquaintance)
+- **birthday-reminder** (daily 8am, job fd5af998c518): 7-day advance + day-of alert
+- **post-interaction-log** (/met <person> <notes>): logs to brain, extracts facts via GBrain
+- **meeting-prep-brief** (every 30min, job 8727a655eb26): calendar lookahead → GBrain people brief
+
+## Phase 10: Financial Intelligence ✅ DEPLOYED (June 6, 2026)
+
+3 skills deployed:
+- **api-cost-watchdog** (daily 9am, job ab4ab0a38953): estimates LLM spend from logs, alerts >$2/day
+- **subscription-audit** (1st of month, job 104e4205bfca): known subs review with unused flagging
+- **expense-monitor** (/expenses import <csv>): manual CSV categorization, no bank API
+
+## Phase 11: Health + Wellness ✅ DEPLOYED (June 6, 2026)
+
+3 skills deployed:
+- **health-ingest** (/health import): parses Apple Health XML → weekly brain summaries
+- **daily-checkin** (10pm prompt + /checkin, job 918215f0350e): 3-question log, streak tracking
+- **wellness-trend** (Sun 8pm, job d42598ec4c83): 7-day health comparison in #briefings
+
+## Phase 13: Content Pipeline ✅ DEPLOYED (June 6, 2026)
+
+4 skills deployed:
+- **content-idea-engine** (Mon 9am, job 311400ac7366): GBrain → 3-5 post ideas to #tasks
+- **blog-draft** (/blog "<title>"): Sonnet draft → approval in #corrections → personal-site-update
+- **x-thread-draft** (/thread "<topic>"): 5-7 tweet thread → approval → XPosterOS queue
+- **content-calendar** (Mon 8:50am, job 775283a3b5e2): weekly post targets vs actuals
+
+## Phase 14: Skill Evolution ✅ DEPLOYED (June 6, 2026)
+
+2 skills deployed:
+- **skill-analytics** (Sun 9pm, job d34a842128f0): weekly per-skill invocation/error health report
+- **tier-watchdog** (daily 6am, job 197e31b8a5ce): flags >30% escalation, posts promotion command
 
 ---
 
