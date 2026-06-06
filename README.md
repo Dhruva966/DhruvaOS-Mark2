@@ -4,7 +4,7 @@
 > Hermes runtime, GBrain memory, model routing, daily briefings, research, tasks,
 > corrections, and a hard approval gate before any third-party-readable text leaves the system.
 
-[![Phase](https://img.shields.io/badge/phase-3%20active-2ecc71?style=for-the-badge)](#build-phases)
+[![Phase](https://img.shields.io/badge/phase-4%20active-2ecc71?style=for-the-badge)](#build-phases)
 [![Firewall](https://img.shields.io/badge/quality%20firewall-required-e74c3c?style=for-the-badge)](#quality-firewall)
 [![Runtime](https://img.shields.io/badge/runtime-Hermes%20Agent-8e44ad?style=for-the-badge)](https://github.com/NousResearch/hermes-agent)
 [![Memory](https://img.shields.io/badge/memory-GBrain%20PGLite-3498db?style=for-the-badge)](https://github.com/garrytan/gbrain)
@@ -21,8 +21,9 @@
 | 🟢 **Memory** | GBrain PGLite + `~/brain/` markdown | All writes must share `/tmp/gbrain-write.lock` |
 | 🟡 **Inbox / tasks** | Phase 2 skills deployed | Notion schema + real 8am briefing still need live verification |
 | 🟡 **Command skills** | `/task`, `/research`, `/correct` deployed | Command tests and quality firewall gate still pending |
+| 🟢 **Dream cycle** | Running nightly (3am); stale-fact-rewrite at 3:30am | Phases: backfill, enrich_thin, skillopt all enabled; 14 chunks embedded on first live run |
 | 🔴 **Outbound actions** | Phase 5 stubs only | Do not enable until P3.3 approval gate passes end-to-end |
-| 🟡 **Remote access** | Tailscale documented | SSH from this Mac timed out on June 5, 2026; re-verify before depending on it |
+| 🟢 **Remote access** | Tailscale authenticated (100.119.229.11) | LAN fallback: 10.0.0.31 |
 
 **Canonical docs:** start with [CLAUDE.md](CLAUDE.md), then load subsystem docs only when needed:
 [Hermes](hermes/CLAUDE.md), [GBrain](gbrain/CLAUDE.md), [Skills](skills/CLAUDE.md),
@@ -40,7 +41,8 @@
 | ✅ `/task submit homework due Friday` | Add to Notion and `~/brain/projects/tasks-inbox.md` |
 | 🧠 `/correct keep email summaries under 3 bullets` | Persist a preference unless it conflicts with safety policy |
 | 🚦 Outbound draft | Preview in `#corrections`, require exact approval, then execute |
-| 🌙 3am | Run GBrain dream cycle and stale embedding under a shared write lock |
+| 🌙 3am | Run GBrain dream cycle (all phases enabled, including backfill + enrich_thin) |
+| 🌙 3:30am | Run stale-fact-rewrite: phi4-mini evaluates facts, expires stale ones, inserts updated |
 
 ---
 
@@ -117,7 +119,7 @@ briefings should minimize personal data, avoid full email bodies, and assume Dis
 | 1 | Alive | ✅ Complete | Discord response, GBrain connected, security baseline |
 | 2 | Inbox | 🟡 Deployed, not fully verified | Notion schema + first real briefing |
 | 3 | Menial tasks | 🟡 Active | `/task`, `/research`, `/correct`, then P3.3 firewall test |
-| 4 | Self-improving | ⬜ Planned | Dream health, skill authoring, trust gate |
+| 4 | Self-improving | 🟡 Active | Dream running nightly, stale-fact-rewrite deployed; P4.7 brain health + skill authoring remain |
 | 5 | Network | ⬜ Blocked on firewall | LinkedIn, GitHub, personal site |
 | 6 | Voice + mobile | ⬜ Future | TTS/STT/iPhone automations |
 
@@ -154,8 +156,10 @@ Current-source note: Hermes release metadata changes quickly. Public release tra
 | `add-task` | deployed | `projects/tasks-inbox.md` | JSON-safe Notion call + locked GBrain ingest |
 | `research-synthesis` | deployed | `resources/research-*.md` | safe slug + locked GBrain ingest |
 | `correction-handler` | deployed | `concepts/corrections.md` | immutable-policy filter |
+| `stale-fact-rewrite` | deployed | none (updates via gbrain CLI) | nightly 3:30am, phi4-mini eval, Hermes cron |
+| `xposteros-control` | deployed | XPosterOS API (dry-run) | controls local XPosterOS service |
+| `github-update` | deployed (quality firewall test) | external | Phase 5 — requires P3.3 gate pass |
 | `linkedin-post` | stub | external | Phase 5, blocked on firewall gate |
-| `github-update` | stub | external | Phase 5, blocked on firewall gate |
 
 Hermes skill format is `skills/dhruvaos/<name>/SKILL.md` with YAML frontmatter. The older
 `skills/*.yaml` files are reference stubs and should not be treated as the deployed source.
@@ -183,9 +187,7 @@ Hermes skill format is `skills/dhruvaos/<name>/SKILL.md` with YAML frontmatter. 
 scripts/check-agents-drift.sh
 bash -n scripts/*.sh
 scripts/check-skill-contracts.py
-uvx pytest skills/dhruvaos/add-task/tests \
-  skills/dhruvaos/research-synthesis/tests \
-  skills/dhruvaos/correction-handler/tests
+uvx pytest skills/    # 94 tests across all deployed skills
 
 # Omen health check, from this repo
 ssh dhruva@<TAILSCALE_IP> 'bash -s' < scripts/health-check.sh
