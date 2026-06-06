@@ -41,7 +41,7 @@ curl -s -X POST "https://api.notion.com/v1/databases/${NOTION_TASKS_DB_ID}/query
   -d '{
     "filter": {
       "property": "Status",
-      "status": {
+      "select": {
         "does_not_equal": "Done"
       }
     },
@@ -53,7 +53,7 @@ curl -s -X POST "https://api.notion.com/v1/databases/${NOTION_TASKS_DB_ID}/query
 
 Parse the JSON response. For each page in `results`, extract:
 - Task name: `properties.Name.title[0].plain_text` (or "Untitled")
-- Status: `properties.Status.status.name`
+- Status: `properties.Status.select.name`
 - Due date: `properties.Due.date.start` (ISO string, may be null)
 - Priority label: `properties.Priority.select.name` (may be null)
 

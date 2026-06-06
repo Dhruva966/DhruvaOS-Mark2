@@ -104,32 +104,32 @@ class TestEvaluateFact:
             "updated_fact": "Dhruva attended WeaveHacks on June 6-7, 2026",
         })
         with patch.object(_mod, "ollama_generate", return_value=ollama_resp):
-            is_stale, _, updated = _mod.evaluate_fact(self._fact(), "", False)
+            is_stale, _, updated = _mod.evaluate_fact(self._fact(), "")
         assert is_stale is True
         assert updated == "Dhruva attended WeaveHacks on June 6-7, 2026"
 
     def test_returns_current_when_ollama_says_not_stale(self):
         ollama_resp = json.dumps({"stale": False})
         with patch.object(_mod, "ollama_generate", return_value=ollama_resp):
-            is_stale, _, _ = _mod.evaluate_fact(self._fact(), "", False)
+            is_stale, _, _ = _mod.evaluate_fact(self._fact(), "")
         assert is_stale is False
 
     def test_returns_current_on_malformed_json(self):
         with patch.object(_mod, "ollama_generate", return_value="not json at all"):
-            is_stale, _, _ = _mod.evaluate_fact(self._fact(), "", False)
+            is_stale, _, _ = _mod.evaluate_fact(self._fact(), "")
         assert is_stale is False
 
     def test_returns_current_when_stale_but_no_updated_fact(self):
         ollama_resp = json.dumps({"stale": True, "reason": "outdated", "updated_fact": None})
         with patch.object(_mod, "ollama_generate", return_value=ollama_resp):
-            is_stale, _, _ = _mod.evaluate_fact(self._fact(), "", False)
+            is_stale, _, _ = _mod.evaluate_fact(self._fact(), "")
         assert is_stale is False
 
     def test_re_raises_ollama_connection_error(self):
         with patch.object(_mod, "ollama_generate",
                           side_effect=urllib.error.URLError("connection refused")):
             try:
-                _mod.evaluate_fact(self._fact(), "", False)
+                _mod.evaluate_fact(self._fact(), "")
                 assert False, "expected URLError to propagate"
             except urllib.error.URLError:
                 pass
@@ -138,8 +138,21 @@ class TestEvaluateFact:
         """Ollama returning a JSON array or string must not crash."""
         for bad_resp in ['[{"stale": true}]', '"stale"', "true"]:
             with patch.object(_mod, "ollama_generate", return_value=bad_resp):
-                is_stale, _, _ = _mod.evaluate_fact(self._fact(), "", False)
+                is_stale, _, _ = _mod.evaluate_fact(self._fact(), "")
             assert is_stale is False, f"non-dict JSON {bad_resp!r} should yield current"
+
+    def test_returns_stale_from_markdown_fenced_json(self):
+        """phi4-mini sometimes wraps JSON in ```json ... ``` — must still parse."""
+        ollama_resp = (
+            "```json\n"
+            '{"stale": true, "reason": "already happened", '
+            '"updated_fact": "Dhruva attended WeaveHacks"}\n'
+            "```"
+        )
+        with patch.object(_mod, "ollama_generate", return_value=ollama_resp):
+            is_stale, _, updated = _mod.evaluate_fact(self._fact(), "")
+        assert is_stale is True
+        assert updated == "Dhruva attended WeaveHacks"
 
 
 class TestLogEntry:
@@ -182,6 +195,7 @@ class TestRunNoFacts:
             ]}),
             patch.object(_mod, "ollama_generate", return_value='{"stale": false}'),
             patch.object(_mod, "get_entity_page", return_value=""),
+            patch("urllib.request.urlopen"),
         ):
             _mod._run(dry_run=False, mode_label="", _lock_fd=None)
 
@@ -209,6 +223,7 @@ class TestRunRewriteFlow:
             patch.object(_mod, "ollama_generate",
                          return_value='{"stale": true, "reason": "attended", "updated_fact": "attended WeaveHacks"}'),
             patch.object(_mod, "get_entity_page", return_value=""),
+            patch("urllib.request.urlopen"),
         ):
             _mod._run(dry_run=True, mode_label="[DRY-RUN] ", _lock_fd=None)
 
@@ -237,6 +252,7 @@ class TestRunRewriteFlow:
             patch.object(_mod, "ollama_generate",
                          return_value='{"stale": true, "reason": "attended", "updated_fact": "attended WeaveHacks"}'),
             patch.object(_mod, "get_entity_page", return_value=""),
+            patch("urllib.request.urlopen"),
         ):
             _mod._run(dry_run=False, mode_label="", _lock_fd=None)
 
@@ -267,6 +283,7 @@ class TestRunRewriteFlow:
             patch.object(_mod, "ollama_generate",
                          return_value='{"stale": true, "reason": "attended", "updated_fact": "attended WeaveHacks"}'),
             patch.object(_mod, "get_entity_page", return_value=""),
+            patch("urllib.request.urlopen"),
         ):
             _mod._run(dry_run=False, mode_label="", _lock_fd=None)
 

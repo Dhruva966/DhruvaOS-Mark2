@@ -17,6 +17,7 @@ prerequisites:
     - GITHUB_TOKEN
     - DISCORD_CORRECTIONS_CHANNEL_ID
     - SITE_REPO
+    - SITE_BRANCH
 metadata:
   hermes:
     tags: [GitHub, PersonalSite, Outbound, Phase5, Quality-Firewall]
@@ -44,6 +45,7 @@ GitHub MCP is already wired from Phase 3 (P3.3c).
 import os, re
 
 SITE_REPO = os.environ.get("SITE_REPO")
+SITE_BRANCH = os.environ.get("SITE_BRANCH", "main")
 DISCORD_CORRECTIONS_CHANNEL_ID = os.environ.get("DISCORD_CORRECTIONS_CHANNEL_ID")
 
 missing = [v for v in ["SITE_REPO", "DISCORD_CORRECTIONS_CHANNEL_ID"] if not os.environ.get(v)]
@@ -214,7 +216,7 @@ For **new files** (blog posts): use `create_or_update_file`:
   "path": "{target_path}",
   "message": "{commit_message}",
   "content": "{base64-encoded draft_content}",
-  "branch": "main"
+  "branch": "{SITE_BRANCH}"
 }
 ```
 
@@ -228,7 +230,7 @@ file's SHA via `get_file_contents`, then use `create_or_update_file` with the `s
   "message": "{commit_message}",
   "content": "{base64-encoded updated_content}",
   "sha": "{current_file_sha}",
-  "branch": "main"
+  "branch": "{SITE_BRANCH}"
 }
 ```
 
