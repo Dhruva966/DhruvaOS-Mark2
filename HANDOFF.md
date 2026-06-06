@@ -26,9 +26,9 @@ Read before building any skill that crosses a subsystem boundary.
 ## Hermes ↔ GBrain: MCP Contract
 
 ### Connection
-- Protocol: MCP via HTTP (`gbrain serve --http --port 3131 --host 127.0.0.1`) — required for PM2 daemons
+- Protocol: MCP via HTTP — PM2 command: `bash -c "/home/dhruva/.bun/bin/gbrain serve --http --port 3131 --enable-dcr --token-ttl 7776000"` (DCR + 90-day token TTL)
+- Auth: OAuth 2.1 Bearer token. Hermes sends `Authorization: Bearer ${MCP_GBRAIN_API_KEY}` (set in `~/.hermes/.env`). Token expires ~Sept 5 2026. Auto-refresh cron runs every 60 days via `~/.hermes/scripts/refresh-gbrain-token.sh`. Client credentials in `~/.hermes/.env` as `GBRAIN_MCP_CLIENT_ID` + `GBRAIN_MCP_CLIENT_SECRET`.
 - Alternative: MCP via stdio (`gbrain serve`) — for local ad-hoc testing only; incompatible with PM2
-- Auth: none required for loopback-only binding; do not expose port 3131 on network interfaces
 - Both services must be running: `systemctl --user status hermes-gateway` is active and `pm2 list` shows `gbrain-mcp`
 
 ### GBrain operations Hermes calls
