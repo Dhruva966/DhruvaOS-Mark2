@@ -16,7 +16,7 @@ self-improving loop takes over. Dhruva never needs to manually define every poss
 
 ---
 
-## Starting Skills (8 custom seeds + 2 GBrain built-ins)
+## Starting Skills (9 custom seeds + 2 GBrain built-ins)
 
 | Skill | Tier | Outbound | Schedule | GBrain | Trust Gate |
 |-------|------|----------|----------|--------|-----------|
@@ -28,6 +28,7 @@ self-improving loop takes over. Dhruva never needs to manually define every poss
 | `task-prioritization` | 1 | false | on demand | read+write: tasks | auto |
 | `research-synthesis` | 2 | false | on demand | write: resources/ | auto |
 | `correction-handler` | 2 | false | #corrections trigger | write: permanent fact | **approval** (permanent behavioral rules) |
+| `stale-fact-rewrite` | 0 | false | 3:30am daily (Hermes cron) | reads: facts via gbrain call | auto (internal maintenance) |
 | `signal-detector` | 0 | false | every inbound | write: entities+ideas | auto (GBrain built-in) |
 | `brain-ops` | 1 | false | every response | read: context | auto (GBrain built-in) |
 
@@ -243,6 +244,37 @@ Steps:
   3. Write to ~/brain/concepts/corrections.md with date + category
   4. Summarize what was corrected and post acknowledgment to #corrections
   5. Hermes uses Sonnet by default and escalates only if the correction is unusually ambiguous
+```
+
+### stale-fact-rewrite (deployed June 6, 2026)
+```yaml
+name: stale-fact-rewrite
+version: 1.0.0
+tier: 0
+outbound: false
+requires_approval: false
+description: "Nightly: detect stale GBrain facts via phi4-mini, expire old versions, insert updated facts"
+schedule: "30 3 * * *"   # Hermes cron, job ID 6fc1a9ff790c
+gbrain:
+  reads: ["*"]
+  writes: ["*"]
+tests: tests/
+---
+Automated path: Hermes cron runs at 3:30am via --no-agent --script.
+Manual path: Drew runs `python3 ~/.hermes/scripts/stale-fact-rewrite.py [--dry-run]` on request.
+
+Steps:
+  1. gbrain call recall {limit: 50} → get active facts
+  2. Verify Ollama reachable (phi4-mini) before iterating
+  3. For each fact: fetch entity page context, ask phi4-mini "is this stale?"
+  4. If stale: gbrain call forget_fact → expire old fact (sets valid_until=today)
+  5. gbrain call extract_facts → insert updated fact text (no is_dream_generated flag)
+  6. Verify extract_facts returned inserted > 0; log rewrite_no_insertion if 0
+  7. Log all rewrites to ~/.gbrain/stale-fact-rewrites.jsonl
+  8. Print summary to stdout only if rewrites or errors occurred (silent otherwise → Hermes stays quiet)
+
+Key: never sets is_dream_generated=true — that flag skips extraction entirely.
+Key: ANTHROPIC_API_KEY sourced from ~/.hermes/.env (gbrain extract_facts requires it).
 ```
 
 ### charlie-monitoring (STUB — NOT IMPLEMENTED)
