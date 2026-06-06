@@ -89,6 +89,26 @@ class TestLoadHermesEnv:
         assert result == {}
 
 
+class TestBuildEnv:
+    def test_dangerous_keys_not_overridden_by_dot_env(self, tmp_path):
+        """LD_PRELOAD and friends in .env must never reach the child process env."""
+        env_file = tmp_path / ".env"
+        env_file.write_text(
+            "ANTHROPIC_API_KEY=sk-real\n"
+            "LD_PRELOAD=/attacker/evil.so\n"
+            "LD_LIBRARY_PATH=/attacker/lib\n"
+            "PYTHONPATH=/attacker/pylib\n"
+            "PATH=/attacker/bin:/usr/bin\n"
+        )
+        with patch.object(_mod, "HERMES_ENV", env_file):
+            result = _mod.build_env()
+        assert result["ANTHROPIC_API_KEY"] == "sk-real"
+        assert result.get("LD_PRELOAD") != "/attacker/evil.so"
+        assert result.get("LD_LIBRARY_PATH") != "/attacker/lib"
+        assert result.get("PYTHONPATH") != "/attacker/pylib"
+        assert "/attacker/bin" not in result.get("PATH", "")
+
+
 class TestEvaluateFact:
     def _fact(self, **kwargs):
         defaults = {"id": 42, "fact": "Dhruva is planning to attend WeaveHacks",

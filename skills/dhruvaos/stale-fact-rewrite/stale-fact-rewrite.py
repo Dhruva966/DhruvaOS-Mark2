@@ -64,10 +64,19 @@ def load_hermes_env() -> dict[str, str]:
     return env
 
 
+# Keys that must never be overridden by ~/.hermes/.env — a compromised .env
+# could otherwise inject LD_PRELOAD or PYTHONPATH to hijack subprocess execution.
+# PATH is blocked here and set explicitly below instead.
+_BLOCKED_ENV_KEYS = frozenset({
+    "PATH", "LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH", "PYTHONSTARTUP", "PYTHONHOME",
+})
+
+
 def build_env() -> dict[str, str]:
     """Merge system env + hermes env + ensure bun/gbrain are in PATH."""
     result = dict(os.environ)
-    result.update(load_hermes_env())
+    safe_overrides = {k: v for k, v in load_hermes_env().items() if k not in _BLOCKED_ENV_KEYS}
+    result.update(safe_overrides)
     # Ensure bun + local bins are in PATH — they're absent in non-login SSH sessions
     extra = ":".join([
         str(pathlib.Path.home() / ".bun" / "bin"),
