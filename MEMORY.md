@@ -350,8 +350,8 @@ The dream cycle is what makes GBrain compound. Run nightly without fail.
 ```bash
 crontab -e
 # Add these two lines:
-0 2 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale
-0 3 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain dream
+0 2 * * * flock -n /home/dhruva/.gbrain/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale
+0 3 * * * flock -n /home/dhruva/.gbrain/gbrain-write.lock /home/dhruva/.bun/bin/gbrain dream --dir /home/dhruva/brain
 ```
 
 ### Verify

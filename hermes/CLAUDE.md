@@ -153,7 +153,7 @@ hermes mcp test gbrain   # verify tools discovered
 grep -q "timezone:" ~/.hermes/config.yaml || \
   echo "timezone: America/Los_Angeles" >> ~/.hermes/config.yaml
 
-hermes cron create "0 8 * * *" "Morning briefing" --skill morning-briefing
+hermes cron create "0 8 * * *" "Morning briefing" --skill morning-briefing --deliver discord --model anthropic/claude-sonnet-4-6
 hermes cron list   # verify next fire time shows correct local time
 hermes cron run <job_id>   # test immediately without waiting
 ```

@@ -10,7 +10,7 @@
                    ║ inbound messages / commands
                    ▼
 ╔══════════════════════════════════════════════════════════════════╗
-║  HERMES AGENT  (Python 3.11+, ~/.hermes/)                        ║
+║  HERMES AGENT  (Python 3.12, Ubuntu 24.04, ~/.hermes/)                        ║
 ║                                                                  ║
 ║  ┌─────────────────┐  ┌──────────────────┐  ┌────────────────┐  ║
 ║  │  Skill Router   │  │  4-Tier Model    │  │  APScheduler   │  ║
@@ -298,9 +298,10 @@ built-in 8-phase nightly dream cycle.
 **Cron schedule:**
 ```
 0 2 * * *  gbrain embed --stale
-0 3 * * *  gbrain dream
+0 3 * * *  gbrain dream --dir ~/brain
 ```
-Note: `gbrain sync` does not exist. Use `gbrain embed --stale` for incremental embedding.
+Note: `gbrain sync --repo <path>` sets the `local_path` for the brain sync dream phase (not an import command).
+Use `gbrain embed --stale` for incremental embedding between dream cycles.
 
 **Compounding effect over time:**
 - Week 1: raw import, search works
