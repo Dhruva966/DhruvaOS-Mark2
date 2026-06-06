@@ -17,14 +17,7 @@ Purpose: Discord channel definitions, routing rules, and message conventions for
 
 ## Channel Definitions
 
-| Channel | Who writes | Who reads | Purpose |
-|---------|-----------|----------|---------|
-| `#briefings` | Hermes (auto) + Dhruva | Dhruva | Morning/evening briefings, proactive updates, conversational responses |
-| `#tasks` | Hermes + Dhruva | Dhruva | Task list, prioritization, status, `/tasks` commands |
-| `#research` | Hermes | Dhruva | Research synthesis outputs from research-synthesis skill |
-| `#alerts` | Hermes (auto) | Dhruva | Urgent notifications: credit watchdog, skill errors, system alerts |
-| `#charlie` | Hermes (future) | Dhruva | Charlie's Cleaners monitoring — stub, not yet active |
-| `#corrections` | **Both** | Both | **Outbound approval gate** + behavioral corrections from Dhruva |
+→ See [channels.md](channels.md) for full channel definitions and setup instructions.
 
 ---
 

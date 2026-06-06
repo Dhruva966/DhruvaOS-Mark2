@@ -27,7 +27,7 @@ Discord ✅, Telegram, Slack, WhatsApp, Signal, Email
 
 ## Self-Improving Skill Loop
 
-- Skills stored in `~/.hermes/skills/` as YAML with frontmatter
+- Skills deployed as SKILL.md markdown files with YAML frontmatter (root `skills/*.yaml` stubs are legacy/reference only)
 - Quality gate: pytest + mock tools (must pass before promotion)
 - Trust gate: auto for read-only, Dhruva approval for write/shell
 - Skills auto-discovered from `~/.hermes/skills/` directory

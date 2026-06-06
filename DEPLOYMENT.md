@@ -296,11 +296,11 @@ Add a post-dream backup cron alongside the dream cycle cron:
 ```bash
 crontab -e
 # Add (as dhruva — actual deploy user):
-0 2 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale
+0 2 * * * flock -n ~/.gbrain/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale
 # ntfy.sh cloud alert — set up NTFY_TOPIC in Phase 4 first (P4.0)
-0 3 * * * flock -n /tmp/gbrain-write.lock sh -lc '/home/dhruva/.bun/bin/gbrain dream || curl -s -d "dream cycle FAILED" ntfy.sh/dhruva-alerts-YOURSTRING'
+0 3 * * * flock -n ~/.gbrain/gbrain-write.lock sh -lc '/home/dhruva/.bun/bin/gbrain dream || curl -s -d "dream cycle FAILED" ntfy.sh/dhruva-alerts-YOURSTRING'
 # Rolling 7-day backup — brain.pglite is a directory, use cp -r
-30 4 * * * flock -n /tmp/gbrain-write.lock sh -lc 'cp -r /home/dhruva/.gbrain/brain.pglite /home/dhruva/.gbrain/brain.pglite.$(date +\%Y\%m\%d) && find /home/dhruva/.gbrain/ -maxdepth 1 -name "brain.pglite.*" -mtime +7 -exec rm -rf {} +'
+30 4 * * * flock -n ~/.gbrain/gbrain-write.lock sh -lc 'cp -r /home/dhruva/.gbrain/brain.pglite /home/dhruva/.gbrain/brain.pglite.$(date +\%Y\%m\%d) && find /home/dhruva/.gbrain/ -maxdepth 1 -name "brain.pglite.*" -mtime +7 -exec rm -rf {} +'
 ```
 
 The 4:30am step: keeps 7 rolling daily backups, deletes older ones. Zero external cost.
@@ -343,8 +343,8 @@ gbrain onboard --check --json
 ```bash
 crontab -e
 # Add:
-# 0 2 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale
-# 0 3 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain dream
+# 0 2 * * * flock -n ~/.gbrain/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale
+# 0 3 * * * flock -n ~/.gbrain/gbrain-write.lock /home/dhruva/.bun/bin/gbrain dream
 ```
 
 ---
