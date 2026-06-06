@@ -18,7 +18,7 @@ acting on anything high-stakes.
 | Tier 1 model | GPT-4o-mini (direct OpenAI API — burns platform.openai.com credits) |
 | Tier 2 model | Claude Sonnet 4.6 (Anthropic — ALL outbound writing) |
 | Tier 3 model | Claude Opus 4.8 (Anthropic — orchestration + high-stakes) |
-| Process management | Hermes: systemd user service. GBrain: standalone Bun process (not PM2). Ollama: systemd system service. |
+| Process management | Hermes: systemd user service. GBrain: PM2 daemon (`gbrain-mcp`, HTTP mode port 3131). Ollama: systemd system service. |
 | Remote access | Tailscale SSH primary; Cloudflare Tunnel only for future authenticated HTTP surfaces |
 | Host | HP Omen 15 — 32 GB RAM, GTX 1660 Ti 6 GB, Ubuntu 24.04, user: dhruva |
 | Optional future | MiniMax API (image-01, Hailuo video, TTS) — credits available; safe for non-sensitive/generic use only |
