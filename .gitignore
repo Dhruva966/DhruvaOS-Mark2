@@ -41,3 +41,6 @@ Thumbs.db
 
 # Codex session state
 .context/codex-session-id
+
+# Private notes — gitignored, not for agents
+private/
