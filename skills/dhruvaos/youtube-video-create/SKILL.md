@@ -262,6 +262,11 @@ If fal.ai fails: continue without thumbnail (note in confirmation message).
 
 For initial builds, create a simple title-card video with the script text displayed section by section. Full video rendering with voice/B-roll is Phase 6 work.
 
+```python
+# Escape title for ffmpeg drawtext filter
+title_escaped = title.replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:")
+```
+
 ```bash
 # Generate a simple placeholder video (30s title card)
 ffmpeg -f lavfi -i color=c=0x0a0e27:size=1280x720:rate=30 \
