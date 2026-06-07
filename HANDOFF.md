@@ -157,13 +157,17 @@ Hermes controls it via the `xposteros-control` skill. All communication is local
 
 | Endpoint | Method | Auth | Purpose |
 |----------|--------|------|---------|
-| `/system/health` | GET | none | Health check + dry_run status |
+| `/system/health` | GET | none | Health check + dry_run status (now reports all 3 platforms) |
 | `/drafts` | GET | Bearer | List all drafts (filter to `review_ready`) |
 | `/events/brain-dump` | POST | Bearer | Create Notion brain dump from Hermes |
 | `/events/draft-approved` | POST | Bearer | Mark draft approved in Notion |
 | `/approvals/draft` | POST | Bearer | Approve draft → queue for posting |
 | `/queue/next` | GET | Bearer | Next scheduled queue item |
 | `/queue/post-now` | POST | Bearer | Trigger immediate post (confirm first) |
+| `/platforms/linkedin/draft` | POST | Bearer | Store LinkedIn draft (from linkedin-post skill) |
+| `/platforms/linkedin/posted` | POST | Bearer | Confirm LinkedIn post published |
+| `/platforms/youtube/draft` | POST | Bearer | Store YouTube video draft (from youtube-video-create skill) |
+| `/platforms/youtube/published` | POST | Bearer | Confirm YouTube video uploaded |
 
 ### XPosterOS env vars (in `~/.hermes/.env` on Omen)
 
@@ -197,6 +201,9 @@ Check: `hermes cron list` — look for job ID `144fcb74af5c`.
 |------|---------|------|---------|--------|
 | Web search + extract | Exa | `EXA_API_KEY` | research-synthesis, morning-briefing | ✅ key in .env |
 | Task DB | Notion API | `NOTION_API_KEY` / `NOTION_TOKEN` | add-task, task-prioritization | ✅ key in .env |
+| LinkedIn browser post | Browserbase | `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID` | linkedin-post skill | ⬜ credentials needed |
+| YouTube upload | YouTube Data API v3 | OAuth token (youtube.upload scope) | youtube-video-create skill | ⬜ re-run OAuth + create channel |
+| Thumbnail gen | fal.ai FLUX | `FAL_KEY` | youtube-video-create skill | ⬜ API key needed |
 | Calendar | Google Calendar API | OAuth refresh token (headless) | morning-briefing, calendar-read | ✅ token in .env |
 | Email | Gmail API | OAuth refresh token (headless) | email-triage, morning-briefing | ✅ token in .env |
 | Notion MCP | @notionhq/notion-mcp-server | `NOTION_TOKEN` | all Notion operations | ✅ MCP registered |
@@ -299,6 +306,9 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 | stale-fact-rewrite deployed | ✅ **Fixed June 6** | Script at ~/.hermes/scripts/, SKILL.md at ~/.hermes/skills/dhruvaos/stale-fact-rewrite/, Hermes cron 3:30am (job ID 6fc1a9ff790c) |
 | `sync` phase failing (brain not a git repo) | ✅ **Fixed June 6** | `git init ~/brain`, `gbrain sync --repo /home/dhruva/brain` set local_path |
 | `extract_facts` blocked by legacy facts with `row_num IS NULL` | ✅ **Fixed June 6** | v0.32.2 migration re-run after setting local_path; row_num backfilled |
+| **Anthropic credits depleted** | 🔴 **OPEN — URGENT** | All Claude cron jobs failing (HTTP 400). Top up at console.anthropic.com. Meeting-prep-brief fires every 30min and burns retries. |
+| **GBrain CLI WASM crash (v0.42.26.0)** | 🟡 **OPEN** | `gbrain search`/`gbrain call` fail with PGLite WASM error. Running gbrain-mcp PM2 (pid 100969, v0.42.25.0 in memory) is healthy — **do NOT restart it**. Stale-fact-rewrite will fail nightly. Wait for gbrain 0.42.27 fix, or pin CLI to older version when available. |
+| **PM2 startup not configured** | 🟡 **OPEN** | PM2 was empty on reconnect — gbrain-mcp survives reboots only because it was never killed. Run `pm2 startup` + `pm2 save` with correct PATH to make restarts safe. |
 
 ---
 
