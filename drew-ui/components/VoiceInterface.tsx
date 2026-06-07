@@ -43,13 +43,17 @@ export default function VoiceInterface() {
 
         // Transcribe
         setState('thinking');
-        const text = await transcribeAudio(audioBlob);
-        setTranscript(text);
+        const userText = await transcribeAudio(audioBlob);
+        setTranscript(userText);
 
-        // Speak response
-        if (text.trim()) {
+        // Generate response (Phase 2: wire to real Hermes WebSocket)
+        if (userText.trim()) {
+          // For now, use simple response generator
+          // TODO: Replace with actual Hermes conversation call
+          const responseText = `I heard: "${userText}". That's interesting!`;
+
           setState('speaking');
-          const audioUrl = await speakText(text);
+          const audioUrl = await speakText(responseText);
 
           if (audioPlaybackRef.current && audioUrl) {
             audioPlaybackRef.current.src = audioUrl;

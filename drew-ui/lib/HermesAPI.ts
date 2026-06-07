@@ -1,7 +1,19 @@
 // Hermes API client
 // Connects to Hermes running on Omen via Tailscale
+// For voice conversation, uses Hermes chat API + WebSocket (Phase 2 TODO: integrate real conversation)
 
 const HERMES_BASE_URL = process.env.NEXT_PUBLIC_HERMES_URL || 'http://localhost:8642';
+
+// Simple response generator until WebSocket integration (Phase 2 TODO)
+function generateResponse(userText: string): string {
+  const responses = [
+    `You said: "${userText}". I heard you loud and clear!`,
+    `Interesting thought: "${userText}". Tell me more.`,
+    `Got it: "${userText}". That's noted.`,
+    `I understand: "${userText}". What else?`,
+  ];
+  return responses[Math.floor(Math.random() * responses.length)];
+}
 
 export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   try {
