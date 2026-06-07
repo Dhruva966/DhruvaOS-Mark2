@@ -201,7 +201,7 @@ Check: `hermes cron list` — look for job ID `144fcb74af5c`.
 |------|---------|------|---------|--------|
 | Web search + extract | Exa | `EXA_API_KEY` | research-synthesis, morning-briefing | ✅ key in .env |
 | Task DB | Notion API | `NOTION_API_KEY` / `NOTION_TOKEN` | add-task, task-prioritization | ✅ key in .env |
-| LinkedIn browser post | Browserbase | `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID` | linkedin-post | ⬜ credentials needed; MCP wired in config.yaml |
+| LinkedIn browser post | **Playwright (local)** | none | linkedin-post | ⬜ install: `pip install playwright && playwright install chromium`. **Browserbase permanently dropped.** |
 | YouTube upload | YouTube Data API v3 | OAuth token (youtube.upload scope) | youtube-video-create | ⬜ re-run OAuth + create channel |
 | Thumbnail gen | fal.ai FLUX | `FAL_KEY` | youtube-video-create | ⬜ API key needed |
 | Calendar | Google Calendar API | OAuth refresh token (headless) | morning-briefing, calendar-read | ✅ token in .env |
@@ -210,7 +210,7 @@ Check: `hermes cron list` — look for job ID `144fcb74af5c`.
 | GitHub MCP | @modelcontextprotocol/server-github | `GITHUB_TOKEN` | github-update, Phase 5 | ✅ MCP registered June 5 |
 | XPosterOS API | localhost:8081 | `XPOSTEROS_API_TOKEN` | xposteros-control skill | ✅ service running |
 | Web extraction (structured) | AgentQL | `AGENTQL_API_KEY` | research-synthesis (optional upgrade) | ⬜ no key yet |
-| Browser automation | Browserbase | `BROWSERBASE_API_KEY` | Phase 5 LinkedIn | ⬜ Phase 5 |
+| Browser automation | ~~Browserbase~~ **Playwright** | none | Phase 5 LinkedIn | ⬜ local Playwright — no account or keys needed |
 | Image generation (optional) | MiniMax image-01 | `MINIMAX_API_KEY` | /image Discord skill | ⬜ Phase 6 — credits available, safe for non-sensitive prompts |
 | Video generation (optional) | MiniMax Hailuo 2.3 | `MINIMAX_API_KEY` | /video Discord skill | ⬜ Phase 6 — burn credits on demo/marketing content |
 | TTS (optional cloud) | MiniMax TTS | `MINIMAX_API_KEY` | voice output, non-sensitive text only | ⬜ Phase 6 — Piper (local) is default; MiniMax for quality upgrade |
@@ -302,10 +302,16 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 | `DISCORD_*_CHANNEL_ID` env vars may not be set | ✅ Fixed June 5 | All 5 channel IDs verified in ~/.hermes/.env |
 | Notion MCP hardcoded token | ✅ Fixed June 5 | Changed to `"${NOTION_API_KEY}"` in config.yaml |
 | GBrain dual-process (stdio + HTTP) | ✅ Fixed June 5 | Replaced with `url: http://localhost:3131/mcp` |
-| **XPosterOS workers fail every 2h** | ✅ **Fixed June 6** | NOTION_API_KEY + LLM keys copied to ~/xposteros/.env; health: status:ok dry_run:True |
-| stale-fact-rewrite deployed | ✅ **Fixed June 6** | Script at ~/.hermes/scripts/, SKILL.md at ~/.hermes/skills/dhruvaos/stale-fact-rewrite/, Hermes cron 3:30am (job ID 6fc1a9ff790c) |
-| `sync` phase failing (brain not a git repo) | ✅ **Fixed June 6** | `git init ~/brain`, `gbrain sync --repo /home/dhruva/brain` set local_path |
-| `extract_facts` blocked by legacy facts with `row_num IS NULL` | ✅ **Fixed June 6** | v0.32.2 migration re-run after setting local_path; row_num backfilled |
+| XPosterOS workers fail every 2h | ✅ Fixed June 6 | NOTION_API_KEY + LLM keys copied to ~/xposteros/.env |
+| stale-fact-rewrite Aborted() WASM error | ✅ Fixed June 7 | Rewrote to use HTTP MCP instead of CLI subprocess (PM2 holds PGLite exclusive lock) |
+| `sync` phase failing (brain not a git repo) | ✅ Fixed June 6 | `git init ~/brain`, `gbrain sync --repo /home/dhruva/brain` |
+| `extract_facts` blocked by legacy facts `row_num IS NULL` | ✅ Fixed June 6 | v0.32.2 migration re-run, row_num backfilled |
+| **Hermes on Gemini (temporary)** | ⚠️ Active | Anthropic credits depleted June 6. Switch back: update config.yaml provider+model, restart Hermes |
+| **gbrain dream + embed crons broken** | ⚠️ Active | PM2 holds exclusive PGLite lock. CLI crons fail with Aborted(). Fix: wrap in PM2 stop/start, or switch Hermes to stdio MCP. Not resolved. |
+| **XPosterOS Vercel→Omen broken** | ⚠️ Active | Vercel can't reach Omen. Needs Cloudflare Tunnel (Phase V, V1). |
+| **GitHub Actions runner not registered** | ⚠️ Active | Software at ~/actions-runner-xposteros/. Run `bash ~/setup-runner.sh TOKEN`. Token from GitHub UI (Settings→Actions→Runners→New). PAT also needs `workflow` scope to push workflow file. |
+| **PAT in XPosterOS git remote URL** | ⚠️ Security | `git -C ~/xposteros remote -v` exposes PAT. Fix after regenerating: `git -C ~/xposteros remote set-url origin "https://github.com/Dhruva966/linkedIn-XPoster.git"` |
+| Anthropic credit watchdog blind to Claude Code usage | ⚠️ Structural | balance-check.sh (every 2h) mitigates. Root fix: separate API keys (done). Spend limit on platform.anthropic.com recommended. |
 
 ---
 

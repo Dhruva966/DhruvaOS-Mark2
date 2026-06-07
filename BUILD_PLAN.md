@@ -1,5 +1,26 @@
 # DhruvaOS Mark 2 — Build Plan
 
+## Current State — June 7, 2026
+
+| Item | Status |
+|------|--------|
+| Hermes provider | **Gemini 2.0 Flash (google) — TEMPORARY** while Anthropic credits replenish. Switch back: `sed -i "s/gemini-2.0-flash/claude-sonnet-4-6/; s/provider: google/provider: anthropic/" ~/.hermes/config.yaml && systemctl --user restart hermes-gateway` |
+| Browserbase | **PERMANENTLY DROPPED** — replaced by local Playwright ($0). Disabled in config.yaml. |
+| gbrain dream/embed crons | **BROKEN** — PM2 holds exclusive PGLite lock. CLI invocations fail with `Aborted()` WASM error. Fix options: (a) wrap crons in stop-PM2/run/restart-PM2, (b) switch Hermes to stdio MCP. Not resolved — needs decision. |
+| stale-fact-rewrite | Fixed — uses HTTP MCP instead of CLI subprocess |
+| GitHub Actions auto-deploy | Workflow file committed to Omen (~xposteros), NOT yet pushed. Blocked: PAT lacks `workflow` scope. Runner software at `~/actions-runner-xposteros/`. Script ready: `bash ~/setup-runner.sh TOKEN` |
+| API keys | Separated: Claude Code key, Hermes key (`~/.hermes/.env`), XPosterOS key (`~/xposteros/.env`) |
+| meeting-prep-brief | Fixed to `0 * * * *` (24/day, was 48/day) |
+| balance-check.sh | Deployed to `~/.hermes/scripts/`, runs every 2h via system crontab |
+| XPosterOS Vercel→Omen | **BROKEN** — Vercel can't reach Omen API. Needs Cloudflare Tunnel first. |
+| Security (AppArmor, quality firewall gate) | **Deferred to very end** — entire system must be running first |
+| Visual/Voice layer | **NEXT major build** — see Phase V below |
+| GBrain braindump | **NOT ingested** — wiki/braindump-questions.md has partial Section 1 answers. Ingest before building Visual layer. |
+
+**Next new chat: start with Phase V, V1 Cloudflare Tunnel.**
+
+---
+
 ## Philosophy
 
 Mark 1 planned 7 phases. Mark 2 uses the same phase structure, re-scoped for Hermes + GBrain.
@@ -785,7 +806,7 @@ Each skill in this phase: `outbound: true`, Tier 2 mandatory, approval required 
 ### P5 Tasks
 
 ```
-P5.1  [sequential] LinkedIn skill — browser-automated via Browserbase ✅ BUILT (deploy pending)
+P5.1  [sequential] LinkedIn skill — browser-automated via local Playwright ✅ BUILT (deploy pending, Browserbase permanently dropped)
 P5.2  [sequential] GitHub skill — via GitHub MCP ✅ COMPLETE (shipped in P3 as github-update)
 P5.3  [sequential] Personal site update skill ✅ BUILT (deploy pending)
 P5.4  [sequential] YouTube video creation skill — ContentOS, 3-approval flow ✅ BUILT (deploy pending)
@@ -793,19 +814,27 @@ P5.4  [sequential] YouTube video creation skill — ContentOS, 3-approval flow �
 
 **Status:** 686/686 contract tests passing (full suite June 7). Skills built locally, not yet deployed to Omen (SSH blocked — Tailscale needed). github-update already live since Phase 3. linkedin-post, personal-site-update, and youtube-video-create ready to deploy.
 
-### P5.1 — LinkedIn skill ✅ BUILT
+### P5.1 — LinkedIn skill ✅ BUILT (Playwright, not Browserbase)
 
-Full Browserbase implementation in `skills/dhruvaos/linkedin-post/SKILL.md` v1.0.0.
-- Step 0: env check (BROWSERBASE_API_KEY, BROWSERBASE_PROJECT_ID, DISCORD_CORRECTIONS_CHANNEL_ID)
+**Browserbase permanently dropped June 7, 2026.** LinkedIn automation uses local Playwright on Omen.
+
+Full implementation in `skills/dhruvaos/linkedin-post/SKILL.md` v1.0.0.
+- Step 0: env check (DISCORD_CORRECTIONS_CHANNEL_ID) — no Browserbase keys needed
 - Step 1: 3 GBrain searches for context
 - Step 2: Sonnet draft, 150-300 words, ≤3 hashtags, 0-2 emoji
 - Step 3: approval_id + content_hash + expires HARD STOP in #corrections
-- Step 4: Browserbase session → navigate LinkedIn → verify login → click "Start a post" → type → submit
+- Step 4: Playwright headless Chromium → navigate LinkedIn → verify login → post
 - Step 5: confirm or report failure
 - 13 contract tests, all passing
 
-**Deploy:** requires Browserbase account. Add keys to `~/.hermes/.env`, add to `config.yaml`
-mcp_servers, restart Hermes, authenticate LinkedIn in Browserbase dashboard.
+**Deploy:**
+```bash
+# Install Playwright on Omen (one-time):
+pip install playwright && playwright install chromium
+# No Browserbase account or keys needed
+```
+
+If LinkedIn detects and blocks Playwright: add `--channel chrome` to use real Chrome binary, or add cookies/session persistence. Don't buy Browserbase preemptively.
 
 ### P5.2 — GitHub skill ✅ COMPLETE (live since Phase 3)
 
@@ -844,18 +873,10 @@ Full 9-step ContentOS implementation in `skills/dhruvaos/youtube-video-create/SK
 
 **Deploy:** requires YOUTUBE_CHANNEL_ID + FAL_KEY in `~/.hermes/.env`, re-run Gmail OAuth with `youtube.upload` scope, install ffmpeg + google-api libs, scp `youtube-upload.py` to `~/.hermes/scripts/` on Omen.
 
-### P5.1 — LinkedIn Browserbase config (add when deploying)
+### P5.1 — LinkedIn Playwright setup
 
-```yaml
-# Add to mcp_servers: in ~/.hermes/config.yaml
-mcp_servers:
-  browserbase:
-    command: npx
-    args: ["-y", "@browserbase/mcp-server-browserbase"]
-    env:
-      BROWSERBASE_API_KEY: "${BROWSERBASE_API_KEY}"
-      BROWSERBASE_PROJECT_ID: "${BROWSERBASE_PROJECT_ID}"
-```
+No MCP server needed. Playwright runs as a subprocess from the skill script.
+Browserbase MCP is disabled in `~/.hermes/config.yaml` (`enabled: false`) and will not be re-enabled.
 
 **Done condition:** each outbound skill fires quality firewall. Test with dummy content first.
 
@@ -876,7 +897,7 @@ mcp_servers:
 - **contact-health-check** (daily 8:30am, job d24c69d0f054): alerts on overdue relationships (>30d friend, >90d acquaintance)
 - **birthday-reminder** (daily 8am, job fd5af998c518): 7-day advance + day-of alert
 - **post-interaction-log** (/met <person> <notes>): logs to brain, extracts facts via GBrain
-- **meeting-prep-brief** (every 30min, job 8727a655eb26): calendar lookahead → GBrain people brief
+- **meeting-prep-brief** (every 60min `0 * * * *`, job 8727a655eb26): calendar lookahead → GBrain people brief. **Fixed June 7 from 30min (was burning $0.14/day).**
 
 ## Phase 10: Financial Intelligence ✅ DEPLOYED (June 6, 2026)
 
@@ -1228,3 +1249,206 @@ gbrain doctor --json | jq .score      # score ≥ 70
 # Phase 5 → done
 # Each outbound skill: test post → firewall fires → approve → verify sent
 ```
+
+---
+
+## Phase V: Visual + Voice Layer ⬜ NEXT (target: ~2 days, start after Cloudflare Tunnel)
+
+**Goal:** Everything you can actually see and hear. DhruvaOS control panel, Drew avatar with animations, voice interface, dynamic configuration from UI. Make the system feel alive.
+
+**Critical path:** V1 (Cloudflare Tunnel) must complete before any other V phase. Nothing from Vercel/phone reaches Omen without it.
+
+**Do this before building UI:** Ingest GBrain braindump (`wiki/braindump-questions.md` Section 1 answers already filled). Drew knows almost nothing personal — ingest first so the UI reflects a live, context-aware agent.
+
+---
+
+### V1: Cloudflare Tunnel ⬜ PREREQUISITE (30 min)
+
+Expose Omen APIs publicly with Cloudflare Access auth (only your Google account can reach them).
+
+**You need:** Cloudflare account + domain (or use free `.trycloudflare.com` — no domain needed for testing).
+
+```bash
+# On Omen:
+curl -L https://pkg.cloudflare.com/cloudflare-main.gpg | sudo apt-key add -
+echo "deb https://pkg.cloudflare.com/cloudflared focal main" | sudo tee /etc/apt/sources.list.d/cloudflared.list
+sudo apt update && sudo apt install cloudflared
+
+# Authenticate (opens browser on Mac — paste URL):
+cloudflared tunnel login
+
+# Create named tunnel:
+cloudflared tunnel create dhruvaos
+
+# Configure routes (edit ~/.cloudflared/config.yml):
+# tunnel: <tunnel-id>
+# credentials-file: /home/dhruva/.cloudflared/<id>.json
+# ingress:
+#   - hostname: api.dhruvaos.app
+#     service: http://localhost:8642
+#   - hostname: xposteros.dhruvaos.app
+#     service: http://localhost:8000
+#   - hostname: gbrain.dhruvaos.app
+#     service: http://localhost:3131
+#   - service: http_status:404
+
+# Add DNS routes:
+cloudflared tunnel route dns dhruvaos api.dhruvaos.app
+cloudflared tunnel route dns dhruvaos xposteros.dhruvaos.app
+
+# Install as systemd service:
+sudo cloudflared service install
+sudo systemctl start cloudflared
+```
+
+**Done condition:** `curl https://api.dhruvaos.app/health` returns Hermes health from Mac or phone.
+
+**Free `.trycloudflare.com` alternative (zero config, temporary URL):**
+```bash
+cloudflared tunnel --url http://localhost:8642
+# Prints a random URL like https://random-name.trycloudflare.com
+# Use that as your API base URL for testing before getting a domain
+```
+
+---
+
+### V2: DhruvaOS Control Panel ⬜ (4 hours)
+
+Single-page dashboard served from Vercel (Next.js), talking to Omen via Cloudflare Tunnel. Extend XPosterOS web (`~/xposteros/web/`) with a `/drew` route.
+
+**What you can see:**
+- Drew status card — provider (Gemini/Anthropic), uptime, active model, last task, last 5 Discord messages
+- Cron jobs panel — all active schedules, next run, last result, enable/disable toggle
+- GBrain stats — entry count, last dream, last embed, recent memories
+- System health — Hermes ✅/❌, GBrain ✅/❌, Ollama ✅/❌, all providers
+
+**What you can change from UI (dynamic + malleable):**
+- Enable/disable individual crons
+- Change cron schedule (inline edit)
+- Switch Drew's active model/provider
+- Flip XPOSTER_DRY_RUN
+- Trigger manual skill runs
+
+**API endpoints to add to Hermes/XPosterOS:**
+```
+GET  /drew/status      → provider, uptime, model, last task
+GET  /drew/crons       → all cron jobs with schedule, last run, status
+POST /drew/crons/:id   → update schedule or enabled state
+GET  /drew/health      → all subsystem health
+GET  /drew/memory      → recent GBrain entries (last 10)
+```
+
+---
+
+### V3: Drew Avatar + Animations ⬜ (3 hours)
+
+Jarvis-inspired liquid glass orb. Lives in the control panel header.
+
+**States:**
+| State | Visual | When |
+|-------|--------|------|
+| Idle | Slow breathing pulse, translucent glass ring, ambient blue glow | No active task |
+| Thinking | Spinning arc segments, faster pulse, "Processing…" subtitle | Skill running |
+| Speaking | Audio waveform rippling through glass | TTS playing |
+| Alert | Red edge glow, pulsing | Credit depleted, dream failed, error |
+| Offline | Grey, no glow, "Drew is offline" | Hermes down |
+
+**Tech stack:**
+- CSS `@keyframes` + `backdrop-filter: blur(12px)` for glass morphism
+- Canvas API for waveform visualizer during speech
+- Framer Motion for state transitions
+- Poll `/drew/status` every 5s to update state
+
+**Color palette:** deep navy (`#0a0f1e`) + electric blue (`#4facfe`) + white glass (`rgba(255,255,255,0.08)`)
+
+---
+
+### V4: Voice Interface ⬜ (3 hours)
+
+Hermes TTS is already configured (`edge` provider, `en-US-AriaNeural`). Wire it to the web.
+
+**Quick win first (no build):** Enable `auto_tts: true` in `~/.hermes/config.yaml` → Drew speaks all Discord responses immediately. Test quality before building web interface.
+
+**Web voice flow:**
+1. Hold mic button in browser → Web Audio API records
+2. POST audio blob to new Hermes endpoint `/voice/input`
+3. Hermes processes → returns text response + TTS audio URL
+4. Audio plays in browser → Drew avatar animates to Speaking state
+
+**Voice quality options (in order of quality):**
+1. `edge` (current, free) — en-US-AriaNeural sounds like Cortana
+2. `elevenlabs` (configured, needs API key) — sounds like actual Jarvis, ~$0.18/1k chars
+3. `minimax` (credits available) — Chinese server, don't use for personal content
+
+**ElevenLabs setup (recommended for "wow" factor):**
+```bash
+# Add to ~/.hermes/.env:
+ELEVENLABS_API_KEY=...
+# In config.yaml:
+# tts:
+#   provider: elevenlabs
+#   elevenlabs:
+#     voice_id: pNInz6obpgDQGcFmaJgB  (already set — Adam voice)
+```
+
+**Done condition:** hold mic on web → speak → hear Drew respond through browser speakers, avatar animates.
+
+---
+
+### V5: Dynamic Config + Brain Dump UI ⬜ (2 hours)
+
+Make everything editable without SSH:
+
+- **Skill parameter editor** — edit key values in skill YAML from web form (thresholds, contact lists, notification targets)
+- **Brain dump form** — submit answers to braindump-questions.md directly from dashboard → auto-formats + POSTs to `/drew/brain-dump` → GBrain ingest
+- **Memory viewer** — browse GBrain entries by tag, search by topic, see what Drew actually knows
+- **Personality switcher** — dropdown to change Drew's active persona (helpful/concise/technical/kawaii etc.)
+
+**Brain dump endpoint (add to XPosterOS or new Hermes route):**
+```
+POST /drew/brain-dump
+Body: { section: "identity", question: "Who are you?", answer: "..." }
+Action: format as brain markdown → write to ~/brain/about/dhruva-{section}.md → gbrain import
+```
+
+---
+
+### Phase V Verification Gates
+
+```bash
+# V1 done:
+curl https://api.dhruvaos.app/health   # returns from Mac or phone
+
+# V2 done:
+# Open dashboard on phone → see Drew status + all crons
+# Toggle a cron from UI → hermes cron list confirms change
+
+# V3 done:
+# Trigger a skill run → avatar animates to Thinking state
+# Skill completes → avatar returns to Idle
+
+# V4 done:
+# Hold mic, say "what's on my calendar" → hear Drew respond (spoken)
+# Avatar animates to Speaking during audio playback
+
+# V5 done:
+# Submit braindump answer from UI → gbrain search returns it
+# Change personality from dropdown → Drew's next Discord message reflects it
+```
+
+---
+
+### GitHub Actions Auto-Deploy (pending)
+
+Workflow file created at `~/xposteros/.github/workflows/deploy.yml` (committed, NOT yet pushed). Runner software at `~/actions-runner-xposteros/`.
+
+**To complete (user tasks):**
+1. Regenerate GitHub PAT with `workflow` scope at github.com/settings/tokens
+2. Update git remote: `git -C ~/xposteros remote set-url origin "https://Dhruva966:NEW_PAT@github.com/Dhruva966/linkedIn-XPoster.git"` → `git push origin main`
+3. Get runner token: github.com/Dhruva966/linkedIn-XPoster → Settings → Actions → Runners → New → Linux x64 → copy token
+4. On Omen: `bash ~/setup-runner.sh PASTE_TOKEN`
+5. Security fix: `git -C ~/xposteros remote set-url origin "https://github.com/Dhruva966/linkedIn-XPoster.git"` (remove PAT from URL)
+
+**Security note:** current PAT is embedded in git remote URL plaintext (`git -C ~/xposteros remote -v` exposes it). Fix ASAP after regenerating.
+
+**Once running:** every `git push` from Codex → Omen auto-pulls + restarts workers in ~30 seconds. Cost: $0.
