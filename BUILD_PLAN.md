@@ -457,7 +457,7 @@ write is running concurrently on GBrain.
 
 **Goal:** agent handles routine requests. Quality firewall enforced end-to-end.
 
-**Status:** All command skills deployed + tested. github-update fully implemented as quality firewall test skill. P3.3 gate not yet run (needs Dhruva in Discord). 646/646 contract tests passing (full suite June 6). XPosterOS integration complete. **KNOWN ISSUE:** XPosterOS workers fail every 2h — see P3.6b fix.
+**Status:** All command skills deployed + tested. github-update fully implemented as quality firewall test skill. P3.3 gate not yet run (needs Dhruva in Discord). 686/686 contract tests passing (full suite June 7). XPosterOS integration complete. **KNOWN ISSUE:** XPosterOS workers fail every 2h — see P3.6b fix.
 
 ### P3 Tasks
 
@@ -472,7 +472,7 @@ P3.3c GitHub MCP added to hermes config.yaml                       ✅ June 5
 P3.4  [after P3.3] All 8 starting skills verified working          ⬜ pending P3.3
 P3.5  [after P3.4] ntfy.sh setup for phone push notifications      ✅ NTFY_TOPIC set in ~/.hermes/.env (rotate topic — value was committed; iPhone app still needed)
 P3.6  XPosterOS integration                                        ✅ complete June 5 (see HANDOFF.md XPosterOS section)
-P3.7  xposteros-control contract tests                             ✅ 15/15 passing June 5 (646/646 full suite June 6)
+P3.7  xposteros-control contract tests                             ✅ 15/15 passing June 5 (686/686 full suite June 7)
 ```
 
 ### P3.6b — XPosterOS .env fix (URGENT — workers fail every 2h)
@@ -681,7 +681,7 @@ GBrain is a private repo (`garrytan/gbrain`) — not upstream, implemented as He
 **Manual invocation:** Drew runs `python3 ~/.hermes/scripts/stale-fact-rewrite.py 2>&1` or `--dry-run` for preview.
 
 Run tests: `uvx pytest skills/dhruvaos/stale-fact-rewrite/tests/ -q` (25 pass)
-Full suite: `uvx pytest skills/ -q` (646 pass across all deployed skills)
+Full suite: `uvx pytest skills/ -q` (686 pass across all deployed skills)
 
 ### P4.10 — Self-healing + self-building skill loop
 
@@ -788,9 +788,10 @@ Each skill in this phase: `outbound: true`, Tier 2 mandatory, approval required 
 P5.1  [sequential] LinkedIn skill — browser-automated via Browserbase ✅ BUILT (deploy pending)
 P5.2  [sequential] GitHub skill — via GitHub MCP ✅ COMPLETE (shipped in P3 as github-update)
 P5.3  [sequential] Personal site update skill ✅ BUILT (deploy pending)
+P5.4  [sequential] YouTube video creation skill — ContentOS, 3-approval flow ✅ BUILT (deploy pending)
 ```
 
-**Status:** 646/646 contract tests passing (full suite June 6). Skills built locally, not yet deployed to Omen (SSH blocked — Tailscale needed). github-update already live since Phase 3. linkedin-post and personal-site-update ready to deploy.
+**Status:** 686/686 contract tests passing (full suite June 7). Skills built locally, not yet deployed to Omen (SSH blocked — Tailscale needed). github-update already live since Phase 3. linkedin-post, personal-site-update, and youtube-video-create ready to deploy.
 
 ### P5.1 — LinkedIn skill ✅ BUILT
 
@@ -825,6 +826,23 @@ Full GitHub MCP implementation in `skills/dhruvaos/personal-site-update/SKILL.md
 
 **Deploy:** requires SITE_REPO env var in `~/.hermes/.env` (e.g. `SITE_REPO=Dhruva966/portfolio`).
 GitHub MCP already wired from Phase 3.
+
+### P5.4 — YouTube video creation skill ✅ BUILT (ContentOS)
+
+Full 9-step ContentOS implementation in `skills/dhruvaos/youtube-video-create/SKILL.md` v1.0.0.
+- Step 0: env check (YOUTUBE_CHANNEL_ID, FAL_KEY, DISCORD_CORRECTIONS_CHANNEL_ID)
+- Step 1: 5-question interview via `clarify` tool, 30-min timeout
+- Step 2: GBrain search + Exa research synthesis
+- Step 3: content brief → HARD STOP approval (approval_id + sha256 + 15-min expiry)
+- Step 4: full script via Sonnet (Tier 2), saved to brain/resources/youtube-scripts-{date}.md
+- Step 5: script → HARD STOP approval (second gate)
+- Step 6: fal.ai FLUX thumbnail (landscape_16_9, non-blocking if fails)
+- Step 7: ffmpeg placeholder video (30s title card, title_escaped for filter safety)
+- Step 8: upload HARD STOP → youtube-upload.py → notify /platforms/youtube/published
+- Step 9: confirm with video URL to #corrections
+- 40 contract tests, all passing
+
+**Deploy:** requires YOUTUBE_CHANNEL_ID + FAL_KEY in `~/.hermes/.env`, re-run Gmail OAuth with `youtube.upload` scope, install ffmpeg + google-api libs, scp `youtube-upload.py` to `~/.hermes/scripts/` on Omen.
 
 ### P5.1 — LinkedIn Browserbase config (add when deploying)
 
