@@ -23,7 +23,6 @@ import fcntl
 import json
 import os
 import pathlib
-import shutil
 import subprocess
 import sys
 import textwrap
@@ -31,7 +30,15 @@ import time
 import urllib.error
 import urllib.request
 
-GBRAIN = os.environ.get("GBRAIN_BIN") or shutil.which("gbrain") or "/home/dhruva/.bun/bin/gbrain"
+# Canonical gbrain path. An env override is accepted only if it points to a path
+# under the user's home directory to prevent PATH injection via inherited env.
+_GBRAIN_OVERRIDE = os.environ.get("GBRAIN_BIN", "").strip()
+_GBRAIN_HOME_PREFIX = str(pathlib.Path.home()) + "/"
+GBRAIN = (
+    _GBRAIN_OVERRIDE
+    if _GBRAIN_OVERRIDE and _GBRAIN_OVERRIDE.startswith(_GBRAIN_HOME_PREFIX)
+    else str(pathlib.Path.home() / ".bun" / "bin" / "gbrain")
+)
 HERMES_ENV = pathlib.Path.home() / ".hermes" / ".env"
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 LOG_FILE = pathlib.Path.home() / ".gbrain" / "stale-fact-rewrites.jsonl"
@@ -84,7 +91,8 @@ def build_env() -> dict[str, str]:
         str(pathlib.Path.home() / ".local" / "bin"),
         str(pathlib.Path.home() / ".hermes" / "bin"),
     ])
-    result["PATH"] = extra + ":" + result.get("PATH", "/usr/bin:/bin")
+    # Use a closed PATH — discard inherited PATH dirs to prevent binary smuggling.
+    result["PATH"] = extra + ":/usr/local/bin:/usr/bin:/bin"
     return result
 
 
@@ -102,13 +110,16 @@ def gbrain_call(tool: str, args: dict, env: dict, timeout: int = 30) -> dict:
     )
     if r.returncode != 0:
         raise RuntimeError(f"gbrain call {tool}: {r.stderr.strip() or f'exit {r.returncode}'}")
-    # Find the first JSON object/array in stdout — skips any warning banners gbrain
-    # may emit before the actual result.
+    # Scan every { and [ position so [warn] banner lines before the JSON are skipped.
+    # Trying each candidate offset is robust against multi-line JSON and inline banners.
     stdout = r.stdout
-    start = next((i for i, c in enumerate(stdout) if c in ("{", "[")), -1)
-    if start < 0:
-        raise RuntimeError(f"gbrain call {tool}: no JSON in stdout: {stdout[:200]!r}")
-    return json.loads(stdout[start:])
+    for i, c in enumerate(stdout):
+        if c in ("{", "["):
+            try:
+                return json.loads(stdout[i:])
+            except json.JSONDecodeError:
+                continue
+    raise RuntimeError(f"gbrain call {tool}: no JSON in stdout: {stdout[:200]!r}")
 
 
 def ollama_generate(prompt: str, model: str = "phi4-mini") -> str:
