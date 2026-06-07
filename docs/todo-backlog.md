@@ -4,6 +4,7 @@ This backlog is generated from tracked TODO/FIXME/XXX markers.
 
 ## Open Markers
 
+- `COST.md:116` - below)
 - `SKILLS.md:294` - Define monitoring targets (revenue, bookings, employees)
 - `SKILLS.md:295` - Identify data source (POS system, booking platform, manual input)
 - `SKILLS.md:296` - Implement metrics collection and alerting thresholds
