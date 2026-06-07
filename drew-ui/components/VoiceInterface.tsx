@@ -21,62 +21,81 @@ export default function VoiceInterface() {
 
   const startListening = async () => {
     try {
+      console.log('[Drew] startListening called');
       setIsListening(true);
       setState('listening');
       setTranscript('');
       audioChunksRef.current = [];
 
+      console.log('[Drew] Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('[Drew] Microphone access granted', stream);
       streamRef.current = stream;
 
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
+      console.log('[Drew] MediaRecorder created');
 
       mediaRecorder.ondataavailable = (event) => {
+        console.log('[Drew] Audio data available:', event.data.size);
         audioChunksRef.current.push(event.data);
       };
 
       mediaRecorder.onstop = async () => {
+        console.log('[Drew] Recording stopped');
         stream.getTracks().forEach((track) => track.stop());
 
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        console.log('[Drew] Audio blob created:', audioBlob.size);
 
         // Transcribe
         setState('thinking');
+        console.log('[Drew] Transcribing...');
         const userText = await transcribeAudio(audioBlob);
+        console.log('[Drew] Transcribed:', userText);
         setTranscript(userText);
 
         // Generate response (Phase 2: wire to real Hermes WebSocket)
         if (userText.trim()) {
-          // For now, use simple response generator
-          // TODO: Replace with actual Hermes conversation call
           const responseText = `I heard: "${userText}". That's interesting!`;
 
           setState('speaking');
+          console.log('[Drew] Speaking:', responseText);
           const audioUrl = await speakText(responseText);
+          console.log('[Drew] TTS response:', audioUrl);
 
           if (audioPlaybackRef.current && audioUrl) {
             audioPlaybackRef.current.src = audioUrl;
             await audioPlaybackRef.current.play();
             audioPlaybackRef.current.onended = () => {
+              console.log('[Drew] Speaking finished');
               setState('idle');
               setIsListening(false);
             };
           } else {
+            console.warn('[Drew] No audio URL or audio element');
             setState('idle');
             setIsListening(false);
           }
         } else {
+          console.log('[Drew] No text to respond to');
           setState('idle');
           setIsListening(false);
         }
       };
 
+      mediaRecorder.onerror = (event) => {
+        console.error('[Drew] MediaRecorder error:', event.error);
+      };
+
+      console.log('[Drew] Starting recording...');
       mediaRecorder.start();
+      console.log('[Drew] Recording started');
     } catch (error) {
-      console.error('Error accessing microphone:', error);
+      console.error('[Drew] Error accessing microphone:', error);
       setState('idle');
       setIsListening(false);
+      alert(`Microphone error: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
