@@ -120,7 +120,7 @@ After writing tasks-inbox.md, signal GBrain to index the new task:
 
 ```bash
 GBRAIN_BIN="$(command -v gbrain || echo /home/dhruva/.bun/bin/gbrain)"
-flock -n /tmp/gbrain-write.lock sh -lc "$GBRAIN_BIN import ~/brain/projects/tasks-inbox.md 2>&1 | head -3 && $GBRAIN_BIN embed --stale 2>&1 | head -3"
+flock -n ~/.gbrain/gbrain-write.lock sh -lc "$GBRAIN_BIN import ~/brain/projects/tasks-inbox.md 2>&1 | head -3 && $GBRAIN_BIN embed --stale 2>&1 | head -3"
 ```
 
 If the lock is busy, skip immediate ingest and mention it in the confirmation. The durable

@@ -59,7 +59,7 @@ class TestSkillContract:
         assert "NOTION_NOT_FOUND" in TEXT or "not found in Notion" in TEXT.lower() or "Not found in Notion" in TEXT
 
     def test_gbrain_ingest_uses_flock(self):
-        assert "flock -n /tmp/gbrain-write.lock" in TEXT
+        assert "flock -n ~/.gbrain/gbrain-write.lock" in TEXT
 
     def test_ollama_failure_is_not_fatal(self):
         assert "Ollama is unavailable" in TEXT or "Ollama unavailable" in TEXT

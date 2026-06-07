@@ -22,7 +22,7 @@ Steps:
      - Priority marker: any urgency signal ("urgent", "asap", "important")
   3. Format task entry:
      - [ ] <task text> [due: <date if found>] [added: <today's date>]
-  4. Append new task line to ~/brain/projects/tasks-inbox.md and ingest with `/tmp/gbrain-write.lock`
+  4. Append new task line to ~/brain/projects/tasks-inbox.md and ingest with `~/.gbrain/gbrain-write.lock`
   5. Post confirmation to Discord #tasks: "Added: <task text>"
 
 Note: Writes to tasks-inbox.md (staging), NOT tasks.md.

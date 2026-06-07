@@ -316,7 +316,7 @@ Vault path: `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/dhruva's wi
 Add to the `dhruva` user's crontab with a lock file so writes stay serialized:
 ```bash
 # Pull brain updates from GitHub every 5 min, re-embed changed files
-*/5 * * * * flock -n /tmp/gbrain-write.lock sh -lc 'cd /home/dhruva/brain && git pull --ff-only && /home/dhruva/.bun/bin/gbrain embed --stale'
+*/5 * * * * flock -n ~/.gbrain/gbrain-write.lock sh -lc 'cd /home/dhruva/brain && git pull --ff-only && /home/dhruva/.bun/bin/gbrain embed --stale'
 ```
 
 ### Setup: Hermes brain-write hook

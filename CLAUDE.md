@@ -75,6 +75,19 @@ Tier 2+ AND requires Dhruva's explicit Discord approval before send. Cost never 
 Escalate only when lower tier fails with a clear reasoning gap. Promote permanently when a skill
 escalates >30% of runs in a week.
 
+## Omen SSH Access (every new chat needs this)
+
+```bash
+ssh dhruva@100.119.229.11
+```
+
+**PATH fix — always run this in non-login SSH sessions** (uv, bun, hermes, gbrain all missing otherwise):
+```bash
+export PATH="/home/dhruva/.nvm/versions/node/v24.16.0/bin:/home/dhruva/.bun/bin:/home/dhruva/.local/bin:/home/dhruva/.hermes/bin:$PATH"
+```
+
+Tailscale must be active on both devices. If SSH hangs, check: `tailscale status` on Mac.
+
 ## Key Entry Points
 
 | What | Where |

@@ -265,7 +265,7 @@ Signal GBrain to index the new interaction log:
 ```bash
 export PATH=/home/dhruva/.bun/bin:/home/dhruva/.hermes/bin:/home/dhruva/.local/bin:$PATH
 GBRAIN_BIN="$(command -v gbrain || echo /home/dhruva/.bun/bin/gbrain)"
-flock -n /tmp/gbrain-write.lock sh -lc \
+flock -n ~/.gbrain/gbrain-write.lock sh -lc \
   "$GBRAIN_BIN import ~/brain/people/[SLUG]/interactions/[TODAY_STR].md 2>&1 | head -3"
 ```
 
