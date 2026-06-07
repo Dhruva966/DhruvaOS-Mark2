@@ -96,7 +96,7 @@ After writing the file, signal GBrain to ingest the update via terminal:
 
 ```bash
 GBRAIN_BIN="$(command -v gbrain || echo /home/dhruva/.bun/bin/gbrain)"
-flock -n /tmp/gbrain-write.lock sh -lc "$GBRAIN_BIN import ~/brain/concepts/corrections.md 2>&1 && $GBRAIN_BIN embed --stale 2>&1"
+flock -n ~/.gbrain/gbrain-write.lock sh -lc "$GBRAIN_BIN import ~/brain/concepts/corrections.md 2>&1 && $GBRAIN_BIN embed --stale 2>&1"
 ```
 
 If the lock is busy, skip immediate ingest and note that the correction was saved but will

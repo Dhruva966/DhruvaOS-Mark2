@@ -457,7 +457,7 @@ write is running concurrently on GBrain.
 
 **Goal:** agent handles routine requests. Quality firewall enforced end-to-end.
 
-**Status:** All command skills deployed + tested. github-update fully implemented as quality firewall test skill. P3.3 gate not yet run (needs Dhruva in Discord). 61/61 contract tests passing (15 new xposteros-control tests added June 5). XPosterOS integration complete. **KNOWN ISSUE:** XPosterOS workers fail every 2h — see P3.6b fix.
+**Status:** All command skills deployed + tested. github-update fully implemented as quality firewall test skill. P3.3 gate not yet run (needs Dhruva in Discord). 646/646 contract tests passing (full suite June 6). XPosterOS integration complete. **KNOWN ISSUE:** XPosterOS workers fail every 2h — see P3.6b fix.
 
 ### P3 Tasks
 
@@ -472,7 +472,7 @@ P3.3c GitHub MCP added to hermes config.yaml                       ✅ June 5
 P3.4  [after P3.3] All 8 starting skills verified working          ⬜ pending P3.3
 P3.5  [after P3.4] ntfy.sh setup for phone push notifications      ✅ NTFY_TOPIC set in ~/.hermes/.env (rotate topic — value was committed; iPhone app still needed)
 P3.6  XPosterOS integration                                        ✅ complete June 5 (see HANDOFF.md XPosterOS section)
-P3.7  xposteros-control contract tests                             ✅ 15/15 passing June 5
+P3.7  xposteros-control contract tests                             ✅ 15/15 passing June 5 (646/646 full suite June 6)
 ```
 
 ### P3.6b — XPosterOS .env fix (URGENT — workers fail every 2h)
@@ -680,8 +680,8 @@ GBrain is a private repo (`garrytan/gbrain`) — not upstream, implemented as He
 
 **Manual invocation:** Drew runs `python3 ~/.hermes/scripts/stale-fact-rewrite.py 2>&1` or `--dry-run` for preview.
 
-Run tests: `uvx pytest skills/dhruvaos/stale-fact-rewrite/tests/ -q` (23 pass)
-Full suite: `uvx pytest skills/ -q` (94 pass across all deployed skills)
+Run tests: `uvx pytest skills/dhruvaos/stale-fact-rewrite/tests/ -q` (25 pass)
+Full suite: `uvx pytest skills/ -q` (646 pass across all deployed skills)
 
 ### P4.10 — Self-healing + self-building skill loop
 
@@ -790,9 +790,7 @@ P5.2  [sequential] GitHub skill — via GitHub MCP ✅ COMPLETE (shipped in P3 a
 P5.3  [sequential] Personal site update skill ✅ BUILT (deploy pending)
 ```
 
-**Status:** 96/96 contract tests passing. Skills built locally, not yet deployed to Omen (SSH
-blocked — Tailscale needed). github-update already live since Phase 3. linkedin-post and
-personal-site-update ready to deploy.
+**Status:** 646/646 contract tests passing (full suite June 6). Skills built locally, not yet deployed to Omen (SSH blocked — Tailscale needed). github-update already live since Phase 3. linkedin-post and personal-site-update ready to deploy.
 
 ### P5.1 — LinkedIn skill ✅ BUILT
 

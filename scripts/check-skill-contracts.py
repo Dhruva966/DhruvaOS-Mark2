@@ -72,7 +72,7 @@ def check_skill(path: Path, failures: list[str]) -> None:
         fail(failures, path, "hard-coded Discord channel ID; use DISCORD_*_CHANNEL_ID")
 
     if re.search(r"\b(?:gbrain|\$GBRAIN_BIN) (import|embed|dream|apply-migrations|upgrade)\b", text):
-        if "flock -n /tmp/gbrain-write.lock" not in text:
+        if "flock -n ~/.gbrain/gbrain-write.lock" not in text:
             fail(failures, path, "GBrain write command is missing shared flock lock")
 
     if name == "add-task":

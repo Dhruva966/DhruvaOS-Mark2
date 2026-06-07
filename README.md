@@ -23,7 +23,7 @@
 | Lane | Current state | What matters |
 |------|---------------|--------------|
 | 🟢 **Core runtime** | Hermes gateway + GBrain MCP documented as deployed | Verify live host with `scripts/health-check.sh` before relying on ops claims |
-| 🟢 **Memory** | GBrain PGLite + `~/brain/` markdown | All writes must share `/tmp/gbrain-write.lock` |
+| 🟢 **Memory** | GBrain PGLite + `~/brain/` markdown | All writes must share `~/.gbrain/gbrain-write.lock` |
 | 🟡 **Inbox / tasks** | Phase 2 skills deployed | Notion schema + real 8am briefing still need live verification |
 | 🟡 **Command skills** | `/task`, `/research`, `/correct` deployed | Command tests and quality firewall gate still pending |
 | 🟢 **Dream cycle** | Running nightly (3am); stale-fact-rewrite at 3:30am | Phases: backfill, enrich_thin, skillopt all enabled; 14 chunks embedded on first live run |
@@ -204,7 +204,7 @@ pm2 logs gbrain-mcp --lines 20
 
 # GBrain safety
 gbrain onboard --check --json
-flock -n /tmp/gbrain-write.lock gbrain embed --stale
+flock -n ~/.gbrain/gbrain-write.lock gbrain embed --stale
 gbrain dream --dry-run
 ```
 

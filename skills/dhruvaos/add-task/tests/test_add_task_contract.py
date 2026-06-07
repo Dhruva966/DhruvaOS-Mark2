@@ -21,7 +21,7 @@ def test_add_task_preserves_existing_gbrain_inbox():
     assert "Do NOT overwrite" in TEXT
     assert "Always read first" in TEXT
     assert "tasks-inbox.md" in TEXT
-    assert "flock -n /tmp/gbrain-write.lock" in TEXT
+    assert "flock -n ~/.gbrain/gbrain-write.lock" in TEXT
 
 
 def test_add_task_is_internal_only():

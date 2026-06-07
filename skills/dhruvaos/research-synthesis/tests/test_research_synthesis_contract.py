@@ -17,7 +17,7 @@ def test_research_synthesis_ingests_before_discord():
     assert ingest_index < discord_index
     assert "BEFORE Discord post" in TEXT
     assert "embed --stale" in TEXT
-    assert "flock -n /tmp/gbrain-write.lock" in TEXT
+    assert "flock -n ~/.gbrain/gbrain-write.lock" in TEXT
 
 
 def test_research_synthesis_limits_discord_message_size():

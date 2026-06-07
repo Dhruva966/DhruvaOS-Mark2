@@ -49,7 +49,7 @@ curl -d "message here" ntfy.sh/$NTFY_TOPIC
 curl -H "Title: DhruvaOS Alert" -H "Priority: high" -d "Dream cycle FAILED" ntfy.sh/$NTFY_TOPIC
 
 # Add to dream cron for failure alerts:
-0 3 * * * flock -n /tmp/gbrain-write.lock /home/dhruva/.bun/bin/gbrain dream \
+0 3 * * * flock -n ~/.gbrain/gbrain-write.lock /home/dhruva/.bun/bin/gbrain dream \
   || curl -s -d "GBrain dream cycle FAILED at $(date)" ntfy.sh/$NTFY_TOPIC
 ```
 
