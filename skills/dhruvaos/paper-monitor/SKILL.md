@@ -282,7 +282,7 @@ for summary in summaries:
     ).stdout.strip() or "/home/dhruva/.bun/bin/gbrain"
 
     subprocess.run(
-        f"flock -n /tmp/gbrain-write.lock sh -lc "
+        f"flock -n ~/.gbrain/gbrain-write.lock sh -lc "
         f"'{gbrain_bin} import {resolved} 2>&1 && {gbrain_bin} embed --stale 2>&1'",
         shell=True, timeout=60,
     )

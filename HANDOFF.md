@@ -253,7 +253,7 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [x] Dream phases enabled: `conversation_facts_backfill`, `enrich_thin`, `skillopt` ✅
 - [x] Legacy facts `row_num IS NULL` blockage fixed — v0.32.2 migration re-run ✅
 - [x] Live dream cycle verified: all key phases ✓, 14 chunks embedded ✅
-- [x] stale-fact-rewrite skill deployed: script + SKILL.md + 23 tests (94 total, all pass) ✅
+- [x] stale-fact-rewrite skill deployed: script + SKILL.md + 25 tests (646 total, all pass) ✅
 - [x] Stale-fact-rewrite Hermes cron: 3:30am daily, job ID `6fc1a9ff790c` ✅
 - [ ] Brain health score ≥70 via `gbrain doctor` (run after brain has more content)
 - [ ] Knowledge graph build: run `gbrain extract links --source db` after brain >100 pages
@@ -279,7 +279,7 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [x] `xposteros-control` skill deployed to `~/.hermes/skills/dhruvaos/xposteros-control/`
 - [x] `XPOSTEROS_API_URL` + `XPOSTEROS_API_TOKEN` in `~/.hermes/.env`
 - [x] All 6 Notion DB IDs verified + set in `/home/dhruva/xposteros/.env`
-- [x] 50 tests passing, ruff lint clean (DhruvaOS repo: 61/61 contract tests — 15 new xposteros-control tests added June 5)
+- [x] 50 tests passing, ruff lint clean (DhruvaOS repo: 646/646 contract tests — full suite June 6)
 - [x] **FIXED June 6:** `NOTION_API_KEY` + `LLM_DEFAULT_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` added to `~/xposteros/.env`. Service health: `status:ok dry_run:True`. Workers no longer failing.
 - [ ] Go-live: set `XPOSTER_DRY_RUN=false` (waiting on X credentials)
 - [ ] Cloudflare tunnel for Vercel→Omen backend (manual step — `/etc/cloudflared/config.yml` placeholder)

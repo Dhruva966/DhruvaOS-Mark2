@@ -9,7 +9,7 @@ def test_correction_handler_writes_permanent_rule():
     assert "Permanent rule" in TEXT
     assert "corrections.md" in TEXT
     assert "GBrain indexes" in TEXT
-    assert "flock -n /tmp/gbrain-write.lock" in TEXT
+    assert "flock -n ~/.gbrain/gbrain-write.lock" in TEXT
 
 
 def test_correction_handler_classifies_expected_types():

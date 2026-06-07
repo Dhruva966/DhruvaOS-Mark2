@@ -119,7 +119,7 @@ class TestWeeklyLearningSynthesisContract:
 
     def test_synthesis_itself_ingested_into_gbrain(self):
         # The weekly synthesis file must be ingested so future queries can find it
-        assert "flock -n /tmp/gbrain-write.lock" in TEXT
+        assert "flock -n ~/.gbrain/gbrain-write.lock" in TEXT
 
     def test_embed_stale_called(self):
         assert "embed --stale" in TEXT

@@ -152,7 +152,7 @@ class TestConnectionDetectorContract:
         assert append_idx < reingest_idx
 
     def test_re_ingest_uses_lock(self):
-        assert "flock -n /tmp/gbrain-write.lock" in TEXT
+        assert "flock -n ~/.gbrain/gbrain-write.lock" in TEXT
 
     def test_embed_stale_called(self):
         assert "embed --stale" in TEXT

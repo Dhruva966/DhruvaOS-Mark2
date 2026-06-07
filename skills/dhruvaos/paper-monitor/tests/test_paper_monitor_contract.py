@@ -97,7 +97,7 @@ class TestPaperMonitorContract:
     # ── GBrain ingest ─────────────────────────────────────────────────────────
 
     def test_gbrain_ingest_uses_lock(self):
-        assert "flock -n /tmp/gbrain-write.lock" in TEXT
+        assert "flock -n ~/.gbrain/gbrain-write.lock" in TEXT
 
     def test_gbrain_embed_stale_called(self):
         assert "embed --stale" in TEXT

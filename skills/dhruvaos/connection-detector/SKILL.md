@@ -272,7 +272,7 @@ gbrain_bin = subprocess.run(
 ).stdout.strip() or "/home/dhruva/.bun/bin/gbrain"
 
 result = subprocess.run(
-    f"flock -n /tmp/gbrain-write.lock sh -lc "
+    f"flock -n ~/.gbrain/gbrain-write.lock sh -lc "
     f"'{gbrain_bin} import {brain_path} 2>&1 && {gbrain_bin} embed --stale 2>&1'",
     shell=True, timeout=60,
 )

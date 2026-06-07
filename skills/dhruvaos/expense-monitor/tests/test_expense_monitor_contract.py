@@ -63,7 +63,7 @@ class TestSkillContract:
         assert "expenses-" in TEXT
 
     def test_gbrain_ingest_uses_flock(self):
-        assert "flock -n /tmp/gbrain-write.lock" in TEXT
+        assert "flock -n ~/.gbrain/gbrain-write.lock" in TEXT
 
     def test_no_full_transaction_data_in_gbrain(self):
         # GBrain stores only summaries/totals, not raw transactions (privacy)
