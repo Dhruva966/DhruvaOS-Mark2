@@ -1,36 +1,116 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Drew — Voice + Visual Avatar
 
-## Getting Started
+Floating bubble avatar that listens, thinks, and speaks. Powered by Hermes API + ElevenLabs TTS.
 
-First, run the development server:
+## Quick Start
+
+### 1. Start Dev Server (Mac)
 
 ```bash
+cd drew-ui
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Opens at http://localhost:3002 (or next available port).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Configure Hermes TTS on Omen
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Switch TTS provider from Edge (local) to ElevenLabs (cloud voice):
 
-## Learn More
+```bash
+ssh dhruva@100.119.229.11
+export PATH="/home/dhruva/.nvm/versions/node/v24.16.0/bin:/home/dhruva/.bun/bin:/home/dhruva/.local/bin:/home/dhruva/.hermes/bin:$PATH"
+bash ~/DhruvaOS\ Mark\ 2/scripts/switch-hermes-tts-to-elevenlabs.sh
+```
 
-To learn more about Next.js, take a look at the following resources:
+Or manually:
+```bash
+sed -i.bak 's/^  provider: edge$/  provider: elevenlabs/' ~/.hermes/config.yaml
+systemctl --user restart hermes-gateway
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. Wire Hermes URL (if running on Omen over Tailscale)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Edit `.env.local`:
 
-## Deploy on Vercel
+```bash
+# localhost: Mac local (Hermes on Mac or MockServer)
+NEXT_PUBLIC_HERMES_URL=http://localhost:8642
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Omen over Tailscale: replace with actual Tailscale IP
+NEXT_PUBLIC_HERMES_URL=http://100.119.229.11:8642  # example, use actual IP
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 4. Test in Browser
+
+Open http://localhost:3002:
+
+1. **See Drew** — floating purple bubble in bottom-right
+2. **Click Drew** — mic activates (browser permission prompt)
+3. **Speak** — e.g., "Hello Drew"
+4. **Watch animations:**
+   - 🎤 idle → 👂 listening → 💭 thinking → 🗣️ speaking
+5. **Hear response** — Drew speaks back (via ElevenLabs TTS)
+
+## Architecture
+
+```
+Mac Browser (drew-ui)
+    ↓
+    Web Audio API (getUserMedia)
+    ↓
+    POST /api/audio/transcribe (Whisper STT on Omen)
+    ↓
+    transcribed text
+    ↓
+    Generate response (mocked for now — TODO: wire to Hermes chat)
+    ↓
+    POST /api/audio/speak (ElevenLabs TTS on Omen)
+    ↓
+    Audio blob
+    ↓
+    HTMLAudioElement (speaker output)
+    ↓
+    Drew animates: listening → thinking → speaking
+```
+
+## Components
+
+- **`Drew.tsx`** — Floating bubble avatar with 4 animation states
+- **`VoiceInterface.tsx`** — State machine + Web Audio API wiring
+- **`HermesAPI.ts`** — HTTP client for Hermes endpoints
+
+## TODO (Phase 3+)
+
+- [ ] Wire `/api/audio/speak` to real Hermes conversation (not just TTS)
+- [ ] WebSocket integration for streaming responses
+- [ ] Add Cloudflare Tunnel for remote access
+- [ ] Persist conversation history
+- [ ] Voice-only mode (no browser)
+
+## Troubleshooting
+
+**"Hermes health check failed"**
+- Verify Omen is accessible: `ping 100.119.229.11`
+- Check Hermes is running: `ssh ... systemctl --user status hermes-gateway`
+
+**"Microphone permission denied"**
+- Browser blocked microphone. Check Chrome/Safari settings → site permissions
+
+**"No audio output"**
+- Check speaker volume
+- Verify ElevenLabs key is set in `~/.hermes/.env`
+- Test TTS endpoint: `curl -X POST http://localhost:8642/api/audio/speak -H "Content-Type: application/json" -d '{"text":"hello"}'`
+
+**Dev server on wrong port**
+- Another app using port 3000? Next.js auto-uses next available (3002, 3003, etc.)
+- To force: `next dev --port 3000`
+
+## Build for Production
+
+```bash
+npm run build
+npm run start
+```
+
+Builds optimized bundle → `.next/`
