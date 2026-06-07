@@ -35,8 +35,8 @@ ls ~/xposteros/
 
 ContentOS is a unified content creation platform extending XPosterOS. It handles:
 - **X (Twitter)** — already built via XPosterOS (needs integration into unified system)
-- **LinkedIn** — not yet built
-- **YouTube** — not yet built
+- **LinkedIn** — ✅ BUILT (`skills/dhruvaos/linkedin-post/SKILL.md` v1.0.0, 13 tests, Browserbase MCP, deploy pending credentials)
+- **YouTube** — ✅ BUILT (`skills/dhruvaos/youtube-video-create/SKILL.md` v1.0.0, 40 tests, 3-approval flow, deploy pending credentials)
 
 All three platforms share one approval workflow, one Vercel portal, and one brain-dump interface.
 
@@ -175,6 +175,8 @@ Before building, verify these exist on Omen in `~/.hermes/.env`:
 | `YOUTUBE_CHANNEL_ID` | ⬜ needed | After channel creation |
 | `FAL_KEY` | ⬜ needed | fal.ai dashboard |
 | `EAI_API_KEY` (ElevenLabs) | ⬜ defer | Skip TTS for now |
+| `BROWSERBASE_API_KEY` | ⬜ needed | browserbase.com → API keys |
+| `BROWSERBASE_PROJECT_ID` | ⬜ needed | browserbase.com → project settings |
 
 ---
 
