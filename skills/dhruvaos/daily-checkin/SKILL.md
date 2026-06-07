@@ -215,7 +215,7 @@ If exercise streak >= 3 (including today):
 | clarify timeout | Post "⏱ Check-in timed out" to #briefings and stop |
 | phi4-mini parse failure | Fall back to regex; if regex also fails, write raw reply and note "(unparsed)" |
 | Brain file write fails | Post "⚠️ Could not write check-in file: {error}" to #briefings |
-| GBrain ingest fails | Log warning, still post confirmation (ingest can be retried via gbrain import) |
+| GBrain ingest fails | Log warning, still post confirmation (ingest can be retried via `flock -n ~/.gbrain/gbrain-write.lock gbrain import <path>`) |
 | Missing env var | Stop immediately, report which var is missing |
 
 ---

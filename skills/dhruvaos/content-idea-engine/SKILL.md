@@ -198,5 +198,5 @@ Use /blog "<title>", /linkedin <topic>, or /thread "<topic>" to draft any of the
 
 - This skill generates IDEAS only. It never calls linkedin-post, blog-draft, or x-thread-draft.
 - Dhruva selects which idea to pursue by replying with the appropriate slash command.
-- Ideas file is saved even if Discord post fails — run `gbrain import ~/brain/content/ideas-YYYY-MM-DD.md` to recover.
+- Ideas file is saved even if Discord post fails — run `flock -n ~/.gbrain/gbrain-write.lock gbrain import ~/brain/content/ideas-YYYY-MM-DD.md` to recover.
 - Runs 10 minutes after content-calendar so Dhruva sees the calendar state first.

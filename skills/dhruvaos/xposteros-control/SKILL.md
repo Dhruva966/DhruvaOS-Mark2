@@ -1,3 +1,19 @@
+---
+name: xposteros-control
+version: 1.0.0
+tier: 2
+outbound: true
+requires_approval: true
+description: "Control surface for XPosterOS: health checks, run workers, list/approve drafts, create brain dumps, trigger posts. All X posts require explicit 👍 approval from Dhruva in #corrections."
+trigger: "xposteros health, xposteros status, xposteros run workers, xposteros list drafts, xposteros approve draft, xposteros create brain dump, xposteros check queue, xposteros post now"
+tools:
+  - http_get
+  - http_post
+  - discord_post
+  - bash
+tests: tests/
+---
+
 # xposteros-control
 
 Control surface for XPosterOS — Dhruva's Notion-first X posting system running on Omen.
