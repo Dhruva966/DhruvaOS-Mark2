@@ -192,7 +192,7 @@ Hermes skill format is `skills/dhruvaos/<name>/SKILL.md` with YAML frontmatter. 
 scripts/check-agents-drift.sh
 bash -n scripts/*.sh
 scripts/check-skill-contracts.py
-uvx pytest skills/    # 94 tests across all deployed skills
+uvx pytest skills/    # 646 tests across all deployed skills
 
 # Omen health check, from this repo
 ssh dhruva@<TAILSCALE_IP> 'bash -s' < scripts/health-check.sh
