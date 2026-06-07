@@ -11,7 +11,7 @@ tools:
   - http_post
   - discord_post
   - bash
-tests: null
+tests: tests/
 ---
 
 # xposteros-control
