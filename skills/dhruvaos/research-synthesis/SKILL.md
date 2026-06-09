@@ -7,6 +7,7 @@ requires_approval: false
 description: "Deep-dive a topic using GBrain + Exa web search, synthesize findings, write to brain/resources/, post summary to Discord #research."
 daily_token_budget: 25000
 schedule: null
+author: dhruvaos
 gbrain:
   reads: ["concepts/*", "resources/*"]
   writes: ["resources/research-[topic-slug]-[date].md"]

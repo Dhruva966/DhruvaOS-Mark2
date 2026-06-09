@@ -36,7 +36,7 @@ export default function LandingPage() {
 
           <div className="pt-4 border-t border-zinc-900">
             <p className="text-xs text-zinc-700 mb-4 uppercase tracking-widest">Internal</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <Link
                 href="/drew"
                 className="px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 transition-colors text-center"
@@ -48,6 +48,12 @@ export default function LandingPage() {
                 className="px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 transition-colors text-center"
               >
                 Content OS
+              </Link>
+              <Link
+                href="/xposteros"
+                className="px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 transition-colors text-center"
+              >
+                XPosterOS
               </Link>
               <Link
                 href="/jarvis"

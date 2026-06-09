@@ -69,9 +69,14 @@ default for DhruvaOS because it runs locally, keeps data on-box, and avoids a se
 ## Initial Setup
 
 ### Step 1: Install and verify GBrain
+
+> **⚠️ Do NOT use `bun install -g`.** Global install resolves PGLite 0.5.1 from bun cache,
+> which breaks pgvector. GBrain is already installed on Omen via source clone at `~/gbrain-src/`.
+> Use the source install path everywhere. See DEPLOYMENT.md section 7 for the full runbook.
+
 ```bash
-bun install -g github:garrytan/gbrain
-gbrain upgrade    # ensure current 0.42.x release
+# On Omen — already done. To verify:
+cd ~/gbrain-src && git log --oneline -1   # shows current version
 gbrain --version
 ```
 
@@ -346,13 +351,18 @@ This ensures Omen→Mac sync is automatic whenever Hermes writes a brain file.
 
 The dream cycle is what makes GBrain compound. Run nightly without fail.
 
-### Install crontab
-```bash
-crontab -e
-# Add these two lines:
-0 2 * * * flock -n /home/dhruva/.gbrain/gbrain-write.lock /home/dhruva/.bun/bin/gbrain embed --stale
-0 3 * * * flock -n /home/dhruva/.gbrain/gbrain-write.lock /home/dhruva/.bun/bin/gbrain dream --dir /home/dhruva/brain
-```
+### Cron setup
+
+> **⚠️ Do NOT add these directly to crontab with the raw gbrain binary.** PM2 holds the PGLite
+> exclusive lock while GBrain is serving. A raw crontab invocation will immediately throw
+> `Aborted()` and corrupt the database. Use the Hermes cron scripts instead — they stop PM2,
+> run the operation, then restart PM2.
+
+These are already registered as Hermes no-agent crons on Omen:
+- `0 2 * * *` → `~/.hermes/scripts/gbrain-embed.sh` (stops PM2 → embed → restarts PM2)
+- `0 3 * * *` → `~/.hermes/scripts/gbrain-dream.sh` (stops PM2 → dream → restarts PM2)
+
+To verify: `hermes cron list` on Omen — look for gbrain-embed and gbrain-dream jobs.
 
 ### Verify
 ```bash

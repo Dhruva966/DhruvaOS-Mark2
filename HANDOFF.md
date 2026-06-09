@@ -23,8 +23,8 @@ Read before building any skill that crosses a subsystem boundary.
          │ /api/drew/* + /api/voice/*
          │ (exec CLI on Omen, proxy AI APIs)
 ┌─────────────────────────────────────────────────────────────┐
-│  DrewUI  (Next.js 16, port 3000 on Omen, Cloudflare Tunnel) │
-│  dhruvavutukury.org/drew                                    │
+│  DrewUI  (Next.js 16, port 3000 on Omen via PM2 + Vercel cloud) │
+│  dhruvavutukury.org → served by Vercel (NOT Cloudflare Tunnel)  │
 │  • Dashboard: status, crons, memory, activity               │
 │  • Voice: Whisper STT → Claude Sonnet 4.6 → ElevenLabs TTS  │
 │  • Conversation history (in-session)                        │
@@ -272,6 +272,39 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [x] Hermes model: `gemini-3.1-flash-lite` (verified live at ai.google.dev June 8) ✅
 - [x] Agent behavior rule #5 added to CLAUDE.md: always fetch official docs before setting model names ✅
 
+**Phase H — Security + Infrastructure Hardening (June 8, 2026):**
+
+- [x] **morning-briefing cron model**: deprecated model override cleared → `gemini-3.1-flash-lite` in jobs.json (was failing every day since June 1 deprecation). Pattern: any deprecated model causes `HTTP 404` or `Unknown provider` error in cron last_error.
+- [x] **drew-ui auth middleware**: extended to cover `/api/voice/*`, `/api/drew/*`, `/api/content/*` — was completely open
+- [x] **drew-ui API input caps**: 2000 chars TTS, 4000 chars chat msg, 10MB audio — prevents unbounded spend
+- [x] **drew-ui API routes**: removed `exec()` CLI calls in crons/memory/activity → HTTP fetch to `localhost:8642` (Hermes) and `localhost:3131` (GBrain). exec() calls had wrong PATH and used unavailable flags (`--json`).
+- [x] **connection-detector**: `stop()` → `raise SystemExit(0)` (was crashing every run), `flock -n` → `flock -w 30` (was silently dropping re-ingest on lock contention)
+- [x] **api-cost-watchdog awk regex**: `T` → `[ T]` — Hermes logs use space separator, not `T`; watchdog was reporting $0 every day
+- [x] **gbrain-backup-safe.sh**: stop PM2 → `cp -r` → restart PM2 → ntfy on failure. Atomic snapshot. Replaces old racy `flock cp -r` cron line at `30 4 * * *`.
+- [x] **wait-for-gbrain.sh** + **ExecStartPre** in `~/.config/systemd/user/hermes-gateway.service`: polls `:3131/health` up to 60s before Hermes starts — prevents race on reboot
+- [x] **phi4-mini-check.sh** + cron every 4h: ntfy if Ollama doesn't list phi4-mini
+- [x] **GBrain OAuth expiry alert**: appended to `gbrain-health-check.sh`, ntfy if <14 days until 2026-09-05 expiry
+- [x] **Hermes gateway health cron**: `*/5 * * * *` — `systemctl --user is-active hermes-gateway || ntfy`
+- [x] **Logrotate**: `~/.config/hermes-logrotate.conf` (daily, 14-day rotation); weekly cron Sundays 4am
+
+**Cron jobs erroring (June 8, 2026 state — updated after investigation):**
+
+| Job ID | Name | Error | Root cause | Fix |
+|--------|------|-------|------------|-----|
+| `d24c69d0f054` | Contact Health Check | Unknown provider 'openai' | Global default was a deprecated model (shut down June 2026); Hermes auth fallback tried 'openai' (not configured) | ✅ Config updated to `gemini-3.1-flash-lite`; model=null; self-heals on next run |
+| `fd5af998c518` | Birthday Reminder | Unknown provider 'openai' | Same as above | ✅ Same fix — self-heals |
+| `e5c41a6e8f1f` | Morning Briefing | Unknown provider 'openai' | Cron model override (deprecated model) routes through OpenAI-compat endpoint in Hermes catalog; provider 'openai' not in `providers: {}` | ✅ Model override cleared (null); uses global `gemini-3.1-flash-lite` |
+| `8482d6f67713` | Paper Monitor | Response truncated + Discord send failed | Output too long (750+ papers); `interpreter shutdown` before Discord delivery | ⚠️ JSON fence-stripping fix deployed; truncation needs skill chunking |
+
+**Vercel env vars needed for drew-ui HTTP routes:**
+
+```
+HERMES_URL=https://api.dhruvavutukury.org   # only needed if running on Vercel, not Omen PM2
+GBRAIN_URL=https://gbrain.dhruvavutukury.org # only needed if running on Vercel, not Omen PM2
+```
+
+drew-ui runs primarily under PM2 on Omen (port 3000), where localhost:8642/3131 work. These env vars only matter if ever deployed to Vercel serverless. Do NOT set until Cloudflare Zero Trust is enabled (tunnels are currently public internet).
+
 **Phase 4 — Dream cycle running (June 6, 2026):**
 
 - [x] Dream cron: `0 3 * * *` system crontab, `gbrain dream --dir /home/dhruva/brain` ✅
@@ -292,7 +325,7 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [x] correction-handler skill: `/correct` → classifies BEHAVIOR/FACT/PREFERENCE/FORMAT, appends corrections.md, GBrain ingest
 - [x] All 3 Codex-reviewed + fixes applied (JSON injection, step ordering, shell portability, trust gate compliance)
 - [ ] P3.3 quality firewall gate: test `/test-outbound` in #corrections (manual — needs Dhruva + Discord)
-- [x] ntfy.sh phone push: NTFY_TOPIC=dhruva-alerts-14a313f0dbe1 in ~/.hermes/.env ✅. Still needed: install ntfy iPhone app → subscribe to ntfy.sh/dhruva-alerts-14a313f0dbe1
+- [x] ntfy.sh phone push: NTFY_TOPIC in ~/.hermes/.env ✅ iPhone app installed + subscribed ✅ COMPLETE
 
 **XPosterOS Integration — Complete (June 5, 2026):**
 
@@ -326,14 +359,14 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 | stale-fact-rewrite Aborted() WASM error | ✅ Fixed June 7 | Rewrote to use HTTP MCP instead of CLI subprocess (PM2 holds PGLite exclusive lock) |
 | `sync` phase failing (brain not a git repo) | ✅ Fixed June 6 | `git init ~/brain`, `gbrain sync --repo /home/dhruva/brain` |
 | `extract_facts` blocked by legacy facts `row_num IS NULL` | ✅ Fixed June 6 | v0.32.2 migration re-run, row_num backfilled |
-| **GBrain Aborted() WASM crash** | ✅ Fixed June 8 | Two causes: kernel 6.17.0 `vm.mmap_rnd_bits=32` (fixed via /etc/sysctl.d/99-wasm-compat.conf → 28) + bun global cache resolves PGLite 0.5.1 (fixed by running from ~/gbrain-src git clone) |
+| **GBrain Aborted() WASM crash** | ✅ Fixed June 8 (twice) | Cause 1: `vm.mmap_rnd_bits=32` → fixed to 28 via sysctl.d. Cause 2: WAL corruption from PM2 stop race (backup script stopping PM2 while WAL flush in progress). Fix: restored from `brain.pglite.bak`; gbrain-backup-safe.sh now waits up to 32s for clean PID exit + 2s grace before cp -r. If this happens again: `pm2 stop gbrain-mcp; cp -r ~/.gbrain/brain.pglite.bak ~/.gbrain/brain.pglite; gbrain apply-migrations --yes; pm2 start gbrain-mcp` |
 | **gbrain dream + embed crons** | ✅ Fixed June 8 | Scripts at `~/.hermes/scripts/gbrain-{embed,dream}.sh` stop PM2, run, restart PM2. Registered as Hermes no-agent crons. |
 | **Hermes on Gemini (temporary)** | ⚠️ Active | Anthropic credits depleted June 6. Model: `gemini-3.1-flash-lite`. Switch back: `sed -i "s/gemini-3.1-flash-lite/claude-sonnet-4-6/; s/provider: google/provider: anthropic/" ~/.hermes/config.yaml && systemctl --user restart hermes-gateway` |
 | **XPosterOS Vercel→Omen broken** | ✅ Fixed June 8 | Cloudflare named tunnel `dhruvaos-tunnel` (UUID `e05878ab-757e-4512-acc7-48cc491fe589`) live. UFW fixed (port 7844). All 3 routes: `api.dhruvavutukury.org`, `xposteros-api.dhruvavutukury.org`, `gbrain.dhruvavutukury.org` |
 | **GitHub Actions runner not registered** | ✅ Fixed June 8 | Runner configured + running as systemd user service on Omen. |
 | **PAT in XPosterOS git remote URL** | ✅ Fixed June 8 | PAT revoked, new PAT generated, remote URL cleaned. |
-| **Hermes crons failing (unknown provider 'openai')** | ✅ Fixed June 8 | 12 `auxiliary.*.provider: auto` entries changed to `google` in config.yaml. |
-| **gemini-2.0-flash deprecated** | ✅ Fixed June 8 | Model changed to `gemini-3.1-flash-lite` in config.yaml. Live config verified via SSH. |
+| **Hermes crons failing (unknown provider 'openai')** | ✅ Fixed June 8 | 12 `auxiliary.*.provider: auto` → `google` in config.yaml. Deprecated model override cleared from morning-briefing (jobs.json). Global default updated to `gemini-3.1-flash-lite`. Root cause: deprecated model in Hermes catalog routed through `provider: openai`; `providers: {}` empty → fails. |
+| **Gemini model deprecated (shut down June 2026)** | ✅ Fixed June 8 | Model changed to `gemini-3.1-flash-lite` in config.yaml. Live config verified via SSH. |
 | **drew-ui login stuck on loading** | ✅ Fixed June 8 | `router.push` replaced with `window.location.href` in login page — success path now redirects cleanly. |
 | **drew-ui auth JSON parse crash** | ✅ Fixed June 8 | try/catch added to `/api/auth/route.ts` — malformed JSON body → 400 instead of 500 |
 | **drew-ui login open redirect** | ✅ Fixed June 8 | `redirect` param validated: must start with `/` and not `//`. Malformed values fall back to `/drew`. |
@@ -342,9 +375,19 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 | **xposteros-control no reactor identity check** | ✅ Fixed June 8 | `DISCORD_ALLOWED_USER` check added to approval step — any Discord user could previously trigger X post approvals. |
 | **.env world-readable** | ✅ Fixed June 8 | `chmod 600` on `/Users/dhruvavutukury/DhruvaOS Mark 2/.env`, `drew-ui/.env.local`, `jarvis-voice/.env.local` |
 | **DEPLOYMENT.md stale env vars** | ✅ Fixed June 8 | Removed `BROWSERBASE_API_KEY` + `FIRECRAWL_API_KEY`; added `GOOGLE_API_KEY` for Gemini fallback. |
+| **SITE_PASSWORD not in Vercel (drew-ui)** | ⚠️ Remaining | Browser verification June 8: login at dhruvavutukury.org/login shows "wrong password" — env var not set in Vercel. Manual fix: vercel.com → drew-ui → Settings → Env Vars → add `SITE_PASSWORD`. Note: dhruvavutukury.org is served by Vercel, NOT Cloudflare Tunnel. |
+| **SITE_PASSWORD not in Omen .env.local** | ✅ Set | Verified June 8: SITE_PASSWORD present in `/home/dhruva/DhruvaOS Mark 2/drew-ui/.env.local`. PM2 drew-ui at port 3000 should authenticate correctly. Issue is Vercel deployment only. |
+| **/api/drew/* routes not in main branch** | ⚠️ Remaining | crons/memory/activity routes are on `feat/jarvis-voice-neural-brain` only. Vercel main deployment returns 404 for those routes. Fix: merge feature branch to main. |
 | **Vercel proxy bypass (jarvis-voice)** | ⚠️ Remaining | `jarvis-voice-umber.vercel.app` directly accessible without auth. drew-ui middleware only gates `/jarvis/*` on the proxy — direct Vercel URL bypasses it. Fix: add `middleware.ts` to jarvis-voice with password check, or enable Vercel password protection on that deployment. |
 | **auth cookie = raw SITE_PASSWORD** | ⚠️ Remaining | Cookie stores the plaintext password. httpOnly+secure mitigates for personal use. Full fix: generate a session token on login, store hash server-side. |
 | Anthropic credit watchdog blind to Claude Code usage | ⚠️ Structural | balance-check.sh (every 2h) mitigates. Root fix: separate API keys (done). Spend limit on platform.anthropic.com recommended. |
+| **drew-ui API routes unauthenticated** | ✅ Fixed June 8 | All `/api/voice/*`, `/api/drew/*` routes now call `requireAuth()` from `lib/auth.ts`. Uses `timingSafeEqual` to prevent timing attacks. |
+| **VoiceInterface stuck in thinking/speaking state** | ✅ Fixed June 8 | Added `AbortSignal.timeout(30_000)` to all 3 fetch calls (transcribe, chat, speak). |
+| **api-cost-watchdog blind to Gemini** | ✅ Fixed June 8 | Added `gemini` to grep pattern + MODEL_PATTERNS + COSTS. Deployed to Omen. |
+| **paper-monitor silently keeping all papers** | ✅ Fixed June 8 | `phi4-mini` returns JSON in markdown fences; added fence-stripping before `json.loads()`. Deployed to Omen. |
+| **ambient-discord-listener missing** | ✅ Added June 8 | New `on_message` trigger skill. phi4-mini classifies every Discord message. Silent by default. Feeds dream cycle. Deployed to Omen. |
+| **No zero-LLM heartbeat** | ✅ Added June 8 | `drew-heartbeat.sh` at `~/.hermes/scripts/` — checks Hermes, GBrain, PM2, morning briefing, dream cycle, OAuth expiry. System crontab. Alerts via ntfy. |
+| **dev-error-log skill missing** | ✅ Added June 8 | Manual skill to document bugs + failed fixes + working fix + root cause. Writes to `~/brain/dev/error-log.md`. Deployed to Omen. |
 
 **Phase V — Visual + Voice Layer (June 8, 2026):**
 
@@ -361,7 +404,7 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [x] `jarvis-voice` deployed: `jarvis-voice-umber.vercel.app` (TS errors fixed) ✅
 - [x] `xposteros-web` deployed: `web-eta-two-78.vercel.app` (build config fixed) ✅
 - [x] Login bug fixed: `window.location.href` redirect, deployed June 8 ✅
-- [x] `SITE_PASSWORD` set in Vercel env vars, auth working ✅
+- [ ] `SITE_PASSWORD` set in Vercel drew-ui project ⚠️ BROKEN — browser verification June 8 shows "wrong password"; env var not set in Vercel. Manual fix: vercel.com → drew-ui → Settings → Environment Variables → add SITE_PASSWORD
 - [x] **jarvis-voice neural brain UI — full biorealistic rewrite (June 8)** ✅
   - Replaced abstract node-graph mesh with single biological neuron (soma + 7 primary dendrites × 4 levels + axon + collaterals)
   - GFP green / CFP cyan fluorescence microscopy palette; pitch-black background `#000008`
@@ -381,6 +424,33 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 
 ---
 
+## Startup Order Dependency
+
+**Rule:** GBrain must be running before Hermes starts. ✅ FIXED June 8 — `wait-for-gbrain.sh` + `ExecStartPre` in hermes-gateway.service.
+
+**What was done:**
+- Created `~/.hermes/scripts/wait-for-gbrain.sh` — polls `:3131/health` every 5s up to 60s
+- Added `ExecStartPre=/home/dhruva/.hermes/scripts/wait-for-gbrain.sh` to `~/.config/systemd/user/hermes-gateway.service`
+- Ran `systemctl --user daemon-reload && systemctl --user restart hermes-gateway`
+
+Previously: systemd started both services in parallel on boot → Hermes started before `:3131` was listening → MCP silently disabled until manual restart.
+
+---
+
+## GBrain OAuth Token Expiry (Sept 5, 2026)
+
+Token TTL: 90 days from ~June 6. Auto-refresh: `~/.hermes/scripts/refresh-gbrain-token.sh` every 60 days (~Aug 5).
+
+**Important:** The 60-day refresh script has not yet run as of June 8 (system is 3 days old). Verify it runs correctly on Aug 5 by checking logs. The `:3131/health` endpoint does NOT require auth — gbrain-health-monitor will show green even after token expiry. Only an actual authenticated MCP call test will catch a stale token.
+
+**To manually verify token health (SSH to Omen):**
+```bash
+curl -s -H "Authorization: Bearer $(grep MCP_GBRAIN_API_KEY ~/.hermes/.env | cut -d= -f2)" \
+  http://127.0.0.1:3131/mcp/tools | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'OK: {len(d)} tools')" 2>/dev/null || echo "AUTH FAILED"
+```
+
+---
+
 ## Known Coupling Points (collision risk in parallel builds)
 
 | Coupling | Risk | Resolution |
@@ -389,3 +459,5 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 | `~/.hermes/config.yaml` | Concurrent edits → invalid YAML | Edit sequentially, restart Hermes after each |
 | `~/brain/projects/tasks.md` | Two skills write simultaneously | task-prioritization is the only writer; no other skill writes this file |
 | Discord bot token | Shared by all Hermes instances | Only one Hermes process running at a time |
+| Sunday 21:00 cron slot | skill-analytics + weekly-learning-synthesis fire simultaneously | weekly-learning-synthesis writes GBrain; stagger to `10 21 * * 0` |
+| 2–4am nightly window | embed → dream → stale-fact-rewrite → backup | Embed running long overlaps dream start; backup reads during active PM2 |

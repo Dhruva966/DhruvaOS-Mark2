@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: "/content/:path*",
+        source: "/xposteros/:path*",
         destination: "https://web-eta-two-78.vercel.app/:path*",
       },
       {

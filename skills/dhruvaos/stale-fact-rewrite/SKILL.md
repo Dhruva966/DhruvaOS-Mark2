@@ -12,6 +12,9 @@ gbrain:
   reads: ["*"]
   writes: ["*"]
 tests: tests/
+prerequisites:
+  env_vars:
+    - DISCORD_ALERTS_CHANNEL_ID
 metadata:
   hermes:
     tags: [gbrain, dream, maintenance, facts, nightly]

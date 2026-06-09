@@ -38,6 +38,9 @@ No approval gate needed. Auto-post directly.
 | claude-opus   | 3 | $0.015 |
 | gpt-4o-mini   | 1 | $0.0001 |
 | phi4-mini     | 0 | $0.0000 (local) |
+| gemini-3.1-flash-lite | fallback | ~$0.0001 |
+
+> **Gemini fallback (active):** Gemini calls are included in grep and MODEL_PATTERNS below.
 
 Thresholds:
 - Alert if daily Tier 2+3 estimated cost > **$2.00**
@@ -74,9 +77,9 @@ if [ ! -f "$LOG" ]; then
 fi
 
 # Extract lines from last 24 hours that mention a model name
-grep -E "claude-sonnet|claude-opus|gpt-4o-mini|phi4-mini" "$LOG" | \
+grep -E "claude-sonnet|claude-opus|gpt-4o-mini|phi4-mini|gemini" "$LOG" | \
   awk -v cutoff="$CUTOFF" '
-    /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}/ {
+    /^[0-9]{4}-[0-9]{2}-[0-9]{2}[ T][0-9]{2}:[0-9]{2}/ {
         ts = substr($0, 1, 16)
         if (ts >= cutoff) print
     }
@@ -100,10 +103,12 @@ from collections import defaultdict
 log_lines = """[TERMINAL OUTPUT FROM STEP 1]"""
 
 MODEL_PATTERNS = {
-    "claude-sonnet": re.compile(r"claude[-._]sonnet", re.IGNORECASE),
-    "claude-opus":   re.compile(r"claude[-._]opus",   re.IGNORECASE),
-    "gpt-4o-mini":   re.compile(r"gpt-4o[-._]mini",   re.IGNORECASE),
-    "phi4-mini":     re.compile(r"phi4[-._]mini",      re.IGNORECASE),
+    "claude-sonnet":          re.compile(r"claude[-._]sonnet",        re.IGNORECASE),
+    "claude-opus":            re.compile(r"claude[-._]opus",           re.IGNORECASE),
+    "gpt-4o-mini":            re.compile(r"gpt-4o[-._]mini",           re.IGNORECASE),
+    "phi4-mini":              re.compile(r"phi4[-._]mini",             re.IGNORECASE),
+    "gemini-3.1-flash-lite":  re.compile(r"gemini[-._]3\.1[-._]flash", re.IGNORECASE),
+    "gemini":                 re.compile(r"gemini",                    re.IGNORECASE),
 }
 
 counts = defaultdict(int)
@@ -136,10 +141,12 @@ for line in log_lines.strip().splitlines():
             break  # count each log line once
 
 COSTS = {
-    "claude-sonnet": 0.003,
-    "claude-opus":   0.015,
-    "gpt-4o-mini":   0.0001,
-    "phi4-mini":     0.0,
+    "claude-sonnet":         0.003,
+    "claude-opus":           0.015,
+    "gpt-4o-mini":           0.0001,
+    "phi4-mini":             0.0,
+    "gemini-3.1-flash-lite": 0.0001,
+    "gemini":                0.0001,
 }
 
 # Per-skill estimated cost

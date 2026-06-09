@@ -30,6 +30,14 @@ gbrain doctor --json | jq '.score'
 # Should return a number > 0
 ```
 
+**Step 3b — Verify backup integrity before restoring:**
+```bash
+# Check backup is not from a mid-write snapshot (WAL file should be same mtime as data)
+ls -la ~/.gbrain/brain.pglite.$(date +%Y%m%d)/
+# If WAL file is newer than data files by >60s, the backup may be inconsistent — use older one
+ls -lt ~/.gbrain/brain.pglite.*/pg_wal/ 2>/dev/null | head -5
+```
+
 **Step 4 — If all rolling backups are corrupted (worst case):**
 ```bash
 # Full reimport from ~/brain/ markdown (source of truth)
@@ -193,6 +201,67 @@ gbrain import ~/brain/projects/tasks.md
 
 ---
 
+## Hermes Silent — Out-of-Band Check
+
+**Symptom:** Discord has been silent for >30 minutes during expected active hours. Hermes may
+be down. Since Hermes cannot alert about its own crash, check out-of-band:
+
+```bash
+# From Mac via Tailscale SSH
+ssh dhruva@100.119.229.11 'systemctl --user status hermes-gateway --no-pager | tail -5'
+
+# If failed — restart
+ssh dhruva@100.119.229.11 'systemctl --user restart hermes-gateway'
+
+# Check what crashed it
+ssh dhruva@100.119.229.11 'journalctl --user -u hermes-gateway --since "1 hour ago" | tail -20'
+```
+
+**Zero-LLM Hermes health cron (add to system crontab — runs even if Hermes is down):**
+```bash
+# sudo crontab -e (system crontab, not user — survives Hermes crash)
+# Check Hermes every 5 min, alert iPhone via ntfy if down
+*/5 * * * * systemctl --user --machine=dhruva@ is-active hermes-gateway >/dev/null 2>&1 || \
+  curl -s -d "Hermes down on Omen" ntfy.sh/dhruva-alerts-14a313f0dbe1
+```
+Note: This cron uses `--machine=dhruva@` to check the user service from root's system crontab.
+If that syntax doesn't work on this Ubuntu version: `su - dhruva -c 'systemctl --user is-active hermes-gateway'`.
+
+---
+
+## GBrain OAuth Token Expired (Sept 5, 2026)
+
+**Symptom:** GBrain health check shows :3131/health returning 200, but all Hermes MCP calls
+return 401. Skills fail with "unauthorized" or "MCP error" in gateway.log.
+
+**Verify:**
+```bash
+# Test authenticated call (not just /health)
+curl -s -H "Authorization: Bearer $(grep MCP_GBRAIN_API_KEY ~/.hermes/.env | cut -d= -f2)" \
+  http://127.0.0.1:3131/mcp/tools | head -20
+# If returns 401 → token expired
+```
+
+**Fix — refresh the token:**
+```bash
+export PATH="/home/dhruva/.bun/bin:$PATH"
+~/.hermes/scripts/refresh-gbrain-token.sh
+# Verify new token works:
+source ~/.hermes/.env
+curl -s -H "Authorization: Bearer $MCP_GBRAIN_API_KEY" http://127.0.0.1:3131/mcp/tools | head -5
+# Restart Hermes to pick up new token from .env
+systemctl --user restart hermes-gateway
+```
+
+**Prevention:** Verify the 60-day auto-refresh cron ran successfully around Aug 5, 2026:
+```bash
+hermes cron list | grep -i refresh
+# Check logs for refresh script execution
+grep "refresh-gbrain" ~/.hermes/logs/gateway.log | tail -5
+```
+
+---
+
 ## Important File Locations
 
 | What | Where |
@@ -207,3 +276,21 @@ gbrain import ~/brain/projects/tasks.md
 | systemd logs | `journalctl --user -u hermes-gateway -f` |
 | Dream safe wrapper | `~/.gbrain/scripts/run-dream-safe.sh` |
 | Embed safe wrapper | `~/.gbrain/scripts/run-embed-safe.sh` |
+| Token refresh script | `~/.hermes/scripts/refresh-gbrain-token.sh` |
+| Out-of-band ntfy alert | `curl -d "msg" ntfy.sh/dhruva-alerts-14a313f0dbe1` |
+
+---
+
+## Cron Collision Risk Windows
+
+These time windows have known or potential GBrain write conflicts:
+
+| Window | Jobs | Risk |
+|--------|------|------|
+| 2:00–4:30am daily | embed → dream → stale-fact-rewrite → backup | Embed running long can overlap dream; backup reads during PM2 restart |
+| 8:00am daily | morning-briefing + birthday-reminder | Both start at 0 seconds; concurrent reads OK, concurrent writes are not |
+| Sunday 21:00 | skill-analytics + weekly-learning-synthesis | weekly-learning-synthesis writes GBrain — stagger one by 10 min |
+| 0:05, 6:05, 12:05, 18:05 | failure-backlog GBrain write | Safe against embed/dream window but watch for long embed runs |
+
+**Fix for Sunday 21:00 collision:** Change weekly-learning-synthesis to `10 21 * * 0` (21:10).
+**Fix for backup:** The 4:30am `cp -r` runs while PM2 is active. Ideal fix: change backup to stop PM2 first, copy, restart PM2. Pragmatic interim: keep at 4:30am when embed (2am) and dream (3am) have been done for >1h and PM2 is stable.

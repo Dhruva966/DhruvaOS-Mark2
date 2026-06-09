@@ -80,6 +80,7 @@ export function useNeuralAnimation(
 
     return () => {
       if (rippleTimerRef.current) clearInterval(rippleTimerRef.current)
+      tweenRef.current?.kill()
     }
   }, [voiceState])
 }

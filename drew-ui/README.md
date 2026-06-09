@@ -1,32 +1,64 @@
-# DrewUI — DhruvaOS Dashboard + Voice Interface
+# DrewUI — DhruvaOS Dashboard
 
 Live at `dhruvavutukury.org/drew` (password-protected, runs on Omen via Cloudflare Tunnel).
 
 ## What It Is
 
-Full-screen dashboard for DhruvaOS. Shows real-time Hermes + GBrain status, cron jobs, memory stats, and activity feed. Voice pipeline lets you talk to Drew (Claude Sonnet 4.6) and hear responses. Jarvis 3D neural brain activates as a screensaver after 90s of idle.
+Malleable Claude-style chat dashboard for DhruvaOS. Talk to Drew (text or voice); Drew answers and can dynamically search GBrain memory, dispatch Hermes skills, and embed data cards inline in the conversation. The dashboard reshapes itself based on what you ask.
+
+## Routes
+
+| Route | Description |
+|-------|-------------|
+| `/` | Public landing page |
+| `/drew` | Protected chat dashboard (this app) |
+| `/content` | Protected Content OS — voice brainstorm/chat |
+| `/jarvis` | Proxied → jarvis-voice-umber.vercel.app (3D neural brain) |
+| `/xposteros` | Proxied → web-eta-two-78.vercel.app (XPosterOS) |
 
 ## Architecture
 
 ```
-Browser (drew-ui, Next.js 16 on Omen)
-├── /drew dashboard
-│   ├── System panel  → GET /api/drew/status  → Hermes :8642/health + GBrain :3131/health
-│   ├── Cron panel    → GET /api/drew/crons   → exec: hermes cron list --json
-│   ├── Memory panel  → GET /api/drew/memory  → exec: gbrain onboard --check --json
-│   └── Activity feed → GET /api/drew/activity → tail ~/.hermes/logs/gateway.log
+Browser (drew-ui Next.js 16 on Omen)
 │
-└── /api/voice/* (voice pipeline — runs server-side on Omen)
-    ├── POST /transcribe → OpenAI Whisper (whisper-1)
-    ├── POST /chat       → Anthropic Claude Sonnet 4.6 (multi-turn history, last 10 turns)
-    └── POST /speak      → ElevenLabs TTS (fallback: OpenAI tts-1, voice: alloy)
+├── /drew → DrewDashboard.tsx
+│   ├── ChatInput.tsx        text input + mic button
+│   ├── ChatMessage.tsx      message bubble + embedded data cards
+│   │   ├── GBrainCard       search results from gbrain CLI
+│   │   ├── DiscordCard      recent Discord messages
+│   │   └── SkillCard        Hermes skill dispatch output
+│   ├── WidgetBar.tsx        compact Hermes/GBrain/cron/activity chips
+│   └── IdleScreensaver.tsx  90s idle → Jarvis iframe fullscreen
+│
+├── /api/drew/* (status polling, 30s interval)
+│   ├── status   → Hermes :8642/health + GBrain :3131/health
+│   ├── crons    → exec: hermes cron list --json
+│   ├── memory   → exec: gbrain onboard --check --json
+│   └── activity → tail ~/.hermes/logs/gateway.log
+│
+└── /api/voice/* (chat pipeline, server-side on Omen)
+    ├── transcribe → OpenAI Whisper whisper-1
+    ├── chat       → Claude Sonnet 4.6 + command parser + GBrain exec
+    └── speak      → ElevenLabs TTS (fallback: OpenAI tts-1)
 ```
 
-Idle screensaver: 90s no input → Jarvis 3D neural brain fills the screen (`/jarvis` iframe).
+## Chat Command System
+
+Drew's system prompt instructs it to respond in JSON `{message, commands}`. The chat API parses commands and executes them server-side before returning:
+
+| Command | What happens |
+|---------|-------------|
+| `gbrain_search` | `exec gbrain search "query"` → results embedded as GBrainCard |
+| `gbrain_think` | Same exec, temporal framing |
+| `dispatch_skill` | Tries `POST /api/skills/{name}/run`, falls back to `hermes cron run` |
+| `discord_messages` | Placeholder — not yet wired |
+| `pin_widget` / `unpin_widget` | Client refreshes widget bar data |
+
+**Robustness:** if Claude returns non-JSON, the API treats the full text as the message (no commands). Never crashes.
 
 ## Quick Start
 
-### 1. Set API keys in `.env.local`
+### 1. Set `.env.local`
 
 ```bash
 # drew-ui/.env.local
@@ -35,94 +67,84 @@ SITE_PASSWORD=<your password>
 # Copy from Omen's ~/.hermes/.env
 OPENAI_API_KEY=sk-proj-...
 ANTHROPIC_API_KEY=sk-ant-...
-ELEVENLABS_API_KEY=...          # optional — OpenAI TTS is the fallback
-ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM   # default: Rachel
+ELEVENLABS_API_KEY=...           # optional
+ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM  # default: Rachel
 
 HERMES_URL=http://127.0.0.1:8642
 GBRAIN_URL=http://127.0.0.1:3131
-NEXT_PUBLIC_HERMES_URL=https://api.dhruvavutukury.org
+
+# Content OS — XPosterOS submission
+# Option A: SSH tunnel: ssh -L 8081:127.0.0.1:8081 dhruva@100.119.229.11 -N &
+XPOSTEROS_API_URL=http://127.0.0.1:8081
+XPOSTEROS_API_TOKEN=<from ~/.hermes/.env on Omen>
 ```
 
 To pull keys from Omen:
 ```bash
-ssh dhruva@100.119.229.11 "cat ~/.hermes/.env | grep -E 'OPENAI|ANTHROPIC|ELEVENLABS' | sed 's/=.*/=REDACTED/'"
+ssh dhruva@100.119.229.11 "grep -E 'OPENAI|ANTHROPIC|ELEVENLABS' ~/.hermes/.env"
 ```
 
 ### 2. Dev server
 
 ```bash
-cd drew-ui
-npm run dev
-# Visit http://localhost:3000/drew
+cd drew-ui && npm run dev
+# Visit http://localhost:3000  (login → /drew)
 ```
 
 ### 3. Production (on Omen)
 
 ```bash
-cd drew-ui
-npm run build
-pm2 start npm --name drew-ui -- start
-# or restart: pm2 restart drew-ui
+cd drew-ui && npm run build && pm2 restart drew-ui
 ```
 
-## Components
+## Component Reference
 
-| File | What it does |
-|------|--------------|
-| `components/DrewDashboard.tsx` | Main layout — polls status every 30s, holds conversation history |
-| `components/Drew.tsx` | Animated glass orb (fixed bottom-right), 4 states: idle/listening/thinking/speaking |
-| `components/VoiceInterface.tsx` | Voice pipeline state machine — real STT→LLM→TTS via `/api/voice/*` |
-| `components/ConversationTranscript.tsx` | Scrolling chat transcript, auto-scrolls on new turn |
-| `components/SystemStatus.tsx` | Hermes + GBrain live status dots |
-| `components/CronList.tsx` | Hermes cron jobs table |
-| `components/MemoryStats.tsx` | GBrain entry count, last dream time |
-| `components/ActivityFeed.tsx` | Last 8 Hermes log lines |
-| `components/IdleScreensaver.tsx` | 90s idle → Jarvis 3D brain iframe fullscreen |
+| File | Role |
+|------|------|
+| `components/DrewDashboard.tsx` | Main orchestrator — voice pipeline, sendMessage(), widget data polling |
+| `components/ChatInput.tsx` | Text + voice input bar (mic button triggers recording) |
+| `components/ChatMessage.tsx` | Message bubble + GBrain/Discord/Skill embedded cards |
+| `components/WidgetBar.tsx` | Compact horizontal status chips (scrollable) |
+| `components/IdleScreensaver.tsx` | 90s idle → Jarvis iframe fullscreen |
+| `components/Drew.tsx` | Animated glass orb (unused in /drew but available) |
+| `lib/auth.ts` | Timing-safe `requireAuth()` helper used by all API routes |
 
 ## API Routes
 
-| Route | Method | Description |
-|-------|--------|-------------|
-| `/api/voice/transcribe` | POST | Multipart audio → OpenAI Whisper → `{ text }` |
-| `/api/voice/chat` | POST | `{ message, history }` → Claude Sonnet 4.6 → `{ response }` |
-| `/api/voice/speak` | POST | `{ text }` → ElevenLabs/OpenAI TTS → audio/mpeg stream |
-| `/api/drew/status` | GET | Parallel health check Hermes + GBrain |
-| `/api/drew/crons` | GET | `hermes cron list --json` output |
-| `/api/drew/memory` | GET | `gbrain onboard --check --json` stats |
-| `/api/drew/activity` | GET | Last 8 lines of Hermes gateway.log |
-| `/api/auth` | POST | Password login → sets `site-auth` cookie |
-
-## Auth
-
-All `/drew`, `/jarvis`, `/content` routes protected by `middleware.ts`. Login at `/login`. Cookie: `site-auth`, 30-day, httpOnly.
+| Route | Method | Auth | Description |
+|-------|--------|------|-------------|
+| `/api/voice/transcribe` | POST | ✓ | Audio → Whisper → `{text}` |
+| `/api/voice/chat` | POST | ✓ | `{message, history}` → Claude + commands → `{response, cards, widgetCommands}` |
+| `/api/voice/speak` | POST | ✓ | `{text}` → ElevenLabs/OpenAI → audio/mpeg |
+| `/api/drew/status` | GET | ✓ | Hermes + GBrain health |
+| `/api/drew/crons` | GET | ✓ | `hermes cron list --json` |
+| `/api/drew/memory` | GET | ✓ | `gbrain onboard --check --json` |
+| `/api/drew/activity` | GET | ✓ | Last 8 Hermes log lines |
+| `/api/auth` | POST | — | Login → sets `site-auth` cookie |
 
 ## Voice Flow
 
-1. Click/tap Drew orb → mic activates
-2. Speak → release (or click again to stop)
+1. Tap mic button → MediaRecorder starts
+2. Tap again (or mic button turns into stop) → recording stops
 3. `POST /api/voice/transcribe` → Whisper → transcript
-4. `POST /api/voice/chat` → Claude Sonnet 4.6 with full session history → response text
-5. `POST /api/voice/speak` → ElevenLabs (OpenAI fallback) → audio played
-6. Conversation history accumulates in session; shown in transcript panel
-7. "Clear" button resets transcript
+4. Transcript added as user message; "…" placeholder appears
+5. `POST /api/voice/chat` → Claude Sonnet 4.6 → JSON response + commands parsed
+6. Commands executed server-side (GBrain search, skill dispatch)
+7. Assistant message + inline cards replace placeholder
+8. If voice mode: `POST /api/voice/speak` → TTS audio plays
 
-## Screensaver
+## Auth
 
-After 90s idle (no mouse/keyboard/touch): Jarvis 3D neural brain displays fullscreen as `/jarvis` iframe. Click anywhere to return to Drew dashboard.
-
-## Route Rewrites (next.config.ts)
-
-- `/jarvis/*` → `jarvis-voice-umber.vercel.app` (Vercel, 3D neural brain)
-- `/content/*` → `web-eta-two-78.vercel.app` (Vercel, content OS)
+Proxy protects page routes (redirect to `/login`) and API routes (return 401 JSON). Both layers: `proxy.ts` (fast, edge, Next.js 16 convention) + `requireAuth()` in each handler (defense-in-depth). Cookie: `site-auth`, httpOnly, 30-day.
 
 ## Troubleshooting
 
-**Voice returns error "X not configured"** → Check `.env.local` has the relevant API key set.
+**Drew responds with "Something went wrong"** → Check Anthropic key in `.env.local`.
 
-**Crons show empty / error** → `hermes cron list --help` on Omen to confirm flag support. PATH must include `~/.hermes/bin`.
+**GBrain search returns "gbrain unavailable"** → PATH issue or GBrain not on Omen. Test: `ssh omen "gbrain search test"`.
 
-**GBrain memory shows "unavailable"** → `pm2 list` on Omen; restart with `pm2 restart gbrain-mcp`.
+**Crons show empty** → `hermes cron list` on Omen. Job IDs live in Hermes DB, not CLI JSON if `--json` unsupported.
 
-**Screensaver iframe blank** → `/jarvis` rewrite targets external Vercel. Check `next.config.ts` destination is live.
+**tsc errors before deploy** → `cd drew-ui && npx tsc --noEmit` must be zero.
 
-**tsc errors** → `cd drew-ui && npx tsc --noEmit` — must be zero before deploying.
+**Screensaver blank** → `/jarvis` proxies to Vercel — check `next.config.ts` destination is live.

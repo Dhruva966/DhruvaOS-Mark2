@@ -183,7 +183,15 @@ def score_batch(entries_batch):
     try:
         with urllib.request.urlopen(req, timeout=90) as resp:
             result = json.loads(resp.read())
-            scores = json.loads(result.get("response", "[]"))
+            raw = result.get("response", "[]")
+            # Strip markdown code fences that phi4-mini sometimes wraps around JSON
+            raw = raw.strip()
+            if raw.startswith("```"):
+                raw = raw.split("```", 2)[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+                raw = raw.rsplit("```", 1)[0].strip()
+            scores = json.loads(raw)
             return {s["title"]: s["score"] for s in scores if "title" in s and "score" in s}
     except Exception as e:
         print(f"[paper-monitor] WARN: phi4-mini scoring failed for batch: {e}")

@@ -32,7 +32,7 @@ DhruvaOS Mark 2/
 ├── CLAUDE.md              # This file — root context for all agents
 ├── AGENTS.md              # Thin adapter for Codex / OpenCode / Antigravity
 ├── ARCHITECTURE.md        # System design, layer diagram, component mapping
-├── ENVIRONMENT.md         # Omen setup, runtimes, security hardening
+├── DEPLOYMENT.md          # Omen setup, runtimes, security hardening (replaces ENVIRONMENT.md)
 ├── MODEL_ROUTING.md       # 4-tier routing spec, quality firewall, config
 ├── SKILLS.md              # Starting skills, trust model, authoring pattern
 ├── MEMORY.md              # GBrain setup, Obsidian ingest, braindump guide

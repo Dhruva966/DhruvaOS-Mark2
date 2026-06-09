@@ -33,7 +33,10 @@ export default function VoiceInterface({ history, onHistoryChange }: VoiceInterf
   useEffect(() => {
     audioRef.current = new Audio();
     return () => {
-      audioRef.current?.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.onended = null;
+      }
       streamRef.current?.getTracks().forEach((t) => t.stop());
       if (activeBlobUrlRef.current) {
         URL.revokeObjectURL(activeBlobUrlRef.current);

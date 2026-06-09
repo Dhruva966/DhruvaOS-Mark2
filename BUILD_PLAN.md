@@ -95,18 +95,53 @@ XPosterOS is live. Phase 5 skills (linkedin-post, personal-site-update, youtube-
 ### Phase V: Visual + Voice Interface ✅ COMPLETE (June 8, 2026)
 
 **Delivered:**
-- **Jarvis** — 3D neural brain visualization (Jarvis blue palette, custom GLSL ShaderMaterial soma with 3D simplex noise energy veins + Fresnel rim, HDR dendrites, Noise film grain). Live at `/jarvis` via Vercel rewrite.
-- **DrewUI dashboard** — full Next.js 16 dashboard at `/drew`. 4 live panels: System status (Hermes + GBrain dots), Cron Jobs, Memory Stats, Activity Feed. All polling every 30s via `/api/drew/*` routes that exec Hermes/GBrain CLI on Omen.
-- **Voice pipeline** — real STT→LLM→TTS wired: Whisper (`/api/voice/transcribe`), Claude Sonnet 4.6 (`/api/voice/chat`), ElevenLabs w/ OpenAI TTS fallback (`/api/voice/speak`). Multi-turn conversation history in-session.
-- **Conversation transcript** — scrolling chat panel shows full session history; clear button resets.
-- **Jarvis screensaver** — 90s idle → Jarvis 3D brain fills the screen as iframe; click to return.
-- **Auth** — middleware.ts guards `/drew`, `/jarvis`, `/content`; 30-day cookie.
+- **Jarvis** — 3D neural brain visualization (Jarvis blue palette, GLSL ShaderMaterial soma w/ 3D simplex noise energy veins + Fresnel rim, HDR dendrites, Noise film grain). Live at `/jarvis` via Vercel rewrite.
+- **DrewUI — malleable Claude-style chat dashboard** at `/drew`. Architecture:
+  - Full-width chat UI (Claude.ai-style) — text input + voice mic button in bottom bar
+  - Compact widget bar: Hermes/GBrain health dots, memory count, cron count, last activity
+  - Drew responds with structured JSON commands — can search GBrain, dispatch Hermes skills, pin/unpin dashboard widgets, all inline as chat cards
+  - Suggestion chips on empty state for quick prompts
+  - Idle screensaver: 90s → Jarvis 3D brain fullscreen iframe; click to return
+- **Voice pipeline** — Whisper STT → Claude Sonnet 4.6 (with command parsing) → ElevenLabs TTS (OpenAI fallback). Fully integrated in chat input mic button.
+- **Content OS** at `/content` — voice brainstorm mode + chat mode; Space to toggle recording; Drew auto-responds to questions. Submits to XPosterOS (`/xposteros` rewrite) or clipboard fallback.
+- **Auth** — `middleware.ts` guards pages (`/drew`, `/content`, `/jarvis`) AND API routes (`/api/voice/*`, `/api/drew/*`, `/api/content/*`). `lib/auth.ts` provides timing-safe `requireAuth()` for defense-in-depth. 30-day httpOnly cookie.
+- **Chat command system** — Drew's system prompt teaches it to return JSON `{message, commands}`. Commands: `gbrain_search`, `gbrain_think`, `dispatch_skill`, `discord_messages`, `pin_widget`, `unpin_widget`. API executes them server-side and returns results as embedded cards.
 
-**Pending (lower priority):**
+**New components (June 8, 2026):**
+- `ChatInput.tsx` — text + voice button input bar
+- `ChatMessage.tsx` — message bubbles with inline GBrain/Discord/Skill cards
+- `WidgetBar.tsx` — compact scrollable status chips
+- `lib/auth.ts` — timing-safe auth helper used by all API routes
+
+**Completed (June 8, 2026 hardening session):**
+- [x] Auth middleware extended to cover all API routes (`/api/voice/*`, `/api/drew/*`)
+- [x] Input caps added: 2000 char TTS, 4000 char chat msg, 10MB audio
+- [x] API routes (`crons`, `memory`, `activity`) replaced exec() with HTTP to localhost Hermes/GBrain
+- [x] blob URL memory leak fixed in VoiceInterface.tsx
+- [x] AudioContext leak fixed in HermesAPI.ts
+- [x] DrewDashboard 401 silent failure fixed
+- [x] BrainCanvas missing useEffect deps fixed
+- [x] connection-detector stop() crash + flock -n → -w 30 fixed; deployed to Omen
+- [x] api-cost-watchdog awk regex + log target fixed; deployed to Omen
+- [x] morning-briefing Hermes cron model: deprecated model override cleared → uses global `gemini-3.1-flash-lite`
+- [x] Omen infrastructure: gbrain-backup-safe.sh, wait-for-gbrain.sh, ExecStartPre, phi4-mini cron, health cron, logrotate
+- [x] **Drew-UI security hardening**: all API routes now behind `requireAuth()` (timing-safe), AbortSignal.timeout 30s on voice pipeline
+- [x] **api-cost-watchdog**: Gemini blind spot fixed (grep + MODEL_PATTERNS + COSTS). Deployed.
+- [x] **paper-monitor**: phi4-mini markdown fence-stripping before JSON parse. Deployed.
+- [x] **ambient-discord-listener** skill: on_message trigger, phi4-mini intent classification, silent by default, feeds dream cycle. Deployed.
+- [x] **drew-heartbeat.sh**: zero-LLM system crontab monitor — Hermes, GBrain, PM2, morning briefing, dream cycle, OAuth expiry. Deploy: add `*/15 * * * * /home/dhruva/.hermes/scripts/drew-heartbeat.sh` to system crontab.
+- [x] **dev-error-log** skill: manual skill to document bugs + failed fixes + working fix. Deployed.
+
+**Pending:**
+- [ ] **SITE_PASSWORD in Vercel drew-ui** ⚠️ BLOCKING login — browser verified June 8: "wrong password". Omen .env.local already has it. Vercel deployment is missing it. Go to vercel.com → drew-ui project → Settings → Environment Variables → add `SITE_PASSWORD` → Redeploy
+- [ ] **Merge feat/jarvis-voice-neural-brain → main** — `/api/drew/crons`, `/api/drew/memory`, `/api/drew/activity` routes only on feature branch; Vercel main deployment returns 404 for those routes
 - [ ] **GBrain braindump ingest** — `wiki/braindump-questions.md` answers; `gbrain import`
-- [ ] **V5: Dynamic Config UI** — skill param editor, brain dump form, personality switcher
-- [ ] **Populate `.env.local` on Omen** — copy OPENAI_API_KEY, ANTHROPIC_API_KEY, ELEVENLABS_API_KEY from `~/.hermes/.env`
-- [ ] **`pm2 restart drew-ui`** after build on Omen to deploy
+- [ ] **Populate `.env.local` on Omen** — copy OPENAI_API_KEY, ANTHROPIC_API_KEY, ELEVENLABS_API_KEY from `~/.hermes/.env`; set XPOSTEROS_API_TOKEN
+- [ ] **Discord messages panel** — wire `/api/drew/discord` to Hermes Discord API when endpoint confirmed
+- [ ] **XPosterOS tunnel** — for Content OS submit: SSH tunnel `-L 8081:127.0.0.1:8081` or rebind XPosterOS to `0.0.0.0` on Omen
+- [x] **Contact Health Check + Birthday Reminder**: "Unknown provider 'openai'" — root cause was deprecated model (shut down June 2026) → Hermes auth fell back to openai (not configured). Fix: global default updated to `gemini-3.1-flash-lite`, model=null in jobs.json. Self-heal on next scheduled run.
+- [ ] **Paper Monitor**: fix "Response truncated" — output too long, needs chunking in skill body
+- [ ] **SITE_PASSWORD env var** on jarvis-voice Vercel project (jarvis-voice now has middleware.ts guarding direct URL)
 
 ---
 

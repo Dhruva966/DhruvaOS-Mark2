@@ -8,6 +8,7 @@ const PROTECTED_PAGES = ['/drew', '/content', '/jarvis'];
 const PROTECTED_API_PREFIXES = [
   '/api/voice/',
   '/api/drew/',
+  '/api/content/',
 ];
 
 function isAuthenticated(request: NextRequest): boolean {
@@ -16,7 +17,7 @@ function isAuthenticated(request: NextRequest): boolean {
   return !!(expected && auth?.value === expected);
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Check protected API routes first — return 401, never redirect
@@ -52,5 +53,6 @@ export const config = {
     '/jarvis/:path*',
     '/api/voice/:path*',
     '/api/drew/:path*',
+    '/api/content/:path*',
   ],
 };

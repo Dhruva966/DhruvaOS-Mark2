@@ -4,7 +4,7 @@
 > Hermes runtime, GBrain memory, model routing, daily briefings, research, tasks,
 > corrections, and a hard approval gate before any third-party-readable text leaves the system.
 
-[![Phase](https://img.shields.io/badge/phase-4%20active-2ecc71?style=for-the-badge)](#build-phases)
+[![Phase](https://img.shields.io/badge/phase-5%2FV%20active-2ecc71?style=for-the-badge)](#build-phases)
 [![Firewall](https://img.shields.io/badge/quality%20firewall-required-e74c3c?style=for-the-badge)](#quality-firewall)
 [![Runtime](https://img.shields.io/badge/runtime-Hermes%20Agent-8e44ad?style=for-the-badge)](https://github.com/NousResearch/hermes-agent)
 [![Memory](https://img.shields.io/badge/memory-GBrain%20PGLite-3498db?style=for-the-badge)](https://github.com/garrytan/gbrain)
@@ -16,7 +16,10 @@
 
 ## Documentation
 
-- [Repository Map](docs/repo-map.md)
+- [Architecture](ARCHITECTURE.md)
+- [Build Plan](BUILD_PLAN.md)
+- [Deployment](DEPLOYMENT.md)
+- [Cost Model](COST.md)
 
 ## Mission Control
 
@@ -27,7 +30,8 @@
 | 🟡 **Inbox / tasks** | Phase 2 skills deployed | Notion schema + real 8am briefing still need live verification |
 | 🟡 **Command skills** | `/task`, `/research`, `/correct` deployed | Command tests and quality firewall gate still pending |
 | 🟢 **Dream cycle** | Running nightly (3am); stale-fact-rewrite at 3:30am | Phases: backfill, enrich_thin, skillopt all enabled; 14 chunks embedded on first live run |
-| 🔴 **Outbound actions** | Phase 5 stubs only | Do not enable until P3.3 approval gate passes end-to-end |
+| 🟡 **Outbound actions** | Phase 5 deployed (linkedin-post, youtube-video-create, personal-site-update) | P3.3 quality firewall gate still pending live verification |
+| 🟢 **Visual layer** | jarvis-voice 3D neural brain live at dhruvavutukury.org/jarvis | Control panel (V2-V5) pending |
 | 🟢 **Remote access** | Tailscale authenticated (100.119.229.11) | LAN fallback: 10.0.0.31 |
 
 **Canonical docs:** start with [CLAUDE.md](CLAUDE.md), then load subsystem docs only when needed:

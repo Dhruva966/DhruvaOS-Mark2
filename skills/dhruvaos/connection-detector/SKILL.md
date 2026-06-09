@@ -332,7 +332,7 @@ gbrain_bin = subprocess.run(
 ).stdout.strip() or "/home/dhruva/.bun/bin/gbrain"
 
 result = subprocess.run(
-    f"flock -n ~/.gbrain/gbrain-write.lock sh -lc "
+    f"flock -w 30 ~/.gbrain/gbrain-write.lock sh -lc "
     f"'{gbrain_bin} import {brain_path} 2>&1 && {gbrain_bin} embed --stale 2>&1'",
     shell=True, timeout=60,
 )
@@ -343,7 +343,7 @@ else:
     print(f"[connection-detector] Re-ingest complete for {brain_path.name}")
 ```
 
-If lock is busy: log "re-ingest queued" — the file append is already durable.
+Waits up to 30s for the lock; if still busy after 30s, logs warning and exits (file append is already durable).
 
 ---
 

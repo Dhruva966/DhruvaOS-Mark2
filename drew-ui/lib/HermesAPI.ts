@@ -76,21 +76,13 @@ export async function speakText(text: string): Promise<string> {
     console.error('[API] TTS error:', error);
     // Fallback: generate a silent audio file for testing
     console.log('[API] Using fallback silent audio for testing');
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.5, audioContext.sampleRate);
-    const blob = await new Promise<Blob>((resolve) => {
-      const offlineContext = new OfflineAudioContext(1, audioContext.sampleRate * 0.5, audioContext.sampleRate);
-      const source = offlineContext.createBufferSource();
-      source.buffer = buffer;
-      source.connect(offlineContext.destination);
-      source.start(0);
-      offlineContext.startRendering().then((renderedBuffer) => {
-        const channelData = renderedBuffer.getChannelData(0);
-        const wav = encodeWAV(channelData, renderedBuffer.sampleRate);
-        resolve(new Blob([wav], { type: 'audio/wav' }));
-      });
-    });
-    return URL.createObjectURL(blob);
+    const SAMPLE_RATE = 44100;
+    const DURATION_SAMPLES = Math.floor(SAMPLE_RATE * 0.5);
+    const offlineContext = new OfflineAudioContext(1, DURATION_SAMPLES, SAMPLE_RATE);
+    const renderedBuffer = await offlineContext.startRendering();
+    const channelData = renderedBuffer.getChannelData(0);
+    const wav = encodeWAV(channelData, SAMPLE_RATE);
+    return URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }));
   }
 }
 

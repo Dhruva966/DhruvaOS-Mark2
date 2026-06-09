@@ -1,22 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { requireAuth } from '@/lib/auth';
-
-const execAsync = promisify(exec);
-
-const OMEN_PATH = [
-  '/home/dhruva/.nvm/versions/node/v24.16.0/bin',
-  '/home/dhruva/.bun/bin',
-  '/home/dhruva/.local/bin',
-  '/home/dhruva/.hermes/bin',
-  '/usr/local/sbin',
-  '/usr/local/bin',
-  '/usr/sbin',
-  '/usr/bin',
-  '/sbin',
-  '/bin',
-].join(':');
 
 export interface CronJob {
   id: string;
@@ -30,27 +13,22 @@ export async function GET(request: NextRequest) {
   const unauthorized = requireAuth(request);
   if (unauthorized) return unauthorized;
 
+  const hermesUrl = process.env.HERMES_URL ?? 'http://127.0.0.1:8642';
+
   try {
-    const { stdout } = await execAsync('hermes cron list --json', {
-      env: { ...process.env, PATH: OMEN_PATH },
-      timeout: 5000,
+    const res = await fetch(`${hermesUrl}/health`, {
+      signal: AbortSignal.timeout(3000),
     });
-    const parsed = JSON.parse(stdout);
-    const crons: CronJob[] = Array.isArray(parsed) ? parsed : [];
-    return NextResponse.json({ crons });
+    return NextResponse.json({
+      crons: [] as CronJob[],
+      hermes_healthy: res.ok,
+      note: 'Full cron list via SSH: hermes cron list',
+    });
   } catch {
-    // Hermes might not support --json; try plain output
-    try {
-      const { stdout } = await execAsync('hermes cron list', {
-        env: { ...process.env, PATH: OMEN_PATH },
-        timeout: 5000,
-      });
-      return NextResponse.json({ crons: [], raw: stdout.trim() });
-    } catch (err2) {
-      return NextResponse.json({
-        crons: [],
-        error: `hermes cron list unavailable: ${err2 instanceof Error ? err2.message : String(err2)}`,
-      });
-    }
+    return NextResponse.json({
+      crons: [] as CronJob[],
+      hermes_healthy: false,
+      error: 'Hermes unreachable',
+    });
   }
 }

@@ -241,11 +241,18 @@ built-in 8-phase nightly dream cycle.
 
 **Cron schedule:**
 ```
-0 2 * * *  gbrain embed --stale
-0 3 * * *  gbrain dream --dir ~/brain
+0 2 * * *    gbrain embed --stale       (stops PM2, variable duration)
+0 3 * * *    gbrain dream --dir ~/brain (stops PM2, waits for embed to finish)
+30 3 * * *   stale-fact-rewrite          (HTTP MCP — safe while PM2 is running)
+30 4 * * *   brain backup (cp -r)        (reads PGLite — runs after dream restarts PM2)
 ```
 Note: `gbrain sync --repo <path>` sets the `local_path` for the brain sync dream phase (not an import command).
 Use `gbrain embed --stale` for incremental embedding between dream cycles.
+
+**Write-collision risk:** If embed takes >60 min (large brain imports), it may still be running
+when dream starts at 3am. The embed/dream scripts stop PM2 sequentially, but there is no
+inter-script lock preventing overlap. After large `gbrain import` sessions, manually verify
+embed finished before the next dream cycle: `pm2 logs gbrain-mcp --lines 5`.
 
 **Compounding effect over time:**
 - Week 1: raw import, search works
@@ -263,8 +270,8 @@ DhruvaOS uses these interfaces:
 |-----------|-----------|----------|
 | **Discord** | Bidirectional | Full outputs: briefings, research results, task lists, outbound approval gate. |
 | **ntfy.sh push** | Agent → iPhone | Proactive alerts: reminders, time-sensitive notifications to lock screen. |
-| **drew-ui** | Mac web UI | Voice interface to Hermes. Deployed at `drew-ui/`. Protected by single-password auth. Hermes WebSocket integration is Phase 2 TODO — currently shows mock responses. |
-| **jarvis-voice** | Mac web UI | 3D neural brain screensaver with real-time audio visualization. Connects to Gojo backend (port 3020) via SSE for task state. Built: `jarvis-voice/` (Three.js via React Three Fiber). Deployed to Vercel and proxied via drew-ui at `/jarvis/*`. |
+| **drew-ui** | Browser + Omen PM2 | Portfolio landing + Drew voice chat dashboard + Content OS. Served by Vercel at `dhruvavutukury.org` (main branch). Also runs under PM2 on Omen at port 3000. Single-password auth gate (`middleware.ts`). `/api/drew/*` routes fetch Hermes `:8642` + GBrain `:3131` via HTTP (no exec calls). NOTE: dhruvavutukury.org is DNS-routed to Vercel — Cloudflare Tunnel does NOT serve the public domain (tunnel handles api./gbrain./xposteros-api. subdomains only). |
+| **jarvis-voice** | Browser (Vercel) | 3D biorealistic neuron screensaver with real-time audio visualization. GFP/CFP fluorescence palette, CatmullRomCurve3 action potentials. Deployed to Vercel (`jarvis-voice-umber.vercel.app`) and proxied via drew-ui at `/jarvis/*`. Idle screensaver fires after 90s on /drew. |
 | **iMessage/BlueBubbles** | Bidirectional | ⬜ Phase 6b — see BUILD_PLAN.md |
 
 Notion MCP connected (4 DBs: Tasks, Projects, People, Briefings). Hermes writes at skill execution time. See HANDOFF.md for DB IDs.

@@ -1,7 +1,7 @@
 # ntfy.sh Setup Guide (Phase 3.5) ✅ CONFIGURED June 5, 2026
 
 **Topic:** `dhruva-alerts-14a313f0dbe1` — already in `~/.hermes/.env` on Omen.
-**Still needed:** Install ntfy iPhone app → subscribe to `ntfy.sh/dhruva-alerts-14a313f0dbe1`
+**Status: ✅ COMPLETE (June 2026)** — ntfy iPhone app installed and subscribed.
 
 Free push notifications to phone. No install needed on server — just HTTP POSTs.
 

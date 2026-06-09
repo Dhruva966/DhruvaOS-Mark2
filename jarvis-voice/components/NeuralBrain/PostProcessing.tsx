@@ -4,6 +4,8 @@ import { EffectComposer, Bloom, ChromaticAberration, Vignette, Noise } from '@re
 import { BlendFunction, KernelSize } from 'postprocessing'
 import { Vector2 } from 'three'
 
+const CHROMATIC_OFFSET = new Vector2(0.00055, 0.00055)
+
 export default function PostProcessing() {
   return (
     <EffectComposer>
@@ -25,7 +27,7 @@ export default function PostProcessing() {
       {/* Chromatic aberration — GFP/CFP colour split on bright dendrite edges */}
       <ChromaticAberration
         blendFunction={BlendFunction.NORMAL}
-        offset={new Vector2(0.00055, 0.00055)}
+        offset={CHROMATIC_OFFSET}
         radialModulation={false}
         modulationOffset={0}
       />

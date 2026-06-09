@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { analyzeFrequencyBands, calcEnergy } from '@/services/audioAnalyzer'
 import type { FrequencyBands } from '@/types'
 
@@ -80,6 +80,17 @@ export function useAudioVisualizer() {
     setFrequencyData(null)
     setFrequencyBands(null)
     setEnergy(0)
+  }, [])
+
+  // Stop mic and cancel rAF loop if component unmounts while recording
+  useEffect(() => {
+    return () => {
+      if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current)
+      micStreamRef.current?.getTracks().forEach(t => t.stop())
+      audioCtxRef.current?.close()
+      audioCtxRef.current = null
+      analyserRef.current = null
+    }
   }, [])
 
   return { frequencyData, frequencyBands, energy, startMicrophone, stopMicrophone }

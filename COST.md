@@ -77,18 +77,16 @@ When Hermes key is depleted: switch to Gemini free tier (see below). When Claude
 
 **When to use:** Anthropic Hermes credits depleted. Switch until credits replenished.
 
-> **⚠️ ACTIVE ISSUE (as of 2026-06-08):** Config was set to `gemini-2.0-flash` on June 7.
-> Gemini 2.0 shut down 2026-06-01. Hermes will fail all API calls until this is corrected.
-> Run the fix below immediately.
+> **✅ RESOLVED (2026-06-08):** Config referenced a deprecated model (shut down June 2026).
+> Fixed June 8 — current model is `gemini-3.1-flash-lite`.
+> See HANDOFF.md known issues for the resolution record.
 
-**Fix live Omen config (run now if not done):**
+**Verify live Omen config:**
 ```bash
 ssh dhruva@100.119.229.11
 export PATH="/home/dhruva/.bun/bin:/home/dhruva/.local/bin:/home/dhruva/.hermes/bin:$PATH"
-# Verify model ID first — Gemini models change frequently:
+# Always verify current model ID before configuring:
 # https://ai.google.dev/gemini-api/docs/models
-sed -i "s/gemini-2.0-flash/gemini-3.1-flash-lite/g" ~/.hermes/config.yaml
-systemctl --user restart hermes-gateway
 hermes status | grep provider
 ```
 

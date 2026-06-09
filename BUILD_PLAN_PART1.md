@@ -511,7 +511,7 @@ P3.3  [SEQUENTIAL] Quality firewall end-to-end test                ⬜ requires 
 P3.3b github-update skill fully implemented (quality firewall test skill) ✅ deployed June 5
 P3.3c GitHub MCP added to hermes config.yaml                       ✅ June 5
 P3.4  [after P3.3] All 8 starting skills verified working          ⬜ pending P3.3
-P3.5  [after P3.4] ntfy.sh setup for phone push notifications      ✅ NTFY_TOPIC set in ~/.hermes/.env (rotate topic — value was committed; iPhone app still needed)
+P3.5  [after P3.4] ntfy.sh setup for phone push notifications      ✅ COMPLETE — NTFY_TOPIC in .env, iPhone app installed + subscribed (June 2026)
 P3.6  XPosterOS integration                                        ✅ complete June 5 (see HANDOFF.md XPosterOS section)
 P3.7  xposteros-control contract tests                             ✅ 17/17 passing June 8 (747/747 full suite June 8)
 ```
@@ -626,7 +626,7 @@ P4.1  Dream cycle crontab installed                            ✅ 3am daily (us
 P4.1b Embed cron at 2am                                        ✅ installed June 5 2026
 P4.1c brain.pglite rolling backup cron at 4:30am              ✅ installed June 5 2026
 P4.1d brain/dhruvaos/ self-documentation created + GBrain import ✅ 5 files, 45 pages total embedded
-P4.1e ntfy.sh configured: NTFY_TOPIC in .env, test push works  ✅ June 5 2026 (iPhone app still needed)
+P4.1e ntfy.sh configured: NTFY_TOPIC in .env, iPhone app installed + subscribed  ✅ COMPLETE June 2026
 P4.2  Knowledge graph built (gbrain extract links)             ⬜ run after brain has >100 pages (currently 45)
 P4.3  Skill authoring end-to-end test                         ⬜ requires Phase 3 gate pass
 P4.4  Tiered trust gate verified                               ⬜ requires Phase 3 gate pass
