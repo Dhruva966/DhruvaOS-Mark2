@@ -24,7 +24,7 @@ class TestPaperMonitorContract:
 
     def test_env_vars_declared(self):
         assert "EXA_API_KEY" in TEXT
-        assert "ANTHROPIC_API_KEY" in TEXT
+        assert "OPENAI_API_KEY" in TEXT  # uses GPT-4o-mini (Tier 1), not Claude
         assert "DISCORD_RESEARCH_CHANNEL_ID" in TEXT
 
     def test_gbrain_writes_declared(self):

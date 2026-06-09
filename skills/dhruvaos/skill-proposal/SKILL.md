@@ -8,7 +8,10 @@ description: "Draft and propose new Hermes skills from Discord command or novel 
 schedule: null
 gbrain:
   reads: ["skills/*", "brain/*"]
-  writes: ["skills/proposed/{{skill_name}}.md"]
+  writes: []
+# Note: this skill writes to ~/.hermes/skills/dhruvaos/{{skill_name}}/SKILL.md (filesystem),
+# not to GBrain/brain. The gbrain.writes field is intentionally empty — the file system
+# write happens after explicit 👍 approval.
 tests: tests/
 platforms: [linux]
 prerequisites:

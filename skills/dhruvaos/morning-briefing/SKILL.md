@@ -19,8 +19,9 @@ prerequisites:
     - DISCORD_BRIEFINGS_CHANNEL_ID
     - DREW_TIMEZONE
 gbrain:
-  reads: ["daily/*", "projects/*", "goals/*", "brain/*"]
+  reads: ["daily/*", "projects/*", "goals/*", "brain/*", "resources/papers/*"]
   writes: ["daily/briefing-{{date}}.md"]
+daily_token_budget: 20000
 tests: tests/
 metadata:
   hermes:
@@ -82,13 +83,13 @@ Expected JSON shape:
 ]
 ```
 
-Parse with `code_execution`:
+Parse with `code_execution` — substitute the actual terminal output from Step 1 into `raw`:
 ```python
 import json, sys
 from datetime import datetime, timedelta
 import pytz
 
-raw = """<PASTE TERMINAL OUTPUT HERE>"""
+raw = """<terminal stdout from Step 1 — substitute actual JSON here>"""
 
 tz = pytz.timezone("America/Los_Angeles")
 now = datetime.now(tz)
@@ -137,12 +138,13 @@ source ~/.hermes/hermes-agent/venv/bin/activate && \
   python3 ~/.hermes/scripts/google_api_helper.py gmail 2>&1
 ```
 
-The helper returns JSON for the top 20 unread messages. Parse with `code_execution`:
+The helper returns JSON for the top 20 unread messages. Parse with `code_execution` — substitute
+the actual terminal output from the Gmail step into `raw`:
 
 ```python
 import json
 
-raw = """<PASTE TERMINAL OUTPUT HERE>"""
+raw = """<terminal stdout from Gmail step — substitute actual JSON here>"""
 
 EMAIL_CATEGORIES = {
     "ACTION_REQUIRED": [],
@@ -209,15 +211,71 @@ Collect the top 5 results from each. If GBrain returns nothing, note "No tasks f
 
 ---
 
-## Step 4 — Fetch Research News via Exa
+## Step 4 — Fetch Research News (GBrain Cache First, Exa Fallback)
+
+### Step 4a — Check GBrain for Today's paper-monitor Results
+
+paper-monitor runs at 7am and writes filtered papers to `resources/papers/`. If it ran,
+reusing those results saves 2-3 Exa API calls.
+
+Call `gbrain search` with query: `"resources/papers {{today_str}}"`
+
+Also call `gbrain search` with query: `"arxiv ingested {{today_str}} cs.AI cs.LG"`
+
+Use `code_execution` to check whether GBrain returned today's papers:
+
+```python
+import json
+from datetime import date
+
+today_str = "{{today_str}}"  # from Step 0
+
+# gbrain_results is the list of hits from the two searches above
+gbrain_results = <PASTE GBRAIN SEARCH RESULTS>
+
+# Filter: only files with date frontmatter matching today AND path under resources/papers/
+today_papers = [
+    r for r in gbrain_results
+    if (
+        today_str in r.get("path", "")
+        or today_str in r.get("snippet", "")
+    )
+    and "resources/papers" in r.get("path", "")
+]
+
+cache_hit = len(today_papers) > 0
+print(f"PAPER_CACHE_HIT={cache_hit}")
+print(f"PAPER_CACHE_COUNT={len(today_papers)}")
+if cache_hit:
+    print("PAPERS=" + json.dumps(today_papers[:4]))
+```
+
+**If `PAPER_CACHE_HIT=True`** (paper-monitor results found within 8h):
+- Set `research_source = "paper-monitor (cached)"`
+- Extract `title` and `snippet` from each paper result (top 4 max)
+- Format them as research items for Message 4 (same format as Step 4b output)
+- **Skip Step 4b entirely** (no Exa call)
+- Log: `[morning-briefing] Step 4: using paper-monitor cache — N papers found`
+
+**If `PAPER_CACHE_HIT=False`** (paper-monitor hasn't run yet, or found 0 papers today):
+→ Continue to Step 4b.
+
+---
+
+### Step 4b — Exa Fallback (only if Step 4a cache miss)
 
 Use the `web` tool (Exa) to search for 2-3 research topics relevant to Dhruva's goals.
 
-First, extract research topics from the GBrain results in Step 3 (look for keywords like "learning", "researching", "following", "interested in"). If no topics are found in brain context, use these defaults:
+First, extract research topics from the GBrain results in Step 3 (look for keywords like
+"learning", "researching", "following", "interested in"). If no topics are found in brain
+context, use these defaults:
 - `"AI agent systems latest 2026"`
 - `"machine learning research breakthroughs"`
 
-Run one `web` search per topic. Keep only the top 2 results per query (title + URL + 1-sentence summary). Cap at 4 total results across all topics.
+Run one `web` search per topic. Keep only the top 2 results per query (title + URL +
+1-sentence summary). Cap at 4 total results across all topics.
+
+Set `research_source = "exa"`.
 
 If Exa is unavailable, set `research_section = "(research unavailable)"` and continue.
 
@@ -272,7 +330,7 @@ _({{M}} FYI + {{K}} newsletters set aside)_
 {{1–2 research items:}}
 - **[title]** — [one sentence] [URL]
 
-_Drew | errors: {{any section errors}}_ 
+_Drew | errors: {{any section errors}} | source: {{research_source}}_
 ```
 
 If a section has an error (auth fail, API down), send its message with "⚠️ [section] unavailable — [reason]" instead of skipping entirely.

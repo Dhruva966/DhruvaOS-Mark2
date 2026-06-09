@@ -137,14 +137,15 @@ source ~/.hermes/hermes-agent/venv/bin/activate && \
   python3 ~/.hermes/scripts/google_api_helper.py calendar 2>&1
 ```
 
-Parse the output with `code_execution` to extract **only tomorrow's events**:
+Parse the output with `code_execution` to extract **only tomorrow's events** — substitute
+the actual terminal stdout from Step 4 into `raw`:
 
 ```python
 import json
 from datetime import datetime, timedelta
 import pytz
 
-raw = """<PASTE TERMINAL OUTPUT HERE>"""
+raw = """<terminal stdout from Step 4 calendar fetch — substitute actual JSON here>"""
 
 tz = pytz.timezone("America/Los_Angeles")
 now = datetime.now(tz)
@@ -323,6 +324,6 @@ The only hard stop is the guard in Step 1. All other failures degrade gracefully
 ## Done Condition
 
 Skill is complete when:
-1. Recap text is composed
+1. Recap text composed (Done+Carry, Tomorrow calendar, Insight sections)
 2. File written to `~/brain/daily/recap-{{today_str}}.md`
-3. Message posted to `DISCORD_BRIEFINGS_CHANNEL_ID` (#briefings)
+3. All 3 separate Discord messages posted to `DISCORD_BRIEFINGS_CHANNEL_ID` (#briefings)

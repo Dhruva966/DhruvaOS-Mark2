@@ -5,7 +5,7 @@ tier: 0
 outbound: false
 requires_approval: false
 description: "Daily check: detect skills escalating beyond their configured tier >30% of runs → alert #alerts"
-schedule: null
+schedule: "0 6 * * *"
 gbrain:
   reads: []
   writes: []

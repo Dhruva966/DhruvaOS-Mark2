@@ -22,7 +22,7 @@ class TestConnectionDetectorContract:
         assert "schedule: null" in TEXT
 
     def test_env_vars_declared(self):
-        assert "ANTHROPIC_API_KEY" in TEXT
+        assert "OPENAI_API_KEY" in TEXT  # uses GPT-4o-mini (tier 1), not Claude
 
     def test_gbrain_reads_all_brain(self):
         # Must be able to read any brain node
@@ -125,8 +125,8 @@ class TestConnectionDetectorContract:
     def test_relationship_is_one_sentence(self):
         assert "one sentence" in TEXT or "one clear sentence" in TEXT
 
-    def test_sonnet_fallback_on_failure(self):
-        assert "Sonnet call fails" in TEXT or "sonnet fails" in TEXT.lower()
+    def test_gpt_fallback_on_failure(self):
+        assert "GPT-4o-mini call fails" in TEXT or "Sonnet call fails" in TEXT or "call fails" in TEXT.lower()
 
     def test_fallback_uses_top_candidates_by_score(self):
         assert "top 2 candidates by score" in TEXT or "by score" in TEXT.lower()

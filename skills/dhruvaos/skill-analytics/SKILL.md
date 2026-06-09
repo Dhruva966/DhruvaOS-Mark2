@@ -5,7 +5,7 @@ tier: 0
 outbound: false
 requires_approval: false
 description: "Weekly skill health report: invocations, error rates, DEGRADED flags, UNUSED flags → #tasks"
-schedule: null
+schedule: "0 21 * * 0"
 gbrain:
   reads: []
   writes: []

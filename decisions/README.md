@@ -54,6 +54,6 @@ have not been reconstructed yet.
 | ADR-007 | Rejected Supermemory (redundant with GBrain, data sovereignty) | 2026-06-04 |
 | ADR-008 | Rejected PlanetScale (MySQL, no pgvector, cloud-hosted) | 2026-06-04 |
 | ADR-009 | Rejected Karpathy AutoResearch (wrong layer — skill/memory not weights) | 2026-06-04 |
-| ADR-010 | Three-layer browser stack: Lightpanda + AgentQL + Browserbase (token cost) | 2026-06-04 |
+| ADR-010 | Browser stack: Lightpanda + AgentQL; Browserbase permanently dropped 2026-06-07 (replaced by local Playwright) | 2026-06-04 |
 
 Create ADR files as needed. Number sequentially.

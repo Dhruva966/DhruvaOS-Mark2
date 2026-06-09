@@ -5,6 +5,7 @@ tier: 1
 outbound: false
 requires_approval: false
 description: "Every 30min: check Google Calendar for meetings starting in 30-45 minutes; post attendee background brief to #briefings. Deduplicates within 2-hour window."
+daily_token_budget: 8000
 author: dhruvaos
 platforms: [linux]
 prerequisites:

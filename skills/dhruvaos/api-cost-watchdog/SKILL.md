@@ -89,7 +89,7 @@ and stop.
 
 ---
 
-## Step 2 — Count Calls Per Model
+## Step 2 — Count Calls Per Model and Group by Skill
 
 Use `code_execution` to parse the log lines:
 
@@ -107,10 +107,32 @@ MODEL_PATTERNS = {
 }
 
 counts = defaultdict(int)
+# Also track calls per skill (best-effort: depends on [skill:name] markers in log)
+calls_by_skill = defaultdict(lambda: {"sonnet": 0, "opus": 0, "gpt4omini": 0, "phi4": 0})
+current_skill = "unknown"
+
+SKILL_RE = re.compile(
+    r"\[skill:([a-z0-9_-]+)\]|skill[=\s]+([a-z0-9_-]+)|running\s+([a-z0-9_-]+)",
+    re.IGNORECASE,
+)
+
 for line in log_lines.strip().splitlines():
+    # Track most recent skill context (best-effort)
+    sm = SKILL_RE.search(line)
+    if sm:
+        current_skill = next((g for g in sm.groups() if g), current_skill)
+
     for model, pattern in MODEL_PATTERNS.items():
         if pattern.search(line):
             counts[model] += 1
+            # Map model to short key for per-skill tracking
+            tier_key = {
+                "claude-sonnet": "sonnet",
+                "claude-opus": "opus",
+                "gpt-4o-mini": "gpt4omini",
+                "phi4-mini": "phi4",
+            }.get(model, "unknown")
+            calls_by_skill[current_skill][tier_key] += 1
             break  # count each log line once
 
 COSTS = {
@@ -119,6 +141,15 @@ COSTS = {
     "gpt-4o-mini":   0.0001,
     "phi4-mini":     0.0,
 }
+
+# Per-skill estimated cost
+skill_costs = {}
+for skill, mc in calls_by_skill.items():
+    cost = (mc["sonnet"] * 0.003 + mc["opus"] * 0.015 + mc["gpt4omini"] * 0.0001)
+    if cost > 0:
+        skill_costs[skill] = {"calls": dict(mc), "est_cost": round(cost, 4)}
+
+top3 = sorted(skill_costs.items(), key=lambda x: -x[1]["est_cost"])[:3]
 
 total_cost = sum(counts[m] * COSTS.get(m, 0) for m in counts)
 tier2_cost = counts["claude-sonnet"] * COSTS["claude-sonnet"]
@@ -133,6 +164,8 @@ print(f"PHI4_CALLS={counts['phi4-mini']}")
 print(f"TOTAL_COST={total_cost:.4f}")
 print(f"TIER23_COST={tier23_cost:.4f}")
 print(f"MONTHLY_PROJ={total_cost * 30:.2f}")
+import json
+print("TOP3=" + json.dumps(top3))
 ```
 
 ---
@@ -149,19 +182,40 @@ Note the custom budget in the alert if triggered.
 
 ## Step 4 — Evaluate and Alert
 
-**If `TIER23_COST` <= 2.00: do NOT post anything to Discord. Skill completes silently.**
+**If `TIER23_COST` <= 2.00: do NOT post threshold alert. But ALWAYS append a daily summary
+line to the completion log (Step 5) so cost trends are visible even on normal days.**
 
-If `TIER23_COST` > 2.00, build alert message:
+Build the cost summary (for threshold alert OR log line):
 
 ```
-💸 API cost alert: ~$X.XX today (Tier 2: N calls, Tier 3: M calls)
-📊 Breakdown: Sonnet: N × $0.003 | Opus: M × $0.015 | GPT-4o-mini: K × $0.0001 | phi4-mini: L (free)
-📁 Full log: ~/.hermes/logs/gateway.log
+💸 API cost today: ~$X.XX (Sonnet: N | Opus: M | GPT-4o-mini: K | phi4-mini: L)
+📊 Top spenders today: <skill1> ~$X.XX | <skill2> ~$X.XX | <skill3> ~$X.XX
 ```
+
+If `TOP3` list is empty (no skill markers in log), omit the "Top spenders" line.
+
+**Threshold alert conditions:**
+
+If `TIER23_COST` > 2.00, post the cost summary to `DISCORD_ALERTS_CHANNEL_ID` (#alerts).
 
 If monthly projection (daily × 30) > $30.00, append:
 ```
 ⚠️ Monthly projection: ~$X.XX/month — review skill cron frequency
+```
+
+**Budget overage check:** Use `terminal` to read `daily_token_budget` fields from deployed skills:
+
+```bash
+grep -r "daily_token_budget:" ~/.hermes/skills/dhruvaos/ 2>/dev/null | \
+  grep -oP "([a-z0-9_-]+)/SKILL\.md:daily_token_budget: \K[0-9]+" || echo ""
+```
+
+For any skill in `TOP3` that has a `daily_token_budget` value, estimate token count as:
+`est_tokens = est_cost_usd / 0.003 * 1000` (rough conversion assuming Sonnet pricing).
+
+If `est_tokens > daily_token_budget * 1.5`, append:
+```
+⚠️ <skill> exceeded budget estimate (actual ~$X.XX, budget ~$Y.YY)
 ```
 
 If a custom budget from GBrain was found and exceeded, append:
@@ -175,9 +229,11 @@ Use the `messaging` tool to post to `DISCORD_ALERTS_CHANNEL_ID` (#alerts).
 
 ## Step 5 — Log Completion
 
+Log to a dedicated cost log (not skill-errors.log — this is normal data, not an error):
+
 ```bash
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] api-cost-watchdog: sonnet=N opus=M gpt4omini=K daily_cost=$X.XX" \
-  >> ~/.hermes/logs/skill-errors.log
+  >> ~/.hermes/logs/api-cost.log
 ```
 
 ---

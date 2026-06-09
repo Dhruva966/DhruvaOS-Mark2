@@ -5,6 +5,7 @@ tier: 0
 outbound: false
 requires_approval: false
 description: "Nightly: detect stale GBrain facts using phi4-mini, expire old versions, insert updated facts. Automated at 3:30am via Hermes cron --no-agent. Can also be invoked manually by Drew."
+schedule: "30 3 * * *"
 author: dhruvaos
 platforms: [linux]
 gbrain:
@@ -82,3 +83,21 @@ From the output, extract:
 - API key: sourced automatically from `~/.hermes/.env`
 - Never writes directly to `~/.gbrain/brain.pglite/`
 - Uses `gbrain call forget_fact` + `gbrain call extract_facts` for all updates
+
+## Error Handling
+
+| Failure | Action |
+|---------|--------|
+| Script not found | Post error to #alerts, stop |
+| phi4-mini (Ollama) offline | Script logs error; 0 rewrites → silent exit |
+| gbrain-write.lock busy | Script exits non-zero; log, do not retry until next nightly run |
+| 0 rewrites, 0 errors | Silent exit — no Discord post |
+| Errors in rewrite script | Post count to #alerts |
+
+## Done Condition
+
+Skill is complete when:
+1. `stale-fact-rewrite.py` has run to completion (or failed with logged output)
+2. If 0 rewrites and 0 errors: silent exit
+3. If rewrites: summary posted to #logs (or whichever log channel is active)
+4. If errors: error count posted to #alerts

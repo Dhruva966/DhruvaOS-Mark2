@@ -13,30 +13,33 @@ Purpose: GBrain configuration, ingest patterns, and search/memory conventions fo
 | GBrain config | `~/.gbrain/config.json` |
 | PGLite database | `~/.gbrain/brain.pglite/` |
 | Brain content | `~/brain/` (markdown) |
-| GBrain binary | `~/.bun/bin/gbrain` |
-| Dream cycle log | Check `gbrain dream --dry-run` output |
+| GBrain source | `~/gbrain-src/` (git clone — NOT global bun install) |
+| GBrain run command | `cd ~/gbrain-src && bun src/cli.ts <cmd>` |
+| PM2 process | `gbrain-mcp` — runs with `--cwd ~/gbrain-src` |
+| Dream cycle log | Check `cd ~/gbrain-src && bun src/cli.ts dream --dry-run` output |
 
 ---
 
 ## Allowed Patterns ✅
 
 ```bash
-# ✅ Correct ingest workflow — always no-embed first, then embed separately
-gbrain import ~/brain/new-notes/ --no-embed
-gbrain embed --stale
-gbrain onboard --check --json    # verify after every import
+# ✅ Correct ingest workflow — run from source dir, always no-embed first
+cd ~/gbrain-src
+bun src/cli.ts import ~/brain/new-notes/ --no-embed
+bun src/cli.ts embed --stale
+bun src/cli.ts onboard --check --json    # verify after every import
 ```
 
 ```bash
 # ✅ Correct search — use search for fact retrieval
-gbrain search "what do I know about machine learning"
-gbrain search "who do I know at Google"
+cd ~/gbrain-src && bun src/cli.ts search "what do I know about machine learning"
+cd ~/gbrain-src && bun src/cli.ts search "who do I know at Google"
 ```
 
 ```bash
 # ✅ Correct think — use think for trajectory/temporal queries
-gbrain think "how have my career goals changed over time"
-gbrain think "DhruvaOS project trajectory"
+cd ~/gbrain-src && bun src/cli.ts think "how have my career goals changed over time"
+cd ~/gbrain-src && bun src/cli.ts think "DhruvaOS project trajectory"
 ```
 
 ```markdown
@@ -70,8 +73,15 @@ gbrain:
 sqlite3 ~/.gbrain/brain.pglite "SELECT * FROM chunks"    # WRONG
 
 # ❌ Two concurrent gbrain write operations
-gbrain import ~/notes/ &       # background
-gbrain dream                   # concurrent — WRONG: corrupts PGLite DB
+cd ~/gbrain-src && bun src/cli.ts import ~/notes/ &       # background
+cd ~/gbrain-src && bun src/cli.ts dream                   # concurrent — WRONG: corrupts PGLite DB
+
+# ❌ Global bun install — resolves PGLite 0.5.1 which breaks pgvector DBs
+bun install -g github:garrytan/gbrain    # WRONG — use git clone to ~/gbrain-src instead
+
+# ❌ Running gbrain CLI while PM2 holds PGLite lock
+bun src/cli.ts dream    # WRONG while PM2 gbrain-mcp is running — PM2 holds exclusive lock
+# Correct: use ~/.hermes/scripts/gbrain-dream.sh which stops PM2 first
 ```
 
 ```bash

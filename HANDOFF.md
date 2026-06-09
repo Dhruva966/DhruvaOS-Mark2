@@ -19,6 +19,17 @@ Read before building any skill that crosses a subsystem boundary.
 │  Discord        │  │  XPosterOS      │  │  ~/brain/        │
 │  6 channels     │  │  FastAPI+Notion │  │  markdown files  │
 └─────────────────┘  └─────────────────┘  └─────────────────┘
+         ▲
+         │ /api/drew/* + /api/voice/*
+         │ (exec CLI on Omen, proxy AI APIs)
+┌─────────────────────────────────────────────────────────────┐
+│  DrewUI  (Next.js 16, port 3000 on Omen, Cloudflare Tunnel) │
+│  dhruvavutukury.org/drew                                    │
+│  • Dashboard: status, crons, memory, activity               │
+│  • Voice: Whisper STT → Claude Sonnet 4.6 → ElevenLabs TTS  │
+│  • Conversation history (in-session)                        │
+│  • Screensaver: /jarvis 3D neural brain (Vercel)            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -246,11 +257,20 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [x] Google API credentials tested OK on Omen
 - [x] All 18 API keys in ~/.hermes/.env (Notion, Gmail, Calendar, Discord, Supabase, etc.)
 - [x] Hermes config: cron_mode=approve, timezone=LA, Notion MCP
-- [ ] Morning briefing 8am run verified in #briefings (pending — June 5 8am)
-- [ ] Notion Tasks DB proper schema created (current: Snoopy AI schema)
+- [x] Morning briefing 8am run verified in #briefings ✅
+- [x] Notion Tasks DB rebuilt with DhruvaOS schema (Name/Status/Priority/Due/Project/Source) ✅ June 8
 - [ ] /task /research /correct commands tested end-to-end
 - [ ] Quality firewall test (P3.3 gate — manual)
 - [x] Correct Notion Tasks DB ID confirmed: `7b698cab-03a0-43a0-ab04-b074bcd8b4db` ✅
+
+**Phase 4+ — Infrastructure hardening (June 8, 2026):**
+
+- [x] GBrain WASM crash root-caused + fixed: `vm.mmap_rnd_bits=28` (permanent), running from `~/gbrain-src/` ✅
+- [x] GBrain autopilot upgrades disabled (`autopilot.self_upgrade.enabled: false`) ✅
+- [x] gbrain-embed + gbrain-dream cron scripts fixed: stop PM2 → run → restart PM2 ✅
+- [x] gbrain-health-monitor: hourly no-agent cron (job `77c833f1f6ac`), script at `~/.hermes/scripts/gbrain-health-check.sh` ✅
+- [x] Hermes model: `gemini-3.1-flash-lite` (verified live at ai.google.dev June 8) ✅
+- [x] Agent behavior rule #5 added to CLAUDE.md: always fetch official docs before setting model names ✅
 
 **Phase 4 — Dream cycle running (June 6, 2026):**
 
@@ -286,11 +306,11 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [x] `xposteros-control` skill deployed to `~/.hermes/skills/dhruvaos/xposteros-control/`
 - [x] `XPOSTEROS_API_URL` + `XPOSTEROS_API_TOKEN` in `~/.hermes/.env`
 - [x] All 6 Notion DB IDs verified + set in `/home/dhruva/xposteros/.env`
-- [x] 50 tests passing, ruff lint clean (DhruvaOS repo: 686/686 contract tests — full suite June 7)
+- [x] 50 tests passing, ruff lint clean (DhruvaOS repo: 747/747 contract tests — full suite June 8)
 - [x] **FIXED June 6:** `NOTION_API_KEY` + `LLM_DEFAULT_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` added to `~/xposteros/.env`. Service health: `status:ok dry_run:True`. Workers no longer failing.
 - [ ] Go-live: set `XPOSTER_DRY_RUN=false` (waiting on X credentials)
-- [ ] Cloudflare tunnel for Vercel→Omen backend (manual step — `/etc/cloudflared/config.yml` placeholder)
-- [ ] Vercel env vars: `XPOSTEROS_API_URL=https://xposteros.<TUNNEL_DOMAIN>` (needs tunnel first)
+- [x] Cloudflare tunnel live — `xposteros-api.dhruvavutukury.org` → `127.0.0.1:8081` ✅ June 8
+- [x] CORS updated: `content.dhruvavutukury.org` added to `CORS_ALLOW_ORIGINS` in `~/xposteros/.env` ✅
 - [ ] X credentials: `X_API_KEY`, `X_API_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET`
 
 ---
@@ -306,12 +326,58 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 | stale-fact-rewrite Aborted() WASM error | ✅ Fixed June 7 | Rewrote to use HTTP MCP instead of CLI subprocess (PM2 holds PGLite exclusive lock) |
 | `sync` phase failing (brain not a git repo) | ✅ Fixed June 6 | `git init ~/brain`, `gbrain sync --repo /home/dhruva/brain` |
 | `extract_facts` blocked by legacy facts `row_num IS NULL` | ✅ Fixed June 6 | v0.32.2 migration re-run, row_num backfilled |
-| **Hermes on Gemini (temporary)** | ⚠️ Active | Anthropic credits depleted June 6. Switch back: update config.yaml provider+model, restart Hermes |
-| **gbrain dream + embed crons broken** | ⚠️ Active | PM2 holds exclusive PGLite lock. CLI crons fail with Aborted(). Fix: wrap in PM2 stop/start, or switch Hermes to stdio MCP. Not resolved. |
-| **XPosterOS Vercel→Omen broken** | ⚠️ Active | Vercel can't reach Omen. Needs Cloudflare Tunnel (Phase V, V1). |
-| **GitHub Actions runner not registered** | ⚠️ Active | Software at ~/actions-runner-xposteros/. Run `bash ~/setup-runner.sh TOKEN`. Token from GitHub UI (Settings→Actions→Runners→New). PAT also needs `workflow` scope to push workflow file. |
-| **PAT in XPosterOS git remote URL** | ⚠️ Security | `git -C ~/xposteros remote -v` exposes PAT. Fix after regenerating: `git -C ~/xposteros remote set-url origin "https://github.com/Dhruva966/linkedIn-XPoster.git"` |
+| **GBrain Aborted() WASM crash** | ✅ Fixed June 8 | Two causes: kernel 6.17.0 `vm.mmap_rnd_bits=32` (fixed via /etc/sysctl.d/99-wasm-compat.conf → 28) + bun global cache resolves PGLite 0.5.1 (fixed by running from ~/gbrain-src git clone) |
+| **gbrain dream + embed crons** | ✅ Fixed June 8 | Scripts at `~/.hermes/scripts/gbrain-{embed,dream}.sh` stop PM2, run, restart PM2. Registered as Hermes no-agent crons. |
+| **Hermes on Gemini (temporary)** | ⚠️ Active | Anthropic credits depleted June 6. Model: `gemini-3.1-flash-lite`. Switch back: `sed -i "s/gemini-3.1-flash-lite/claude-sonnet-4-6/; s/provider: google/provider: anthropic/" ~/.hermes/config.yaml && systemctl --user restart hermes-gateway` |
+| **XPosterOS Vercel→Omen broken** | ✅ Fixed June 8 | Cloudflare named tunnel `dhruvaos-tunnel` (UUID `e05878ab-757e-4512-acc7-48cc491fe589`) live. UFW fixed (port 7844). All 3 routes: `api.dhruvavutukury.org`, `xposteros-api.dhruvavutukury.org`, `gbrain.dhruvavutukury.org` |
+| **GitHub Actions runner not registered** | ✅ Fixed June 8 | Runner configured + running as systemd user service on Omen. |
+| **PAT in XPosterOS git remote URL** | ✅ Fixed June 8 | PAT revoked, new PAT generated, remote URL cleaned. |
+| **Hermes crons failing (unknown provider 'openai')** | ✅ Fixed June 8 | 12 `auxiliary.*.provider: auto` entries changed to `google` in config.yaml. |
+| **gemini-2.0-flash deprecated** | ✅ Fixed June 8 | Model changed to `gemini-3.1-flash-lite` in config.yaml. Live config verified via SSH. |
+| **drew-ui login stuck on loading** | ✅ Fixed June 8 | `router.push` replaced with `window.location.href` in login page — success path now redirects cleanly. |
+| **drew-ui auth JSON parse crash** | ✅ Fixed June 8 | try/catch added to `/api/auth/route.ts` — malformed JSON body → 400 instead of 500 |
+| **drew-ui login open redirect** | ✅ Fixed June 8 | `redirect` param validated: must start with `/` and not `//`. Malformed values fall back to `/drew`. |
+| **jarvis-voice AudioContext leak** | ✅ Fixed June 8 | AudioContext stored in `audioCtxRef`, closed in `stopMicrophone`. Prevents hitting browser 6-ctx limit on repeated mic toggles. |
+| **jarvis-voice ERROR_AUTO_RESET_MS dead constant** | ✅ Fixed June 8 | `ERROR_AUTO_RESET_MS` was defined in config but never imported. Error state could stick permanently. Now wired into `useVoiceState` with timer + cleanup. |
+| **xposteros-control no reactor identity check** | ✅ Fixed June 8 | `DISCORD_ALLOWED_USER` check added to approval step — any Discord user could previously trigger X post approvals. |
+| **.env world-readable** | ✅ Fixed June 8 | `chmod 600` on `/Users/dhruvavutukury/DhruvaOS Mark 2/.env`, `drew-ui/.env.local`, `jarvis-voice/.env.local` |
+| **DEPLOYMENT.md stale env vars** | ✅ Fixed June 8 | Removed `BROWSERBASE_API_KEY` + `FIRECRAWL_API_KEY`; added `GOOGLE_API_KEY` for Gemini fallback. |
+| **Vercel proxy bypass (jarvis-voice)** | ⚠️ Remaining | `jarvis-voice-umber.vercel.app` directly accessible without auth. drew-ui middleware only gates `/jarvis/*` on the proxy — direct Vercel URL bypasses it. Fix: add `middleware.ts` to jarvis-voice with password check, or enable Vercel password protection on that deployment. |
+| **auth cookie = raw SITE_PASSWORD** | ⚠️ Remaining | Cookie stores the plaintext password. httpOnly+secure mitigates for personal use. Full fix: generate a session token on login, store hash server-side. |
 | Anthropic credit watchdog blind to Claude Code usage | ⚠️ Structural | balance-check.sh (every 2h) mitigates. Root fix: separate API keys (done). Spend limit on platform.anthropic.com recommended. |
+
+**Phase V — Visual + Voice Layer (June 8, 2026):**
+
+- [x] Cloudflare named tunnel live: `dhruvaos-tunnel` UUID `e05878ab-757e-4512-acc7-48cc491fe589` ✅
+- [x] `api.dhruvavutukury.org` → Hermes `:8642` ✅ (verified: `{"status":"ok","platform":"hermes-agent"}`)
+- [x] `xposteros-api.dhruvavutukury.org` → XPosterOS `:8081` ✅
+- [x] `gbrain.dhruvavutukury.org` → GBrain MCP HTTP `:3131` ✅
+- [x] Tunnel systemd user service: `~/.config/systemd/user/cloudflared-dhruvaos.service`, linger enabled ✅
+- [x] `dhruvavutukury.org` landing page deployed (Vercel, drew-ui project) ✅
+- [x] `dhruvavutukury.org/drew` — Drew voice interface, password-gated ✅
+- [x] `dhruvavutukury.org/content` → XPosterOS web (proxied via Next.js rewrite) ✅
+- [x] `dhruvavutukury.org/jarvis` → Jarvis 3D neural voice (proxied) ✅
+- [x] Drew persona `~/.hermes/SOUL.md` deployed, loaded every message ✅
+- [x] `jarvis-voice` deployed: `jarvis-voice-umber.vercel.app` (TS errors fixed) ✅
+- [x] `xposteros-web` deployed: `web-eta-two-78.vercel.app` (build config fixed) ✅
+- [x] Login bug fixed: `window.location.href` redirect, deployed June 8 ✅
+- [x] `SITE_PASSWORD` set in Vercel env vars, auth working ✅
+- [x] **jarvis-voice neural brain UI — full biorealistic rewrite (June 8)** ✅
+  - Replaced abstract node-graph mesh with single biological neuron (soma + 7 primary dendrites × 4 levels + axon + collaterals)
+  - GFP green / CFP cyan fluorescence microscopy palette; pitch-black background `#000008`
+  - Vertex-colour taper: branches dim GFP_BRIGHT → GFP_DIM from base to tip (authentic confocal look)
+  - Dendritic spines (×240), synaptic boutons (×36 YFP), Nodes of Ranvier (×20 CFP), organelles (×48 inside soma)
+  - Nucleolus (YFP sphere inside nucleus) + double nuclear membrane shell
+  - Action potential sparks: 15-slot InstancedMesh traveling CatmullRomCurve3 paths; frequency driven by AUDIO_ENERGY
+  - Postprocessing: layered Bloom × 2 + ChromaticAberration + Vignette
+  - Background extracellular field: 180 faint particles (distant neuron hints)
+  - AUDIO_BANDS singleton (zero React batching delay) drives soma emissive + signal rate
+  - PR: https://github.com/Dhruva966/DhruvaOS-Mark2/pull/6
+- [ ] Cloudflare Zero Trust Access on `api.dhruvavutukury.org` + `gbrain.dhruvavutukury.org` (currently open internet)
+- [ ] Phase 5 skills deployed to Omen: `linkedin-post`, `personal-site-update`, `youtube-video-create`
+- [ ] P3.3 quality firewall gate test (manual — Discord `/test-outbound`)
+- [ ] GBrain braindump ingested (`wiki/braindump-questions.md`)
+- [ ] Knowledge graph: `gbrain extract links --source db`
 
 ---
 

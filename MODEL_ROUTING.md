@@ -9,6 +9,9 @@
 | 1 fallback | deepseek/deepseek-v3 | OpenRouter (own billing) | $0.23 | $0.34 | Same as Tier 1 after OpenAI credits < $50 |
 | 2 | claude-sonnet-4-6 | Anthropic | $3 | $15 | **ALL outbound writing**, reasoning, code review, complex analysis |
 | 3 | claude-opus-4-8 | Anthropic | $15 | $75 | Orchestration, architecture decisions, high-stakes planning |
+| Gemini fallback | gemini-3.1-flash-lite | Google (GOOGLE_API_KEY) | $0.25 | $1.50 | **TEMPORARY default when Anthropic credits depleted.** Use `provider: google`. Verify current model ID at ai.google.dev before configuring — Gemini models deprecate frequently. Gemini 2.0 shut down June 1, 2026. |
+
+> **⚠️ Model name rule:** Never set a Gemini model name from memory. Fetch https://ai.google.dev/gemini-api/docs/models and confirm the ID exists before writing it to config.yaml.
 
 ---
 
