@@ -1,44 +1,17 @@
-from pathlib import Path
+"""Structural contract test for the `wellness-trend` skill.
 
-TEXT = (Path(__file__).resolve().parents[1] / "SKILL.md").read_text()
+Skills are now goal + context + constraints, not scripts. This test verifies
+structural integrity via the shared helper in conftest.py. Implementation
+details (which APIs are called, what wording is used) are intentionally not
+asserted — they belong to the agent's runtime judgment, not the contract.
+
+Deeper rules — security guards, GBrain single-writer requirement, outbound
+approval gates — are enforced by `scripts/check-skill-contracts.py`, which
+runs in CI and via the health check.
+"""
+
+from conftest import assert_skill_structure
 
 
-class TestWellnessTrendContract:
-    def test_required_name(self):
-        assert "name: wellness-trend" in TEXT
-
-    def test_not_outbound(self):
-        assert "outbound: false" in TEXT
-
-    def test_no_approval_gate(self):
-        assert "requires_approval: false" in TEXT
-
-    def test_briefings_channel_env_var(self):
-        assert "DISCORD_BRIEFINGS_CHANNEL_ID" in TEXT
-
-    def test_reads_checkins(self):
-        assert "checkin" in TEXT.lower()
-
-    def test_sleep_metric(self):
-        assert "sleep" in TEXT.lower()
-
-    def test_exercise_metric(self):
-        assert "exercise" in TEXT.lower()
-
-    def test_energy_metric(self):
-        assert "energy" in TEXT.lower()
-
-    def test_weekly_comparison(self):
-        assert "week" in TEXT.lower()
-
-    def test_sunday_schedule(self):
-        assert "Sunday" in TEXT or "0 20 * * 0" in TEXT
-
-    def test_brain_write_path(self):
-        assert "health" in TEXT.lower()
-
-    def test_gbrain_ingest(self):
-        assert "gbrain" in TEXT.lower()
-
-    def test_tests_field_present(self):
-        assert "tests: tests/" in TEXT
+def test_wellness_trend_structure():
+    assert_skill_structure("wellness-trend")

@@ -22,112 +22,26 @@ metadata:
 
 # Correction Handler
 
-Triggered by `/correct <text>` in Discord #corrections.
-Example: `/correct Don't send email summaries longer than 3 bullets. I want short.`
+## Purpose
+Capture behavioral corrections from Dhruva, interpret them with Tier 2 reasoning, and persist them as durable rules in GBrain so future DhruvaOS sessions retrieve and apply them. This is the mechanism by which the system gets smarter about preferences, facts, and style over time.
 
-Interpret the correction, classify it, write it permanently to GBrain, and acknowledge.
-This is how DhruvaOS gets smarter about Dhruva's preferences over time.
+## Context
+- Trigger: `/correct <text>` posted in Discord #corrections.
+- Channels: `DISCORD_CORRECTIONS_CHANNEL_ID` (#corrections) for both inbound command and outbound acknowledgement.
+- Data sources: `~/brain/concepts/corrections.md` (read existing log, append new entry).
+- Tunables: Check `~/brain/config/content-guidelines.md` for current values on tone, brevity, and rule-statement style; use sensible defaults if missing.
+- Tools: file read/write, `gbrain import` + `gbrain embed --stale` via flock, Discord messaging.
 
-## Step 1 — Parse Correction Text
+## Goal
+Each correction is classified (BEHAVIOR / FACT / PREFERENCE / FORMAT), distilled into a clear imperative rule, appended to `~/brain/concepts/corrections.md`, ingested into GBrain, and acknowledged in #corrections. Future GBrain retrieval surfaces the rule wherever relevant.
 
-Extract everything after `/correct` as the correction text.
+## Constraints
+- Corrections must pass the immutable policy filter — they may refine style/preferences/facts, but must never weaken outbound approval gates, Tier 2+ routing for external text, Discord allowlists, secrets handling, GBrain write locking, or shell-command approval requirements. If a correction conflicts with safety policy, reject it (or accept only a strictly stricter variant). Post a clear refusal in #corrections explaining the conflict.
+- Use Tier 2 reasoning for interpretation; the `Permanent rule:` line is the load-bearing artifact and must be a single imperative sentence.
+- All GBrain writes go through `flock -n ~/.gbrain/gbrain-write.lock`. If the lock is busy, the markdown file write is the durable record — acknowledge in Discord and let the next stale-embed cycle index it.
+- Acknowledgement stays inside #corrections and does not need outbound approval (it is not external text).
+- Empty `/correct` invocations get a usage hint posted to #corrections, no GBrain write.
 
-If the text is empty: post to #corrections: "Usage: /correct <what I did wrong and what you want instead>"
-
-## Step 2 — Interpret the Correction (Tier 2 Reasoning)
-
-Using your reasoning (Sonnet quality), analyze the correction text and determine:
-
-1. **What behavior is being corrected?** — what did DhruvaOS/Drew do that was wrong?
-2. **What should the new behavior be?** — the corrected action, rule, or preference
-3. **Correction type:**
-   - **BEHAVIOR** — how Drew acts or responds (e.g., "don't do X when Y happens")
-   - **FACT** — a factual update to a belief or piece of information
-   - **PREFERENCE** — output style, format, length, tone preferences
-   - **FORMAT** — how information should be structured or presented
-4. **Permanent rule** — a clear, imperative statement the AI can follow consistently
-
-**Immutable policy filter:** corrections may refine style, preferences, facts, and routine
-behavior, but they must never weaken DhruvaOS safety policy. Reject or narrow any correction
-that attempts to bypass or reduce:
-- outbound approval gates or the `#corrections` audit path
-- Tier 2+ model routing for third-party-readable text
-- Discord allowlists or approver identity checks
-- secrets handling, API key handling, or `.env` protections
-- GBrain single-writer locking
-- shell-command approval requirements
-
-If a correction conflicts with those rules, write a safe correction only if one exists
-(for example, a stricter preference), otherwise post: "I can't make that permanent because
-it conflicts with DhruvaOS safety policy."
-
-For example:
-- Input: "Don't send email summaries longer than 3 bullets"
-- Type: PREFERENCE
-- Rule: "Email summaries must be ≤3 bullet points. Never exceed this regardless of how many emails there are."
-
-## Step 3 — Write to GBrain corrections.md
-
-Use the `file` tool to read `~/brain/concepts/corrections.md` (or create if missing):
-
-```bash
-mkdir -p ~/brain/concepts
-[ -f ~/brain/concepts/corrections.md ] || echo "# DhruvaOS Corrections Log" > ~/brain/concepts/corrections.md
-```
-
-Read the current content, then **append** the new correction entry in this format:
-
-```markdown
-## [YYYY-MM-DD] — [brief title, 3-6 words]
-
-**Type:** [BEHAVIOR|FACT|PREFERENCE|FORMAT]
-**What Drew did:** [description of the incorrect behavior]
-**Corrected behavior:** [what Drew should do instead]
-**Permanent rule:** [imperative statement — this is what GBrain indexes for future reference]
-
----
-```
-
-The `Permanent rule:` line is the most important — it's what GBrain uses when retrieving corrections to guide future behavior.
-
-## Step 4 — Ingest into GBrain
-
-After writing the file, signal GBrain to ingest the update via terminal:
-
-```bash
-GBRAIN_BIN="$(command -v gbrain || echo /home/dhruva/.bun/bin/gbrain)"
-flock -n ~/.gbrain/gbrain-write.lock sh -lc "$GBRAIN_BIN import ~/brain/concepts/corrections.md 2>&1 && $GBRAIN_BIN embed --stale 2>&1"
-```
-
-If the lock is busy, skip immediate ingest and note that the correction was saved but will
-be indexed by the next stale embed cycle. Do not wait on an active dream/import cycle.
-Note: do NOT use `--no-embed` flag — verify flag exists before using (`gbrain import --help`).
-
-If file write in Step 3 failed, skip this step and go to error handling immediately.
-
-## Step 5 — Acknowledge in Discord
-
-Use the `messaging` tool to post to `DISCORD_CORRECTIONS_CHANNEL_ID` (#corrections):
-
-```
-✅ Understood. [one sentence summary of what was corrected]
-
-**Rule added:** [the permanent rule statement]
-*This correction is now permanent in GBrain.*
-```
-
-No outbound approval is needed for this acknowledgment because it stays inside #corrections.
-The skill itself still follows its frontmatter/runtime approval policy for persistent corrections.
-
-## Step 6 — Done
-
-Correction is now in GBrain and will be retrieved whenever relevant context is needed.
-Future sessions that search GBrain will find this correction and apply it.
-
-## Error Handling
-
-| Failure | Action |
-|---------|--------|
-| File write fails | Post error to #corrections, give user the formatted entry to save manually |
-| GBrain ingest fails | Acknowledge in Discord anyway — file write is the durable record |
-| Cannot interpret correction | Post to #corrections: "I want to make sure I understand. [restate understanding and ask for clarification]" |
+## Notes
+- Verify any `gbrain import` flag with `--help` before using; do not assume `--no-embed` or similar exists.
+- If interpretation is ambiguous, ask for clarification in #corrections rather than persisting a weak rule.

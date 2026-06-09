@@ -1,4 +1,4 @@
-"""Structural contract test for the `health-ingest` skill.
+"""Structural contract test for the `stale-fact-rewrite` skill.
 
 Skills are now goal + context + constraints, not scripts. This test verifies
 structural integrity via the shared helper in conftest.py. Implementation
@@ -13,5 +13,5 @@ runs in CI and via the health check.
 from conftest import assert_skill_structure
 
 
-def test_health_ingest_structure():
-    assert_skill_structure("health-ingest")
+def test_stale_fact_rewrite_structure():
+    assert_skill_structure("stale-fact-rewrite")

@@ -24,129 +24,25 @@ metadata:
 
 # Task Prioritization
 
-You are loading Dhruva's open tasks from Notion, scoring each by urgency and importance,
-posting a ranked digest to Discord, and writing the canonical priority list to
-`~/brain/projects/tasks.md`.
+## Purpose
+Pull every open task from Notion, enrich with current goal and project context from GBrain, score each task on urgency and importance, post a ranked digest to #tasks, and write the canonical priority record to `~/brain/projects/tasks.md`. The single source of truth for what matters now.
 
-**You are the ONLY skill authorized to write tasks.md.** Do not skip the file write.
+## Context
+- Trigger: scheduled cron (typically morning) or manual invocation
+- Channels: `DISCORD_TASKS_CHANNEL_ID` (#tasks) for the digest — internal, no outbound approval
+- Data sources: Notion Tasks DB (`NOTION_TASKS_DB_ID`) — properties `Name`, `Status`, `Due`, `Priority`; GBrain searches over current projects, active goals, and weekly priorities; `gbrain think` for higher-order context on what matters this week
+- Canonical artifact: `~/brain/projects/tasks.md` — overwritten on every run with the ranked list, scoring notes for top items, and the full unranked task list including Notion page IDs
+- Tunables: check `~/brain/config/content-goals.md` and any related priority/scoring notes for tunables on top-N digest size and scoring calibration; use sensible defaults if missing
+- Scoring shape: each task gets an urgency dimension (driven by due date) and an importance dimension (driven by goal alignment from GBrain context); the combined score determines ranking, with earlier due date as the tiebreaker
 
-## Step 1 — Query Notion for Open Tasks
+## Goal
+A ranked list of all open Notion tasks exists in `~/brain/projects/tasks.md` with a per-task urgency and importance score, the top items have a one-sentence rationale and next action, the digest is posted to #tasks within Discord's size limits, and an overflow pointer is added when the list is long. An empty queue posts a clean "no open tasks" status. Notion is read-only here — no task fields are mutated.
 
-Use `terminal` to run:
-
-```bash
-curl -s -X POST "https://api.notion.com/v1/databases/${NOTION_TASKS_DB_ID}/query" \
-  -H "Authorization: Bearer ${NOTION_API_KEY}" \
-  -H "Notion-Version: 2022-06-28" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "filter": {
-      "property": "Status",
-      "select": {
-        "does_not_equal": "Done"
-      }
-    },
-    "sorts": [
-      {"property": "Due", "direction": "ascending"}
-    ]
-  }'
-```
-
-Parse the JSON response. For each page in `results`, extract:
-- Task name: `properties.Name.title[0].plain_text` (or "Untitled")
-- Status: `properties.Status.select.name`
-- Due date: `properties.Due.date.start` (ISO string, may be null)
-- Priority label: `properties.Priority.select.name` (may be null)
-
-If the curl fails or `results` is empty, proceed to Step 2 — GBrain may still have tasks.
-
-## Step 2 — Enrich with GBrain Context
-
-Use GBrain MCP tools to gather goal and project context:
-
-- Search 1: `gbrain search "current projects active goals"`
-- Search 2: `gbrain search "priorities this week tasks"`
-- Think: `gbrain think "What are Dhruva's top goals right now and which project areas matter most?"`
-
-Use the returned context to calibrate importance scores in Step 3.
-
-## Step 3 — Score Each Task
-
-For every task, reason through two dimensions:
-
-**Urgency (1–10):**
-- 10: due today or overdue
-- 8–9: due within 2 days
-- 6–7: due within 1 week
-- 4–5: due within 2 weeks
-- 2–3: due within a month
-- 1: no due date or far out
-
-**Importance (1–10):**
-- 10: directly tied to a top goal, high consequence if missed
-- 7–9: important project, not the highest-priority goal
-- 4–6: useful but not tied to a core goal
-- 1–3: low-value or unclear connection to goals
-
-**Score = urgency × importance** (max 100)
-
-Rank highest score first. Ties go to the earlier due date.
-
-## Step 4 — Build the Discord Message
-
-```
-✅ **Task Priorities** — [Weekday, D Mon YYYY]
-
-1. [Task Name] · Score: [N]
-   Status: [status] · Due: [due date or "—"] · U:[urgency] × I:[importance]
-   → [One sentence: why this is ranked here, what the next action is]
-
-2. [Task Name] · Score: [N]
-   ...
-
-(continue up to 10 tasks)
-[If more than 10]: _…and [X] more tasks in tasks.md_
-
-_Sources: Notion ([N] tasks) · GBrain context_
-```
-
-If zero tasks: post "✅ **Task Priorities** — No open tasks. Notion DB is clear."
-
-## Step 5 — Post to Discord
-
-Use the `messaging` tool to post to `DISCORD_TASKS_CHANNEL_ID` (#tasks).
-No approval needed — internal briefing.
-Keep the message under 1800 characters for Discord's 2000-character limit. If more than 10 tasks, show the top 10 and add '_…and [X] more in tasks.md_'
-
-## Step 6 — Write ~/brain/projects/tasks.md
-
-Use the `file` tool to write (overwrite) `~/brain/projects/tasks.md`:
-
-```markdown
-# Task Priorities
-
-_Last updated: [ISO timestamp]_
-_Source: Notion Tasks DB + GBrain context_
-
-## Ranked Tasks
-
-| Rank | Task | Score | U | I | Due | Status |
-|------|------|-------|---|---|-----|--------|
-| 1 | [Task Name] | [N] | [U] | [I] | [due] | [status] |
-...
-
-## Scoring Notes
-
-[For each task in top 5: one paragraph explaining urgency score, importance score, and next concrete action.]
-
-## Full Task List (Unranked)
-
-[Bullet list of ALL tasks fetched from Notion, with Notion page IDs for reference.]
-```
-
-This is the canonical task priority record. No other skill writes this file.
-
-## Step 7 — Done
-
-Log: "task-prioritization complete — [N] tasks scored, posted to Discord, written to tasks.md."
-Do NOT modify any Notion pages. Do NOT take action on tasks without explicit approval via `clarify`.
+## Constraints
+- task-prioritization is the ONLY skill authorized to write `~/brain/projects/tasks.md` — never share this write path with any other skill
+- Read-only with respect to Notion — never modify, create, or close tasks
+- Never take action on a task without explicit user approval via `clarify`
+- If Notion query fails or returns nothing, still attempt the GBrain enrichment path and write whatever ranked output is possible
+- Respect Discord's per-message size limit; on overflow, show the top items in chat and point at `tasks.md` for the rest
+- The brain-file write must be a full overwrite of the canonical content (header timestamp, ranked table, scoring notes, full unranked list with Notion IDs) — do not append
+- Any direct `gbrain import` / `embed` invocation must be wrapped in `flock -n ~/.gbrain/gbrain-write.lock` (single-writer rule). If this skill only writes brain files and lets the stale embed cycle pick them up, that's fine — but never call gbrain CLI write commands without the flock.

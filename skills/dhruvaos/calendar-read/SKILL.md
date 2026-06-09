@@ -24,102 +24,21 @@ metadata:
 
 # Calendar Read
 
-You are fetching Dhruva's calendar events for today through the next 7 days and returning
-a clean, human-readable agenda. This skill is composable — morning-briefing may call it
-and embed its output.
+## Purpose
+Produce a clean, human-readable agenda of Dhruva's upcoming Google Calendar events. Composable: either returns the formatted block to a caller (typically morning-briefing) or, when run standalone, posts it to #briefings. Read-only — never modifies calendar state.
 
-## Step 1 — Fetch Calendar Events
+## Context
+- Trigger: standalone `/agenda` style invocation, or sub-call from morning-briefing
+- Channels: when run standalone, post to `DISCORD_BRIEFINGS_CHANNEL_ID` (#briefings); when called by another skill, return the formatted string to the caller
+- Data sources: Google Calendar via `~/.hermes/scripts/google_api_helper.py calendar` (returns JSON array of events; each has `summary`, `start`, `end`, optional `location`)
+- Tunables: check `~/brain/config/timing.md` for the look-ahead window length and timezone; use sensible defaults (Pacific, week-ahead) if missing
+- Output format: agenda grouped by day, headers like "Today" / "Tomorrow" / weekday, events sorted by start time, all-day events labeled, location included when present
 
-Use the `terminal` tool to run:
+## Goal
+The agent returns (or posts) an agenda string covering the configured look-ahead window starting from now. Events are grouped by date in Pacific time, sorted by start within each day, and days with no events are omitted. An empty window yields a single "no events" line. If the calendar fetch fails, the agent returns a clear failure message rather than fake data.
 
-```bash
-source ~/.hermes/hermes-agent/venv/bin/activate && \
-  python3 ~/.hermes/scripts/google_api_helper.py calendar 2>&1
-```
-
-This returns a JSON array of events. Each item has: `summary`, `start`, `end`, `location` (may be absent).
-
-If the command fails, return: "📅 Calendar fetch failed — check Google credentials."
-
-## Step 2 — Parse and Group by Date
-
-From the JSON array:
-
-1. Filter to events whose start date is today or within the next 7 days (inclusive).
-2. Group events by date (YYYY-MM-DD).
-3. Within each date group, sort by start time ascending.
-
-Use `code_execution` to parse:
-
-```python
-import json
-from datetime import datetime, timedelta
-import pytz
-
-raw = """<PASTE TERMINAL OUTPUT HERE>"""
-tz = pytz.timezone("America/Los_Angeles")
-now = datetime.now(tz)
-cutoff = now + timedelta(days=7)
-
-try:
-    events = json.loads(raw)
-except:
-    events = []
-
-grouped = {}
-for ev in events:
-    start_raw = ev.get("start", {}) if isinstance(ev.get("start"), dict) else {}
-    start_str = ev.get("start", "") if isinstance(ev.get("start"), str) else start_raw.get("dateTime") or start_raw.get("date", "")
-    if not start_str:
-        continue
-    try:
-        if "T" in start_str:
-            dt = datetime.fromisoformat(start_str).astimezone(tz)
-        else:
-            dt = tz.localize(datetime.fromisoformat(start_str + "T00:00:00"))
-        if now <= dt < cutoff:
-            day = dt.strftime("%Y-%m-%d")
-            grouped.setdefault(day, []).append({
-                "summary": ev.get("summary", "(no title)"),
-                "time": dt.strftime("%-I:%M %p") if "T" in start_str else "All day",
-                "sort_time": dt.strftime("%H:%M"),
-                "location": ev.get("location", ""),
-            })
-    except:
-        pass
-
-for day in sorted(grouped):
-    grouped[day].sort(key=lambda e: e.get("sort_time", "00:00"))
-
-print(json.dumps(grouped, indent=2))
-```
-
-## Step 3 — Format the Agenda Block
-
-Produce output in this format:
-
-```
-📅 **Agenda — [Today's Date, e.g. Wednesday, 4 Jun 2026]**
-
-**Today**
-• [HH:MM AM/PM] — [Event Title]
-  📍 [Location]   ← omit if no location
-
-**Tomorrow · [Weekday D Mon]**
-• [HH:MM AM/PM] — [Event Title]
-
-**[Weekday D Mon]**
-• ...
-```
-
-All-day events: show as `• All day — [Event Title]`.
-Omit date sections with no events.
-If the entire 7-day window has no events, return: "📅 No events scheduled for the next 7 days."
-
-## Step 4 — Return the Formatted Agenda
-
-Return the formatted agenda string as your output.
-If called from another skill (morning-briefing), the caller embeds this in its message.
-If called standalone, post it to Discord `DISCORD_BRIEFINGS_CHANNEL_ID` (#briefings).
-
-This skill is READ-ONLY. Do not modify any calendar events.
+## Constraints
+- Read-only — never create, modify, or delete calendar events
+- Calendar fetch failure must be reported plainly (do not fabricate events)
+- All-day events render distinctly from timed events
+- When embedded in morning-briefing, return the block as-is for the caller to splice — do not post separately
