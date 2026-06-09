@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
 
 const ELEVEN_VOICE_ID = process.env.ELEVENLABS_VOICE_ID ?? '21m00Tcm4TlvDq8ikWAM';
 
 export async function POST(request: NextRequest) {
+  const unauthorized = requireAuth(request);
+  if (unauthorized) return unauthorized;
+
   let body: { text: string };
   try {
     body = await request.json();

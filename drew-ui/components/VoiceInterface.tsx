@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Drew from './Drew';
 
+const API_TIMEOUT_MS = 30_000;
+
 type VoiceState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 export interface ConversationTurn {
@@ -32,21 +34,13 @@ export default function VoiceInterface({ history, onHistoryChange }: VoiceInterf
     audioRef.current = new Audio();
     return () => {
       audioRef.current?.pause();
+      streamRef.current?.getTracks().forEach((t) => t.stop());
       if (activeBlobUrlRef.current) {
         URL.revokeObjectURL(activeBlobUrlRef.current);
         activeBlobUrlRef.current = null;
       }
     };
   }, []);
-
-  const addTurn = useCallback(
-    (role: 'user' | 'assistant', content: string) => {
-      const turn: ConversationTurn = { role, content, timestamp: Date.now() };
-      onHistoryChange([...history, turn]);
-      return turn;
-    },
-    [history, onHistoryChange]
-  );
 
   const handleRecordingStop = useCallback(async () => {
     const stream = streamRef.current;
@@ -61,7 +55,7 @@ export default function VoiceInterface({ history, onHistoryChange }: VoiceInterf
     try {
       const fd = new FormData();
       fd.append('file', audioBlob, 'audio.webm');
-      const res = await fetch('/api/voice/transcribe', { method: 'POST', body: fd });
+      const res = await fetch('/api/voice/transcribe', { method: 'POST', body: fd, signal: AbortSignal.timeout(API_TIMEOUT_MS) });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));
         throw new Error(err.error ?? res.statusText);
@@ -96,6 +90,7 @@ export default function VoiceInterface({ history, onHistoryChange }: VoiceInterf
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ message: userText, history: apiHistory.slice(0, -1) }),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -129,6 +124,7 @@ export default function VoiceInterface({ history, onHistoryChange }: VoiceInterf
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ text: responseText }),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));

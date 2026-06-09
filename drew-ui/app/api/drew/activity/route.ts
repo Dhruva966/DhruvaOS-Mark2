@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import os from 'os';
+import { requireAuth } from '@/lib/auth';
 
 const execAsync = promisify(exec);
 
@@ -20,7 +21,10 @@ const OMEN_PATH = [
 
 const LOG_PATH = `${os.homedir()}/.hermes/logs/gateway.log`;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const unauthorized = requireAuth(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const { stdout } = await execAsync(`tail -n 80 "${LOG_PATH}"`, {
       env: { ...process.env, PATH: OMEN_PATH },

@@ -68,29 +68,28 @@ export default function DrewDashboard() {
 
   // Fetch all panel data
   const fetchAll = useCallback(async () => {
+    const jsonOrThrow = async (r: Response) => {
+      if (!r.ok) throw new Error(`${r.status}`);
+      return r.json();
+    };
     const [s, c, m, a] = await Promise.allSettled([
-      fetch('/api/drew/status').then((r) => r.json()),
-      fetch('/api/drew/crons').then((r) => r.json()),
-      fetch('/api/drew/memory').then((r) => r.json()),
-      fetch('/api/drew/activity').then((r) => r.json()),
+      fetch('/api/drew/status').then(jsonOrThrow),
+      fetch('/api/drew/crons').then(jsonOrThrow),
+      fetch('/api/drew/memory').then(jsonOrThrow),
+      fetch('/api/drew/activity').then(jsonOrThrow),
     ]);
 
-    if (s.status === 'fulfilled') {
-      setStatus(s.value as StatusData);
-      setStatusLoading(false);
-    }
-    if (c.status === 'fulfilled') {
-      setCrons(c.value as CronsData);
-      setCronsLoading(false);
-    }
-    if (m.status === 'fulfilled') {
-      setMemory(m.value as MemoryData);
-      setMemoryLoading(false);
-    }
-    if (a.status === 'fulfilled') {
-      setActivity(a.value as ActivityData);
-      setActivityLoading(false);
-    }
+    setStatusLoading(false);
+    if (s.status === 'fulfilled') setStatus(s.value as StatusData);
+
+    setCronsLoading(false);
+    if (c.status === 'fulfilled') setCrons(c.value as CronsData);
+
+    setMemoryLoading(false);
+    if (m.status === 'fulfilled') setMemory(m.value as MemoryData);
+
+    setActivityLoading(false);
+    if (a.status === 'fulfilled') setActivity(a.value as ActivityData);
   }, []);
 
   useEffect(() => {

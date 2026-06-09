@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { requireAuth } from '@/lib/auth';
 
 const execAsync = promisify(exec);
 
@@ -25,7 +26,10 @@ export interface CronJob {
   status: 'active' | 'disabled' | 'unknown';
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const unauthorized = requireAuth(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const { stdout } = await execAsync('hermes cron list --json', {
       env: { ...process.env, PATH: OMEN_PATH },
