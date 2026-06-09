@@ -24,152 +24,28 @@ metadata:
 
 # Research Synthesis
 
-Triggered by `/research <topic>` in Discord #research.
-Example: `/research transformer attention mechanisms` or `/research UCLA CS transfer requirements 2026`
+## Purpose
+On demand, deep-dive a topic by reconciling what's already in the brain with what's current on the web, then write a durable synthesis back into the brain so the next question on the topic starts from a stronger base. Brain-first by design — GBrain is consulted before any external search.
 
-Brain-first: always check GBrain before going to the web.
-Uses Exa for current sources + content extraction (no AgentQL needed — Exa returns full page text natively).
+## Context
+- Trigger: `/research <topic>` posted in Discord #research.
+- Channels: `DISCORD_RESEARCH_CHANNEL_ID` (#research) for the condensed summary.
+- Data sources: GBrain semantic search (existing brain coverage); Exa `web` tool for current sources and full-text content extraction.
+- Tunables: Check `~/brain/config/content-goals.md` for topic priors and depth expectations; check `~/brain/config/content-guidelines.md` for synthesis tone and structure; use sensible defaults if missing.
+- Tools: GBrain MCP, Exa `web`, `file` write, Discord `messaging`, `gbrain import` + `gbrain embed --stale` via flock.
 
-## Step 0 — Extract Topic
+## Goal
+A synthesis note exists at `~/brain/resources/research-<slug>-<date>.md` covering what was already known, current key findings, a deep-dive paragraph, open questions, and sources. GBrain has ingested the new note, and a condensed summary is posted to #research.
 
-Parse everything after `/research` as the topic string.
-If empty: post to #research: "Usage: /research <topic to research>"
+## Constraints
+- Sanitize topic to filename-safe slug (alphanumeric + hyphens only). Verify output path stays within `~/brain/resources/` before writing — never write outside the resources directory.
+- Brain-first: consult GBrain before any web call. If GBrain has solid coverage, use it as the foundation and only supplement with web sources for freshness.
+- Internal research note — no outbound approval gate.
+- All GBrain writes go through `flock -n ~/.gbrain/gbrain-write.lock`; if busy, the markdown file is the durable record and the next stale-embed cycle indexes it. Note this in the Discord summary.
+- Discord summary stays within Discord's per-message limit; the full note lives in the file, not in chat.
+- Synthesis prioritizes insight over raw summarization; cite sources inline.
 
-Normalize the topic to a filesystem-safe slug before writing any file:
-
-```python
-import re
-from pathlib import Path
-
-topic = "<topic from command>"
-slug = re.sub(r"[^a-z0-9]+", "-", topic.lower()).strip("-")[:80] or "research"
-target_dir = Path("~/brain/resources").expanduser().resolve()
-target = (target_dir / f"research-{slug}-YYYY-MM-DD.md").resolve()
-if not str(target).startswith(str(target_dir) + "/"):
-    raise ValueError("Unsafe research output path")
-```
-
-Example: "Transformer attention mechanisms!" → "transformer-attention-mechanisms".
-
-## Step 1 — Search GBrain First
-
-Use GBrain MCP tools to check existing knowledge:
-
-- `gbrain search "[topic]"` — semantic search
-- `gbrain search "[topic] notes resources references"` — find related resources
-
-Review the top results:
-- **High confidence (>0.8)** — GBrain has solid coverage. Use as foundation, supplement with 2-3 web sources for freshness.
-- **Partial coverage** — use GBrain results as context, do full web search for gaps.
-- **No results or low confidence** — full web search needed.
-
-## Step 2 — Exa Search
-
-Use the `web` tool (Exa) to search for current sources.
-
-Run 2 searches:
-1. Main topic: `[topic]`
-2. Recent angle: `[topic] 2025 2026` (for freshness)
-
-Request up to 10 results per search. Exa returns: title, URL, published date, snippet.
-
-Deduplicate by URL. Keep top 8 unique results by relevance + recency.
-
-## Step 3 — Exa Content Extraction
-
-For the top 5 URLs from Step 2, use the `web` tool to fetch full content.
-Exa's `contents` parameter returns the article text (no raw HTML — clean text only).
-
-For each URL, extract:
-- Title
-- Author (if present)
-- Published date
-- Key content (full text, trimmed to **1500 chars per article**)
-
-**Context cap:** total content fed into Step 4 must not exceed 8000 chars. If 5 articles × 1500 = 7500 chars + GBrain context + synthesis prompt would overflow, drop the lowest-ranked articles first.
-
-If Exa content fetch fails for a URL, use the snippet from Step 2 as fallback.
-
-## Step 4 — Synthesize with Sonnet (Tier 2 Reasoning)
-
-Using your reasoning, synthesize all gathered data (GBrain context + web content) into a research note.
-
-**Structure:**
-```
-## [Topic] — Research Note
-*Synthesized [today's date] by Drew*
-
-### What's Known (from GBrain)
-[Summary of what was already in the brain. If nothing: "No prior coverage in brain."]
-
-### Key Findings (from web)
-[3-5 bullet points of the most important new information. Prioritize recent and authoritative sources.]
-
-### Deep Dive
-[1-3 paragraphs of synthesized understanding. Connect GBrain knowledge with web findings. Note contradictions or evolving understanding.]
-
-### Open Questions
-[What wasn't answered? What needs more research?]
-
-### Sources
-- [Title] — [URL] ([date if available])
-- ...
-```
-
-Keep total synthesis under 1500 words. Prioritize insight over raw summarization.
-
-## Step 5 — Write to Brain
-
-Use the `file` tool to write the synthesis to:
-```
-~/brain/resources/research-[topic-slug]-[YYYY-MM-DD].md
-```
-
-Create directory if needed:
-```bash
-mkdir -p ~/brain/resources/
-```
-
-## Step 6 — Ingest into GBrain (BEFORE Discord post — ingest is durable, Discord is notification)
-
-Signal GBrain to index the new research note immediately after file write:
-
-```bash
-GBRAIN_BIN="$(command -v gbrain || echo /home/dhruva/.bun/bin/gbrain)"
-flock -n ~/.gbrain/gbrain-write.lock sh -lc "$GBRAIN_BIN import ~/brain/resources/research-[slug]-[date].md 2>&1 && $GBRAIN_BIN embed --stale 2>&1"
-```
-
-If the lock is busy, skip immediate ingest and note "GBrain ingest queued for stale embed"
-in the Discord summary. Do not wait on an active dream/import cycle.
-
-Future searches for this topic will now find this synthesis.
-
-## Step 7 — Post Discord Summary
-
-Use the `messaging` tool to post a condensed summary to `DISCORD_RESEARCH_CHANNEL_ID` (#research).
-Keep under 1800 characters. Structure:
-
-```
-🔬 **Research: [Topic]** — [today's date]
-
-**Key findings:**
-- [finding 1]
-- [finding 2]
-- [finding 3]
-
-**GBrain coverage:** [Good/Partial/None]
-**Sources:** [N] web + [M] brain references
-**Full note:** ~/brain/resources/research-[slug]-[date].md
-```
-
-No approval needed — internal research summary.
-
-## Error Handling
-
-| Failure | Action |
-|---------|--------|
-| Exa search fails | Use GBrain only. Note "web search unavailable" in synthesis. |
-| GBrain has no results | Skip brain section. Full web research. |
-| Brain file write fails | Post Discord summary anyway. Log error. |
-| GBrain ingest fails | File write is the durable record. Continue. |
-| All sources fail | Post to #research: "Research failed — no sources reachable. Try again." |
+## Notes
+- Tier 2 (Sonnet) reasoning powers the synthesis itself.
+- Empty `/research` invocations get a usage hint in #research, no file write.
+- Total context fed to the synthesis step should be bounded; trim or drop the lowest-ranked sources first when over budget.

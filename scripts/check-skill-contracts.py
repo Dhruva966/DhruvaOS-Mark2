@@ -71,24 +71,51 @@ def check_skill(path: Path, failures: list[str]) -> None:
     if re.search(r"150703\d+", text):
         fail(failures, path, "hard-coded Discord channel ID; use DISCORD_*_CHANNEL_ID")
 
-    if re.search(r"\b(?:gbrain|\$GBRAIN_BIN) (import|embed|dream|apply-migrations|upgrade)\b", text):
-        if "flock -n ~/.gbrain/gbrain-write.lock" not in text:
-            fail(failures, path, "GBrain write command is missing shared flock lock")
+    lower = text.lower()
 
+    # Any skill whose frontmatter declares writes to GBrain must mention the
+    # single-writer / flock contract somewhere in its body or constraints.
+    declares_gbrain_writes = "writes:" in text and bool(
+        re.search(r"writes:\s*\[[^\]]*[a-zA-Z]", text)
+    )
+    if declares_gbrain_writes:
+        mentions_lock = any(
+            needle in lower
+            for needle in ("flock", "single-writer", "single writer", "write lock", "gbrain-write.lock")
+        )
+        if not mentions_lock:
+            fail(failures, path, "skill declares GBrain writes but missing flock / single-writer contract reference")
+
+    # Conceptual constraint checks — skills now describe rules in prose, not specific
+    # implementations. Verify the IDEA survives, not the wording.
     if name == "add-task":
-        for needle in ("TASK_PAYLOAD_B64", "base64.b64decode", "Do **not** substitute raw task text"):
-            if needle not in text:
-                fail(failures, path, f"add-task missing JSON injection guard `{needle}`")
+        # Must mention JSON-encoding user input to prevent injection.
+        mentions_json_encode = ("json" in lower) and (
+            "inject" in lower or "interpolat" in lower or "encode" in lower
+        )
+        if not mentions_json_encode:
+            fail(failures, path, "add-task missing JSON-encoded-input / injection-prevention guard")
 
     if name == "research-synthesis":
-        for needle in ('re.sub(r"[^a-z0-9]+"', "Path(\"~/brain/resources\").expanduser().resolve()", "Unsafe research output path"):
-            if needle not in text:
-                fail(failures, path, f"research-synthesis missing safe slug/path guard `{needle}`")
+        # Must mention slug sanitization AND keeping output inside ~/brain/resources/.
+        mentions_slug = ("slug" in lower) or ("sanitiz" in lower)
+        mentions_resources_path = "brain/resources" in text
+        if not (mentions_slug and mentions_resources_path):
+            fail(failures, path, "research-synthesis missing slug-sanitize / ~/brain/resources/ path guard")
 
     if name == "correction-handler":
-        for needle in ("Immutable policy filter", "outbound approval gates", "Tier 2+ model routing"):
-            if needle not in text:
-                fail(failures, path, f"correction-handler missing immutable policy guard `{needle}`")
+        # Must mention an immutable / policy filter AND that it protects approval gates.
+        mentions_policy = ("immutable" in lower) or ("policy filter" in lower) or ("safety policy" in lower)
+        mentions_approval = "approval" in lower
+        if not (mentions_policy and mentions_approval):
+            fail(failures, path, "correction-handler missing immutable policy filter / approval-gate guard")
+
+    if name == "connection-detector":
+        # Must mention the 20-minute stale-fact-rewrite guard and Discord silence.
+        mentions_guard = "stale-fact-rewrite" in lower or "stale_fact_rewrite" in lower
+        mentions_silent = "silent" in lower or "no discord" in lower
+        if not (mentions_guard and mentions_silent):
+            fail(failures, path, "connection-detector missing stale-fact-rewrite guard / silence contract")
 
 
 def check_legacy_drift(path: Path, failures: list[str]) -> None:

@@ -144,12 +144,26 @@ Schema migrations are handled automatically by `gbrain upgrade` + `gbrain apply-
    deployment, or task that may hit token/credit limits, run context-save and write a HANDOFF.md
    checkpoint. Mid-task loss ≠ clean stopping point.
 
-5. **Models/APIs: search before using. Never trust training data for current model names, versions,
-   or pricing.** AI training data is stale. Before referencing any model (Gemini, Claude, GPT, etc.),
-   package version, or external API in config or code: fetch the official docs page directly
-   (ai.google.dev, docs.anthropic.com, etc.) and confirm the model ID exists and is not deprecated.
-   Gemini 2.0 models shut down June 1, 2026. Any model released or deprecated after August 2025
-   requires a live lookup — no exceptions.
+5. **Models/APIs: search before using. Never trust training data for current model names.**
+   AI training data is stale. Before writing ANY model ID into config, code, `.env`, or docs:
+   fetch the official docs page directly and confirm it exists and is not deprecated.
+
+   **Required lookup URLs:**
+   - Gemini → https://ai.google.dev/gemini-api/docs/models (or `hermes model list --provider google`)
+   - Claude → https://docs.anthropic.com/en/docs/about-claude/models
+   - GPT → https://platform.openai.com/docs/models
+
+   **Known deprecations that have already broken production:**
+   - `gemini-2.0-flash-lite` — SHUT DOWN June 1, 2026. Caused repeated cron failures.
+   - `gemini-2.0-*` (all variants) — SHUT DOWN June 1, 2026.
+   - Do NOT use any `gemini-2.0-*` model ID. Ever. Use `gemini-3.1-flash-lite` (current as of June 2026) or look up the latest.
+
+   **Current verified defaults (June 2026):**
+   - Tier 0 fallback / default: `gemini-3.1-flash-lite` via `provider: google`
+   - Tier 2: `claude-sonnet-4-6` via `provider: anthropic`
+   - Tier 3: `claude-opus-4-8` via `provider: anthropic`
+
+   **Rule: if you are about to write a model name and you cannot confirm it in the live docs THIS SESSION, do not write it. Look it up first.**
 
 ## Testing Standard
 

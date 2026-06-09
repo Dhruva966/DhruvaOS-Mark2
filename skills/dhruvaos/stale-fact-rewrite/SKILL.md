@@ -19,85 +19,33 @@ metadata:
 
 # Stale-Fact-Rewrite
 
-You are Drew running a nightly GBrain maintenance pass. This skill detects active facts
-that have become stale (outdated or contradicted by recent context) and rewrites them.
+## Purpose
+Nightly internal maintenance pass that detects active GBrain facts which have become outdated
+or contradicted by recent context, and rewrites them. Keeps the brain's "current truth" surface
+clean without human review.
 
-This is internal maintenance only. No outbound messages. No approval gate.
+## Context
+- Trigger: cron at 03:30 daily (`--no-agent --script stale-fact-rewrite.py`), or manual invocation by Drew
+- Channels: `#logs` (rewrite summary), `#alerts` (errors only); silent on a clean run
+- Data sources: GBrain active facts, `~/.gbrain/stale-fact-rewrites.jsonl` for audit trail
+- Tunables: runtime cap, per-fact timeout, and batch size in `~/brain/config/timing.md`
+- Tools: `~/.hermes/scripts/stale-fact-rewrite.py` (supports `--dry-run`), Ollama (phi4-mini), `gbrain forget_fact` + `gbrain extract_facts`, messaging
 
-Automated path: Hermes cron runs this at 3:30am via `--no-agent --script stale-fact-rewrite.py`.
-Manual path: Drew runs it on request by following the steps below.
+## Goal
+Stale facts identified and superseded with current versions in GBrain; the audit log reflects
+the rewrites; Discord stays quiet unless something material happened (rewrites occurred) or an
+error needs Dhruva's attention.
 
----
-
-## Step 1 — Run the core script
-
-```bash
-export PATH=/home/dhruva/.bun/bin:/home/dhruva/.hermes/bin:/home/dhruva/.local/bin:$PATH
-python3 ~/.hermes/scripts/stale-fact-rewrite.py 2>&1
-```
-
-Wait for completion. Capture all output (stdout + stderr).
-
-For a dry-run (no writes, preview only):
-```bash
-python3 ~/.hermes/scripts/stale-fact-rewrite.py --dry-run 2>&1
-```
-
----
-
-## Step 2 — Parse results
-
-From the output, extract:
-- Total facts checked (line: `N active fact(s) to check`)
-- Number of STALE facts found (lines starting with `STALE #`)
-- Number of rewrites (from summary line `🧠 Stale-fact-rewrite: N rewrite(s)`)
-- Number of errors
-
----
-
-## Step 3 — Report to Discord
-
-**If 0 rewrites and 0 errors**: stay silent. Do NOT post anything to Discord.
-
-**If any rewrites occurred**: post a brief summary to #logs:
-
-```
-🧠 Stale-fact-rewrite: {N} rewrite(s)
-{list each: old fact → new fact, one per line, max 5 shown}
-```
-
-**If errors occurred**: post to #alerts:
-
-```
-⚠️ stale-fact-rewrite: {N} error(s) — check ~/.gbrain/stale-fact-rewrites.jsonl
-```
-
----
+## Constraints
+- Never set `is_dream_generated=true` on `extract_facts` — that flag skips extraction, defeating the rewrite.
+- All updates flow through `gbrain forget_fact` + `gbrain extract_facts`. Never write directly to `~/.gbrain/brain.pglite/`.
+- Always acquire `flock` on `~/.gbrain/gbrain-write.lock` before any write — single-writer rule.
+- If the lock is busy, exit cleanly and wait for the next nightly run. Do not retry.
+- Silent exit when 0 rewrites and 0 errors. No noise on healthy nights.
+- API keys come from `~/.hermes/.env`. Do not inline credentials.
+- This skill is internal: no outbound messages, no approval gate.
 
 ## Notes
-
-- Script location: `~/.hermes/scripts/stale-fact-rewrite.py`
-- Log file: `~/.gbrain/stale-fact-rewrites.jsonl`
-- Max facts per run: 50 (by design — keeps runtime under 5 minutes)
-- Model: phi4-mini via Ollama (local, free, ~90s timeout per fact)
-- API key: sourced automatically from `~/.hermes/.env`
-- Never writes directly to `~/.gbrain/brain.pglite/`
-- Uses `gbrain call forget_fact` + `gbrain call extract_facts` for all updates
-
-## Error Handling
-
-| Failure | Action |
-|---------|--------|
-| Script not found | Post error to #alerts, stop |
-| phi4-mini (Ollama) offline | Script logs error; 0 rewrites → silent exit |
-| gbrain-write.lock busy | Script exits non-zero; log, do not retry until next nightly run |
-| 0 rewrites, 0 errors | Silent exit — no Discord post |
-| Errors in rewrite script | Post count to #alerts |
-
-## Done Condition
-
-Skill is complete when:
-1. `stale-fact-rewrite.py` has run to completion (or failed with logged output)
-2. If 0 rewrites and 0 errors: silent exit
-3. If rewrites: summary posted to #logs (or whichever log channel is active)
-4. If errors: error count posted to #alerts
+- Capture both stdout and stderr from the script for the audit log.
+- When posting to `#logs`, summarize old→new per fact; cap the visible list to keep the message readable.
+- Errors go to `#alerts` with a pointer to `~/.gbrain/stale-fact-rewrites.jsonl`.

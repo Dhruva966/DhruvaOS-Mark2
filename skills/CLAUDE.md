@@ -6,6 +6,87 @@ Purpose: Starting skill definitions for DhruvaOS. Deployed to `~/.hermes/skills/
 
 ---
 
+## Intelligence-Guided Skill Format (June 2026 rewrite)
+
+Skills are **goal + context + constraints — NOT scripts.** The agent decides HOW.
+Hardcoding steps, code blocks, or thresholds in a skill body removes the intelligence
+layer that makes Drew useful. If a number could change as Dhruva's life changes, it
+lives in `~/brain/config/*.md`, not in the skill.
+
+### Required structure
+
+```
+---
+[frontmatter — name + description required; tier/outbound/requires_approval are DhruvaOS conventions]
+---
+
+# Skill Name
+
+## Purpose
+2–3 sentences. What this achieves, when it runs, why it exists. NO steps.
+
+## Context
+- Trigger: how invoked (cron, /command, sub-skill call)
+- Channels: env var → channel name mapping
+- Data sources: APIs, brain paths, helper scripts
+- Tunables: "Check `~/brain/config/<file>.md` for current values; sensible defaults if missing."
+- Tools: non-obvious available tools
+
+## Goal
+Plain English done condition. What success looks like. Artifacts produced.
+
+## Constraints
+- Security / approval rules
+- Data integrity (GBrain single-writer / `flock`, canonical writers)
+- Quality rules (tier requirements, outbound approval)
+- Safety rules (no email reply, no external sends without approval)
+
+## Notes  [optional, only for non-obvious gotchas]
+```
+
+### Removed (now forbidden)
+
+- ❌ `## Step N` numbered procedures — agent decides ordering
+- ❌ Embedded ` ```python ` or ` ```bash ` code blocks — agent writes its own
+- ❌ Hardcoded thresholds ($2.00, 30 days, 750 words, etc.) — config file
+- ❌ Rigid `| Failure | Action |` error tables — agent uses judgment
+- ❌ Explicit tool-call sequences — agent composes from context
+- ❌ Keyword classification lists (ACTION_KEYWORDS, NEWSLETTER_KEYWORDS) — agent classifies
+
+### Kept (essential infrastructure)
+
+- ✅ API field names and schemas (agent can't guess Notion property names)
+- ✅ System paths and env var names
+- ✅ Security constraints (approval gates, flock contract, tier requirements)
+- ✅ Non-obvious gotchas as `## Notes` bullets
+
+### Config externalization
+
+Tunables live in `~/brain/config/`. See `~/brain/config/README.md` for the index:
+
+| File | Tunes |
+|------|-------|
+| `cost-thresholds.md` | API spend alert triggers |
+| `timing.md` | Look-ahead / look-back windows |
+| `content-goals.md` | Posting frequency targets |
+| `relationship-windows.md` | Contact frequency thresholds |
+| `content-guidelines.md` | Voice, tone, format for outbound writing |
+
+A skill MUST tolerate config being missing (use sensible default + note fallback). A skill
+MUST NEVER hardcode a value that belongs in config.
+
+### Contract enforcement
+
+- `scripts/check-skill-contracts.py` — static rules (no Step headings, no code blocks, security
+  constraints present, GBrain flock contract mentioned when writes declared)
+- `skills/dhruvaos/*/tests/test_<skill>_contract.py` — structural pytest (delegates to
+  `conftest.py::assert_skill_structure`). Verifies frontmatter + four canonical sections + no
+  forbidden patterns. Does NOT assert on specific wording.
+
+Both run on every commit and in `scripts/health-check.sh`.
+
+---
+
 ## Hermes Skill Format (verified June 2026)
 
 Hermes uses **SKILL.md markdown files** with YAML frontmatter. The old `.yaml` extension stubs

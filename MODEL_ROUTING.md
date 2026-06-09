@@ -11,7 +11,15 @@
 | 3 | claude-opus-4-8 | Anthropic | $15 | $75 | Orchestration, architecture decisions, high-stakes planning |
 | Gemini fallback | gemini-3.1-flash-lite | Google (GOOGLE_API_KEY) | $0.25 | $1.50 | **TEMPORARY default when Anthropic credits depleted.** Use `provider: google`. Verify current model ID at ai.google.dev before configuring — Gemini models deprecate frequently. Gemini 2.0 shut down June 1, 2026. |
 
-> **⚠️ Model name rule:** Never set a Gemini model name from memory. Fetch https://ai.google.dev/gemini-api/docs/models and confirm the ID exists before writing it to config.yaml.
+> **🚨 MODEL NAME RULE — enforced, no exceptions:**
+> Before writing ANY model ID into config, .env, code, or docs — look it up live.
+> - Gemini: https://ai.google.dev/gemini-api/docs/models (or `hermes model list --provider google`)
+> - Claude: https://docs.anthropic.com/en/docs/about-claude/models
+> - GPT: https://platform.openai.com/docs/models
+>
+> **Never use `gemini-2.0-*` — all variants shut down June 1, 2026. Broke production crons.**
+> Current verified Gemini fallback (June 2026): `gemini-3.1-flash-lite`
+> If you cannot verify the model ID in this session, do not write it. Look it up first.
 
 ---
 

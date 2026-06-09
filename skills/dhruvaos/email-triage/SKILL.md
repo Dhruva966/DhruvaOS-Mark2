@@ -24,122 +24,26 @@ metadata:
 
 # Email Triage
 
-You are reading Dhruva's Gmail inbox, classifying emails, and surfacing action items to Discord.
-You NEVER reply to emails. You NEVER draft emails. You NEVER send anything externally.
+## Purpose
+Read Dhruva's recent unread Gmail, classify each message, surface action items, and auto-archive low-signal mail. Posts a concise digest to #tasks so Dhruva sees what actually needs his attention without opening the inbox. Strictly read-and-classify — never drafts, replies, or sends.
 
-## Step 1 — Fetch Emails
+## Context
+- Trigger: scheduled cron (or manual invocation)
+- Channels: `DISCORD_TASKS_CHANNEL_ID` (#tasks) for the digest — internal channel, no outbound approval needed
+- Data sources: Gmail via `~/.hermes/scripts/google_api_helper.py gmail` (returns JSON list of recent unread messages with `id`, `subject`, `from`, `date`, `snippet`); GBrain `people/*` for sender enrichment (optional)
+- Tunables: check `~/brain/config/timing.md` for the unread look-back window (e.g., 48h) and digest size caps; use sensible defaults if missing
+- Classification categories the agent should reason about: action required (Dhruva must do something), FYI (informational), newsletter/marketing, spam — but the agent decides the call per message from subject, sender, snippet
 
-Use the `terminal` tool to run:
+## Goal
+Recent unread mail is fetched, each message classified, action items extracted with a short imperative summary and any stated deadline, and a single digest is posted to #tasks listing top action items plus counts for FYI and auto-archived buckets. All non-action mail (FYI, newsletter, spam) is marked as read in Gmail on a best-effort basis. Action-required messages remain unread. If the fetch fails or there is no unread mail, a single clear status line is posted.
 
-```bash
-source ~/.hermes/hermes-agent/venv/bin/activate && \
-  python3 ~/.hermes/scripts/google_api_helper.py gmail 2>&1
-```
-
-This returns a JSON array of up to 20 unread emails. Each item has: `id`, `subject`, `from`, `date`, `snippet`.
-
-If the command fails or returns an empty array, post to Discord: "📬 **Email Triage** — No unread emails or fetch failed. Check Google credentials." and stop.
-
-## Step 2 — Classify Each Email
-
-For each email, reason through the classification using only the subject, sender, and snippet:
-
-- **ACTION_REQUIRED** — Dhruva must do something (reply, fill a form, make a decision, attend something, pay, sign)
-- **FYI** — Informational, no action needed (receipts, confirmations, status updates worth knowing)
-- **NEWSLETTER** — Marketing, subscriptions, mailing lists, promotional content
-- **SPAM** — Unsolicited, irrelevant, or suspicious
-
-For every ACTION_REQUIRED email also extract:
-- What action is needed (one sentence, imperative)
-- Deadline if mentioned (or "No deadline stated")
-
-Data minimization: Discord is internal but still hosted by a third party. Do not post full
-email bodies or long snippets. Redact unnecessary personal details and include only the sender
-label, subject, action, and deadline needed for Dhruva to decide what to do.
-
-## Step 3 — Build the Digest
-
-Construct a Discord message with this structure:
-
-```
-📬 **Email Triage** — [N] action items · [M] FYI · [K] auto-archived
-
-**Action Required**
-1. From: [sender name] | [subject]
-   → [what action is needed] | Due: [deadline or "—"]
-2. ...
-(show up to 5; if more than 5, say "…and [X] more — check inbox")
-
-**FYI** (marked as read)
-**Auto-archived** — newsletters and spam marked as read
-```
-
-If there are zero ACTION_REQUIRED items:
-```
-📬 **Email Triage** — Inbox clear. 0 action items · [M] FYI · [K] auto-archived
-```
-
-## Step 4 — Post to Discord
-
-Use the `messaging` tool to post the formatted digest to `DISCORD_TASKS_CHANNEL_ID` (#tasks).
-No approval needed — this is an internal briefing.
-Keep the message under 1800 characters to stay within Discord's 2000-character limit. If the digest would be longer, truncate the ACTION_REQUIRED list to the top 3 and append '…(full list in Gmail inbox)'
-
-## Step 5 — Mark FYI / NEWSLETTER / SPAM as Read
-
-Collect the `id` values for all non-ACTION_REQUIRED emails, then use `terminal` to run:
-
-```bash
-source ~/.hermes/hermes-agent/venv/bin/activate
-python3 - <<'PYEOF'
-import os, sys, json
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-
-creds = Credentials(
-    token=None,
-    refresh_token=os.environ["GMAIL_REFRESH_TOKEN"],
-    token_uri="https://oauth2.googleapis.com/token",
-    client_id=os.environ["GMAIL_CLIENT_ID"],
-    client_secret=os.environ["GMAIL_CLIENT_SECRET"],
-    scopes=["https://www.googleapis.com/auth/gmail.modify"],
-)
-service = build("gmail", "v1", credentials=creds)
-
-# Replace with actual IDs from Step 2 (strings, comma-separated in list)
-ids_to_mark_read = []  # AGENT: populate with actual IDs
-
-for msg_id in ids_to_mark_read:
-    try:
-        service.users().messages().modify(
-            userId="me", id=msg_id, body={"removeLabelIds": ["UNREAD"]}
-        ).execute()
-        print(f"Marked read: {msg_id}")
-    except Exception as e:
-        print(f"Failed to mark {msg_id}: {e}")
-print("Done.")
-PYEOF
-```
-
-Populate `ids_to_mark_read` with the actual IDs from Step 2. Do NOT include ACTION_REQUIRED email IDs.
-
-## Step 6 — Done
-
-Log completion. Do not take any further action. Do not reply to any email.
-If any step fails, note the error in the Discord post rather than silently dropping it.
-
-## Error Handling
-
-| Failure | Action |
-|---------|--------|
-| Gmail fetch fails or returns empty | Post "📬 **Email Triage** — No unread emails or fetch failed. Check Google credentials." and stop |
-| Individual mark-as-read fails | Log the failing ID, continue with remaining IDs |
-| Discord post fails | Log to ~/.hermes/logs/skill-errors.log; do not retry |
-| GBrain people search fails | Continue — people context is enrichment only, not required |
-
-## Done Condition
-
-Skill is complete when:
-1. Gmail fetched and classified (or failure reported to Discord)
-2. Digest posted to DISCORD_TASKS_CHANNEL_ID
-3. All non-ACTION_REQUIRED emails marked as read (best-effort)
+## Constraints
+- Never reply to email
+- Never draft email
+- Never send anything externally
+- No outbound approval needed for the internal #tasks digest
+- Data minimization: post sender label, subject, action, deadline only — never full bodies or long snippets; redact unnecessary personal details before posting to Discord
+- Action-required mail must stay unread; only FYI/newsletter/spam are marked read
+- Per-message mark-as-read failures are logged and skipped; do not abort the whole batch
+- Respect Discord's per-message size limit by truncating the action list with an overflow pointer rather than chopping mid-message
+- GBrain people lookup is enrichment only; its failure must not block the digest

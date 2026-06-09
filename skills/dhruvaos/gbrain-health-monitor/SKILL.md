@@ -21,120 +21,33 @@ metadata:
 
 # GBrain Health Monitor
 
-You are Drew, Dhruva's personal AI OS agent. This skill runs every hour.
-Check whether GBrain MCP is responding, auto-recover if down, and alert #alerts only on failure or recovery.
-Be silent when everything is healthy.
+## Purpose
+Hourly liveness check on the GBrain MCP service. When it's down, attempt a self-heal via PM2,
+track consecutive failures, and notify `#alerts` on failure or recovery. Silent when everything
+is healthy.
 
----
+## Context
+- Trigger: hourly cron
+- Channels: `#alerts` only (failure, recovery, sustained-outage cadence)
+- Data sources: GBrain HTTP health endpoint at `http://127.0.0.1:3131/health`, failure counter at `~/.gbrain/health-failures.count`
+- Tunables: alert cadence during sustained outage and recovery wait window in `~/brain/config/timing.md`
+- Tools: terminal (curl + PM2 restart of `gbrain-mcp`), messaging
 
-## Step 1 — Check GBrain health endpoint
+## Goal
+GBrain confirmed responsive (or auto-recovery attempted and outcome recorded); failure counter
+reflects current state; `#alerts` is told the bare minimum — first failure, sustained-outage
+checkpoints, or recovery — and nothing on a healthy hour.
 
-Use `terminal`:
+## Constraints
+- Uses the HTTP health endpoint (port 3131), never the `gbrain` CLI — the CLI takes a PGLite lock and contends with normal writes.
+- "Healthy" requires HTTP 200 AND a body containing `"status":"ok"`. Anything else is DOWN.
+- On DOWN: attempt one PM2 restart of `gbrain-mcp`, wait briefly, re-check. Do not retry beyond that within one run.
+- Suppress alert spam during long outages — alert on first failure, then at a steady cadence (see timing config), and again on recovery.
+- Reset the failure counter on recovery; increment on each consecutive down run.
+- Never request approval — internal monitoring only.
+- No GBrain reads or writes inside this skill; it must work even when GBrain is offline.
 
-```bash
-HTTP_STATUS=$(curl -s -o /tmp/gbrain_health.json -w "%{http_code}" --connect-timeout 5 --max-time 10 http://127.0.0.1:3131/health 2>/dev/null)
-echo "HTTP_STATUS=$HTTP_STATUS"
-cat /tmp/gbrain_health.json 2>/dev/null || echo "NO_RESPONSE"
-```
-
-Parse result:
-- If `HTTP_STATUS=200` AND response body contains `"status":"ok"` → GBrain is healthy.
-- Any other status (000, 404, 500, connection refused, timeout) → GBrain is DOWN.
-
----
-
-## Step 2 — If healthy: read failure state and decide action
-
-Use `terminal`:
-
-```bash
-COUNT_FILE="$HOME/.gbrain/health-failures.count"
-PREV=$(cat "$COUNT_FILE" 2>/dev/null || echo "0")
-echo "PREV_FAILURES=$PREV"
-```
-
-- If `PREV_FAILURES=0`: GBrain healthy and was already healthy → **STOP. Do NOT post anything. Task complete.**
-- If `PREV_FAILURES > 0`: GBrain just RECOVERED. Reset counter, post recovery notice to #alerts.
-
-Reset counter:
-```bash
-echo "0" > "$HOME/.gbrain/health-failures.count"
-```
-
-Post recovery to #alerts using `messaging` tool (channel: `$DISCORD_ALERTS_CHANNEL_ID`):
-```
-✅ GBrain MCP recovered after [PREV_FAILURES] consecutive failure(s). Now responding at :3131/health.
-```
-
-Then **STOP**.
-
----
-
-## Step 3 — If DOWN: attempt PM2 auto-recovery
-
-Use `terminal`:
-
-```bash
-export PATH="/home/dhruva/.nvm/versions/node/v24.16.0/bin:/home/dhruva/.bun/bin:/home/dhruva/.local/bin:/usr/local/bin:/usr/bin:/bin"
-PM2="/home/dhruva/.nvm/versions/node/v24.16.0/bin/pm2"
-"$PM2" restart gbrain-mcp 2>&1
-```
-
-Wait 10 seconds, then re-check health:
-
-```bash
-sleep 10
-HTTP_STATUS_RETRY=$(curl -s -o /tmp/gbrain_health_retry.json -w "%{http_code}" --connect-timeout 5 --max-time 10 http://127.0.0.1:3131/health 2>/dev/null)
-echo "HTTP_STATUS_RETRY=$HTTP_STATUS_RETRY"
-cat /tmp/gbrain_health_retry.json 2>/dev/null || echo "NO_RESPONSE"
-```
-
-- If retry returns `200` with `"status":"ok"` → PM2 restart fixed it. Set `RECOVERED_BY_RESTART=true`.
-- Otherwise → still down, `RECOVERED_BY_RESTART=false`.
-
----
-
-## Step 4 — Update failure counter
-
-Use `terminal`:
-
-```bash
-COUNT_FILE="$HOME/.gbrain/health-failures.count"
-PREV=$(cat "$COUNT_FILE" 2>/dev/null || echo "0")
-NEW=$((PREV + 1))
-echo "$NEW" > "$COUNT_FILE"
-echo "FAILURE_COUNT=$NEW"
-```
-
----
-
-## Step 5 — Alert #alerts
-
-Use `messaging` tool to post to `$DISCORD_ALERTS_CHANNEL_ID`.
-
-If `RECOVERED_BY_RESTART=true`:
-```
-✅ GBrain MCP was down but auto-recovered via PM2 restart. Failure #[FAILURE_COUNT] — monitoring.
-```
-
-If still down (not recovered):
-```
-🚨 GBrain MCP DOWN — failure #[FAILURE_COUNT]. :3131/health not responding. PM2 restart attempted but failed. Manual check needed.
-PM2 status: [include output of: pm2 list | grep gbrain-mcp]
-```
-
-Only alert on:
-- First failure (COUNT=1)
-- Every 3rd consecutive failure after that (COUNT divisible by 3: 3, 6, 9…)
-- Recoveries (handled in Step 2)
-
-This prevents alert spam during extended outages.
-
----
-
-## Completion
-
-After posting (or deciding to stay silent), output a one-line status to the session log:
-```
-[gbrain-health-monitor] STATUS=[healthy|down|recovered] FAILURES=[count] at [ISO timestamp]
-```
+## Notes
+- Recovery message acknowledges how many consecutive failures preceded it.
+- If PM2 restart is the cause of recovery, label the alert so Drew knows it was auto-healed vs. naturally recovered.
+- One-line status summary to the session log at end of every run (healthy / down / recovered) helps post-mortem.

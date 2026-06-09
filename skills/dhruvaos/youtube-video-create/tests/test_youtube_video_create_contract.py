@@ -1,4 +1,4 @@
-"""Structural contract test for the `health-ingest` skill.
+"""Structural contract test for the `youtube-video-create` skill.
 
 Skills are now goal + context + constraints, not scripts. This test verifies
 structural integrity via the shared helper in conftest.py. Implementation
@@ -13,5 +13,5 @@ runs in CI and via the health check.
 from conftest import assert_skill_structure
 
 
-def test_health_ingest_structure():
-    assert_skill_structure("health-ingest")
+def test_youtube_video_create_structure():
+    assert_skill_structure("youtube-video-create")
