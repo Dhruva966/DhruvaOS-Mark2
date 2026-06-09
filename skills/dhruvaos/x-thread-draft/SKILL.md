@@ -4,7 +4,7 @@ version: 1.0.0
 tier: 2
 outbound: true
 requires_approval: true
-description: "Draft a 5-7 tweet thread with Sonnet, preview in #corrections, submit to XPosterOS queue only after explicit Dhruva 👍 approval."
+description: "Draft a 5-7 tweet X/Twitter thread with Sonnet from a topic, preview in #corrections, submit to XPosterOS queue only after explicit Dhruva 👍 approval. Trigger: /thread '<topic>' or 'write a thread about', 'post a thread', 'tweet about'."
 schedule: null
 gbrain:
   reads: ["projects/*", "goals/*"]

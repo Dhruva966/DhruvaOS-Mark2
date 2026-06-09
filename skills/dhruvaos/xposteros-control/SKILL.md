@@ -4,14 +4,14 @@ version: 1.0.0
 tier: 2
 outbound: true
 requires_approval: true
-description: "Control surface for XPosterOS: health checks, run workers, list/approve drafts, create brain dumps, trigger posts. All X posts require explicit 👍 approval from Dhruva in #corrections."
+description: "Control surface for XPosterOS — Dhruva's X/Twitter posting system at content.dhruvavutukury.org. Health checks, run workers, list/approve drafts, create brain dumps, trigger posts. All X posts require explicit 👍 approval in #corrections."
 schedule: null
 author: dhruvaos
 platforms: [linux]
 gbrain:
   reads: []
   writes: []
-trigger: "xposteros health, xposteros status, xposteros run workers, xposteros list drafts, xposteros approve draft, xposteros create brain dump, xposteros check queue, xposteros post now"
+trigger: "xposteros health, xposteros status, xposteros run workers, xposteros list drafts, xposteros approve draft, xposteros create brain dump, xposteros check queue, xposteros post now, post on X, post on Twitter, want to post on socials, check X pipeline, social media posting, xposteros dashboard, content.dhruvavutukury.org"
 tools:
   - http_get
   - http_post
