@@ -23,11 +23,6 @@ This backlog is generated from tracked TODO/FIXME/XXX markers.
 - `drew-ui/lib/HermesAPI.ts:7` - )
 - `jarvis-voice/components/NeuralBrain/SingleNeuron.tsx:213` - );
 - `jarvis-voice/components/NeuralBrain/SingleNeuron.tsx:218` - ;
-- `skills/dhruvaos/expense-monitor/SKILL.md:295` - | Food ($XXX) |
-- `skills/dhruvaos/expense-monitor/SKILL.md:296` - | Shopping ($XXX) |
-- `skills/dhruvaos/expense-monitor/SKILL.md:297` - | Subscriptions ($XXX) |
-- `skills/dhruvaos/skill-proposal/SKILL.md:159` - TODO
-- `skills/dhruvaos/skill-proposal/SKILL.md:166` - TODO
 
 ## Maintenance Notes
 
