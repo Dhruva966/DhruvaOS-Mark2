@@ -5,6 +5,12 @@ tier: 2
 outbound: true
 requires_approval: true
 description: "Control surface for XPosterOS: health checks, run workers, list/approve drafts, create brain dumps, trigger posts. All X posts require explicit 👍 approval from Dhruva in #corrections."
+schedule: null
+author: dhruvaos
+platforms: [linux]
+gbrain:
+  reads: []
+  writes: []
 trigger: "xposteros health, xposteros status, xposteros run workers, xposteros list drafts, xposteros approve draft, xposteros create brain dump, xposteros check queue, xposteros post now"
 tools:
   - http_get
@@ -12,6 +18,14 @@ tools:
   - discord_post
   - bash
 tests: tests/
+prerequisites:
+  env_vars:
+    - XPOSTEROS_API_TOKEN
+    - DISCORD_CORRECTIONS_CHANNEL_ID
+    - DISCORD_ALLOWED_USER
+metadata:
+  hermes:
+    tags: [XPosterOS, X, Twitter, Outbound, Quality-Firewall, Discord]
 ---
 
 # xposteros-control
@@ -87,7 +101,16 @@ Platform: X
 React 👍 to approve • Reply /xposteros deny {draft_id} to reject
 ```
 
-**Step 2 — On 👍 reaction from Dhruva:**
+**Step 2 — On 👍 reaction, verify reactor identity before calling approval endpoint:**
+
+```python
+import os
+ALLOWED = os.environ.get("DISCORD_ALLOWED_USER")
+if not ALLOWED or str(reactor_user_id) != ALLOWED:
+    print(f"[xposteros-control] SECURITY: reaction from {reactor_user_id} — not DISCORD_ALLOWED_USER, ignoring")
+    stop()
+```
+
 ```bash
 curl -s -X POST \
   -H "Authorization: Bearer $XPOSTEROS_API_TOKEN" \

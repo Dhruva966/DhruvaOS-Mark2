@@ -127,3 +127,19 @@ Populate `ids_to_mark_read` with the actual IDs from Step 2. Do NOT include ACTI
 
 Log completion. Do not take any further action. Do not reply to any email.
 If any step fails, note the error in the Discord post rather than silently dropping it.
+
+## Error Handling
+
+| Failure | Action |
+|---------|--------|
+| Gmail fetch fails or returns empty | Post "📬 **Email Triage** — No unread emails or fetch failed. Check Google credentials." and stop |
+| Individual mark-as-read fails | Log the failing ID, continue with remaining IDs |
+| Discord post fails | Log to ~/.hermes/logs/skill-errors.log; do not retry |
+| GBrain people search fails | Continue — people context is enrichment only, not required |
+
+## Done Condition
+
+Skill is complete when:
+1. Gmail fetched and classified (or failure reported to Discord)
+2. Digest posted to DISCORD_TASKS_CHANNEL_ID
+3. All non-ACTION_REQUIRED emails marked as read (best-effort)

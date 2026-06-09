@@ -66,6 +66,7 @@ export default function BrainConnections({ connections }: Props) {
         opacity={0.75}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
+        depthTest={false}
         toneMapped={false}
       />
     </lineSegments>

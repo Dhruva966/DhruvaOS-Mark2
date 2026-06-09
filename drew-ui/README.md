@@ -1,116 +1,128 @@
-# Drew — Voice + Visual Avatar
+# DrewUI — DhruvaOS Dashboard + Voice Interface
 
-Floating bubble avatar that listens, thinks, and speaks. Powered by Hermes API + ElevenLabs TTS.
+Live at `dhruvavutukury.org/drew` (password-protected, runs on Omen via Cloudflare Tunnel).
 
-## Quick Start
+## What It Is
 
-### 1. Start Dev Server (Mac)
-
-```bash
-cd drew-ui
-npm run dev
-```
-
-Opens at http://localhost:3002 (or next available port).
-
-### 2. Configure Hermes TTS on Omen
-
-Switch TTS provider from Edge (local) to ElevenLabs (cloud voice):
-
-```bash
-ssh dhruva@100.119.229.11
-export PATH="/home/dhruva/.nvm/versions/node/v24.16.0/bin:/home/dhruva/.bun/bin:/home/dhruva/.local/bin:/home/dhruva/.hermes/bin:$PATH"
-bash ~/DhruvaOS\ Mark\ 2/scripts/switch-hermes-tts-to-elevenlabs.sh
-```
-
-Or manually:
-```bash
-sed -i.bak 's/^  provider: edge$/  provider: elevenlabs/' ~/.hermes/config.yaml
-systemctl --user restart hermes-gateway
-```
-
-### 3. Wire Hermes URL (if running on Omen over Tailscale)
-
-Edit `.env.local`:
-
-```bash
-# localhost: Mac local (Hermes on Mac or MockServer)
-NEXT_PUBLIC_HERMES_URL=http://localhost:8642
-
-# Omen over Tailscale: replace with actual Tailscale IP
-NEXT_PUBLIC_HERMES_URL=http://100.119.229.11:8642  # example, use actual IP
-```
-
-### 4. Test in Browser
-
-Open http://localhost:3002:
-
-1. **See Drew** — floating purple bubble in bottom-right
-2. **Click Drew** — mic activates (browser permission prompt)
-3. **Speak** — e.g., "Hello Drew"
-4. **Watch animations:**
-   - 🎤 idle → 👂 listening → 💭 thinking → 🗣️ speaking
-5. **Hear response** — Drew speaks back (via ElevenLabs TTS)
+Full-screen dashboard for DhruvaOS. Shows real-time Hermes + GBrain status, cron jobs, memory stats, and activity feed. Voice pipeline lets you talk to Drew (Claude Sonnet 4.6) and hear responses. Jarvis 3D neural brain activates as a screensaver after 90s of idle.
 
 ## Architecture
 
 ```
-Mac Browser (drew-ui)
-    ↓
-    Web Audio API (getUserMedia)
-    ↓
-    POST /api/audio/transcribe (Whisper STT on Omen)
-    ↓
-    transcribed text
-    ↓
-    Generate response (mocked for now — TODO: wire to Hermes chat)
-    ↓
-    POST /api/audio/speak (ElevenLabs TTS on Omen)
-    ↓
-    Audio blob
-    ↓
-    HTMLAudioElement (speaker output)
-    ↓
-    Drew animates: listening → thinking → speaking
+Browser (drew-ui, Next.js 16 on Omen)
+├── /drew dashboard
+│   ├── System panel  → GET /api/drew/status  → Hermes :8642/health + GBrain :3131/health
+│   ├── Cron panel    → GET /api/drew/crons   → exec: hermes cron list --json
+│   ├── Memory panel  → GET /api/drew/memory  → exec: gbrain onboard --check --json
+│   └── Activity feed → GET /api/drew/activity → tail ~/.hermes/logs/gateway.log
+│
+└── /api/voice/* (voice pipeline — runs server-side on Omen)
+    ├── POST /transcribe → OpenAI Whisper (whisper-1)
+    ├── POST /chat       → Anthropic Claude Sonnet 4.6 (multi-turn history, last 10 turns)
+    └── POST /speak      → ElevenLabs TTS (fallback: OpenAI tts-1, voice: alloy)
+```
+
+Idle screensaver: 90s no input → Jarvis 3D neural brain fills the screen (`/jarvis` iframe).
+
+## Quick Start
+
+### 1. Set API keys in `.env.local`
+
+```bash
+# drew-ui/.env.local
+SITE_PASSWORD=<your password>
+
+# Copy from Omen's ~/.hermes/.env
+OPENAI_API_KEY=sk-proj-...
+ANTHROPIC_API_KEY=sk-ant-...
+ELEVENLABS_API_KEY=...          # optional — OpenAI TTS is the fallback
+ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM   # default: Rachel
+
+HERMES_URL=http://127.0.0.1:8642
+GBRAIN_URL=http://127.0.0.1:3131
+NEXT_PUBLIC_HERMES_URL=https://api.dhruvavutukury.org
+```
+
+To pull keys from Omen:
+```bash
+ssh dhruva@100.119.229.11 "cat ~/.hermes/.env | grep -E 'OPENAI|ANTHROPIC|ELEVENLABS' | sed 's/=.*/=REDACTED/'"
+```
+
+### 2. Dev server
+
+```bash
+cd drew-ui
+npm run dev
+# Visit http://localhost:3000/drew
+```
+
+### 3. Production (on Omen)
+
+```bash
+cd drew-ui
+npm run build
+pm2 start npm --name drew-ui -- start
+# or restart: pm2 restart drew-ui
 ```
 
 ## Components
 
-- **`Drew.tsx`** — Floating bubble avatar with 4 animation states
-- **`VoiceInterface.tsx`** — State machine + Web Audio API wiring
-- **`HermesAPI.ts`** — HTTP client for Hermes endpoints
+| File | What it does |
+|------|--------------|
+| `components/DrewDashboard.tsx` | Main layout — polls status every 30s, holds conversation history |
+| `components/Drew.tsx` | Animated glass orb (fixed bottom-right), 4 states: idle/listening/thinking/speaking |
+| `components/VoiceInterface.tsx` | Voice pipeline state machine — real STT→LLM→TTS via `/api/voice/*` |
+| `components/ConversationTranscript.tsx` | Scrolling chat transcript, auto-scrolls on new turn |
+| `components/SystemStatus.tsx` | Hermes + GBrain live status dots |
+| `components/CronList.tsx` | Hermes cron jobs table |
+| `components/MemoryStats.tsx` | GBrain entry count, last dream time |
+| `components/ActivityFeed.tsx` | Last 8 Hermes log lines |
+| `components/IdleScreensaver.tsx` | 90s idle → Jarvis 3D brain iframe fullscreen |
 
-## TODO (Phase 3+)
+## API Routes
 
-- [ ] Wire `/api/audio/speak` to real Hermes conversation (not just TTS)
-- [ ] WebSocket integration for streaming responses
-- [ ] Add Cloudflare Tunnel for remote access
-- [ ] Persist conversation history
-- [ ] Voice-only mode (no browser)
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/api/voice/transcribe` | POST | Multipart audio → OpenAI Whisper → `{ text }` |
+| `/api/voice/chat` | POST | `{ message, history }` → Claude Sonnet 4.6 → `{ response }` |
+| `/api/voice/speak` | POST | `{ text }` → ElevenLabs/OpenAI TTS → audio/mpeg stream |
+| `/api/drew/status` | GET | Parallel health check Hermes + GBrain |
+| `/api/drew/crons` | GET | `hermes cron list --json` output |
+| `/api/drew/memory` | GET | `gbrain onboard --check --json` stats |
+| `/api/drew/activity` | GET | Last 8 lines of Hermes gateway.log |
+| `/api/auth` | POST | Password login → sets `site-auth` cookie |
+
+## Auth
+
+All `/drew`, `/jarvis`, `/content` routes protected by `middleware.ts`. Login at `/login`. Cookie: `site-auth`, 30-day, httpOnly.
+
+## Voice Flow
+
+1. Click/tap Drew orb → mic activates
+2. Speak → release (or click again to stop)
+3. `POST /api/voice/transcribe` → Whisper → transcript
+4. `POST /api/voice/chat` → Claude Sonnet 4.6 with full session history → response text
+5. `POST /api/voice/speak` → ElevenLabs (OpenAI fallback) → audio played
+6. Conversation history accumulates in session; shown in transcript panel
+7. "Clear" button resets transcript
+
+## Screensaver
+
+After 90s idle (no mouse/keyboard/touch): Jarvis 3D neural brain displays fullscreen as `/jarvis` iframe. Click anywhere to return to Drew dashboard.
+
+## Route Rewrites (next.config.ts)
+
+- `/jarvis/*` → `jarvis-voice-umber.vercel.app` (Vercel, 3D neural brain)
+- `/content/*` → `web-eta-two-78.vercel.app` (Vercel, content OS)
 
 ## Troubleshooting
 
-**"Hermes health check failed"**
-- Verify Omen is accessible: `ping 100.119.229.11`
-- Check Hermes is running: `ssh ... systemctl --user status hermes-gateway`
+**Voice returns error "X not configured"** → Check `.env.local` has the relevant API key set.
 
-**"Microphone permission denied"**
-- Browser blocked microphone. Check Chrome/Safari settings → site permissions
+**Crons show empty / error** → `hermes cron list --help` on Omen to confirm flag support. PATH must include `~/.hermes/bin`.
 
-**"No audio output"**
-- Check speaker volume
-- Verify ElevenLabs key is set in `~/.hermes/.env`
-- Test TTS endpoint: `curl -X POST http://localhost:8642/api/audio/speak -H "Content-Type: application/json" -d '{"text":"hello"}'`
+**GBrain memory shows "unavailable"** → `pm2 list` on Omen; restart with `pm2 restart gbrain-mcp`.
 
-**Dev server on wrong port**
-- Another app using port 3000? Next.js auto-uses next available (3002, 3003, etc.)
-- To force: `next dev --port 3000`
+**Screensaver iframe blank** → `/jarvis` rewrite targets external Vercel. Check `next.config.ts` destination is live.
 
-## Build for Production
-
-```bash
-npm run build
-npm run start
-```
-
-Builds optimized bundle → `.next/`
+**tsc errors** → `cd drew-ui && npx tsc --noEmit` — must be zero before deploying.

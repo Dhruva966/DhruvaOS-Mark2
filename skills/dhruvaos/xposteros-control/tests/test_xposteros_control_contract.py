@@ -54,6 +54,19 @@ def test_approval_gate_requires_thumbs_up_from_dhruva():
     assert "NEVER approve" in TEXT or "NEVER call" in TEXT
 
 
+def test_discord_allowed_user_declared_in_prerequisites():
+    assert "DISCORD_ALLOWED_USER" in TEXT
+
+
+def test_reactor_identity_check_before_approval():
+    # Skill must verify the 👍 reactor is DISCORD_ALLOWED_USER before calling approval endpoint
+    reactor_check_pos = TEXT.find("DISCORD_ALLOWED_USER")
+    approval_call_pos = TEXT.find("/approvals/draft")
+    assert reactor_check_pos != -1, "DISCORD_ALLOWED_USER must be referenced in skill body"
+    assert reactor_check_pos < approval_call_pos, \
+        "Reactor identity check must appear before /approvals/draft call"
+
+
 def test_approval_gate_hard_stop_documented():
     # Skill must document that it waits for reaction before proceeding
     assert "NEVER approve a draft without showing the preview" in TEXT

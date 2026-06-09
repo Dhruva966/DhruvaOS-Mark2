@@ -12,12 +12,13 @@ acting on anything high-stakes.
 | Layer | Technology |
 |-------|-----------|
 | Agent runtime | Hermes Agent (verify installed version with `hermes --version`; Python 3.11+ host, 3.12 on Omen, systemd user service) |
-| Memory | GBrain v0.42.25.0 (Bun 1.3.14, PGLite at ~/.gbrain/brain.pglite/) |
+| Memory | GBrain v0.42.36.0 (Bun 1.3.14, PGLite at ~/.gbrain/brain.pglite/) |
 | Interface | Discord (6 channels) — bot name: drew#4878 |
 | Tier 0 model | phi4-mini via Ollama (local, GTX 1660 Ti 6GB, nomic-embed-text for embeddings) |
 | Tier 1 model | GPT-4o-mini (direct OpenAI API — burns platform.openai.com credits) |
 | Tier 2 model | Claude Sonnet 4.6 (Anthropic — ALL outbound writing) |
 | Tier 3 model | Claude Opus 4.8 (Anthropic — orchestration + high-stakes) |
+| Gemini fallback | `gemini-3.1-flash-lite` via `provider: google` — used when Anthropic credits depleted. **Always verify current model ID at ai.google.dev before configuring.** Gemini 2.0 shut down 2026-06-01. |
 | Process management | Hermes: systemd user service. GBrain: PM2 daemon (`gbrain-mcp`, HTTP mode port 3131). Ollama: systemd system service. |
 | Remote access | Tailscale SSH primary; Cloudflare Tunnel only for future authenticated HTTP surfaces |
 | Host | HP Omen 15 — 32 GB RAM, GTX 1660 Ti 6 GB, Ubuntu 24.04, user: dhruva |
@@ -35,7 +36,8 @@ DhruvaOS Mark 2/
 ├── MODEL_ROUTING.md       # 4-tier routing spec, quality firewall, config
 ├── SKILLS.md              # Starting skills, trust model, authoring pattern
 ├── MEMORY.md              # GBrain setup, Obsidian ingest, braindump guide
-├── BUILD_PLAN.md          # Phased rollout, parallel task decomposition
+├── BUILD_PLAN.md          # Active phases only — what's pending and in-progress
+├── BUILD_PLAN_PART1.md    # Historical archive — completed phases, runbooks, install commands
 ├── COST.md                # Year 1/2 cost model, credit burn, VPS migration
 ├── VISION.md              # Jarvis north star
 ├── HANDOFF.md             # Hermes↔GBrain contracts, integration checklist
@@ -142,6 +144,13 @@ Schema migrations are handled automatically by `gbrain upgrade` + `gbrain apply-
    deployment, or task that may hit token/credit limits, run context-save and write a HANDOFF.md
    checkpoint. Mid-task loss ≠ clean stopping point.
 
+5. **Models/APIs: search before using. Never trust training data for current model names, versions,
+   or pricing.** AI training data is stale. Before referencing any model (Gemini, Claude, GPT, etc.),
+   package version, or external API in config or code: fetch the official docs page directly
+   (ai.google.dev, docs.anthropic.com, etc.) and confirm the model ID exists and is not deprecated.
+   Gemini 2.0 models shut down June 1, 2026. Any model released or deprecated after August 2025
+   requires a live lookup — no exceptions.
+
 ## Testing Standard
 
 - Skill contract tests: repo-local `pytest skills/dhruvaos/<skill>/tests/`; Hermes `--mock-tools` is not available
@@ -185,4 +194,4 @@ For task-specific patterns, see the module docs — loaded lazily per task:
 | GBrain ingest, embed, jobs, CLI gotchas | [`gbrain/CLAUDE.md`](gbrain/CLAUDE.md) |
 | Skill YAML authoring, trust gate | [`skills/CLAUDE.md`](skills/CLAUDE.md) |
 | Discord channels, routing | [`discord/CLAUDE.md`](discord/CLAUDE.md) |
-| Environment variables, API keys | [`ENVIRONMENT.md`](ENVIRONMENT.md) |
+| Environment variables, API keys | [`DEPLOYMENT.md`](DEPLOYMENT.md) |

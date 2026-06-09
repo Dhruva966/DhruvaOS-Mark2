@@ -115,6 +115,7 @@ export default function BrainNodes({ nodes, bands }: Props) {
         vertexColors
         transparent
         depthWrite={false}
+        depthTest={false}
         blending={THREE.AdditiveBlending}
       />
     </instancedMesh>

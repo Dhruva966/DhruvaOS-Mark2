@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import type { Transition } from 'framer-motion';
 
 type DrewState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -42,7 +42,7 @@ export default function Drew({ state, isActive }: DrewProps) {
     }
   };
 
-  const animationConfig: any = {
+  const animationConfig: Transition = {
     duration: state === 'idle' ? 3 : 1.5,
     repeat: Infinity,
     ease: [0.43, 0.13, 0.23, 0.96],

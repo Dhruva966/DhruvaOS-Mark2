@@ -15,6 +15,7 @@ prerequisites:
   env_vars:
     - ANTHROPIC_API_KEY
     - DISCORD_CORRECTIONS_CHANNEL_ID
+    - DISCORD_ALLOWED_USER
     - YOUTUBE_CHANNEL_ID
     - FAL_KEY
 metadata:

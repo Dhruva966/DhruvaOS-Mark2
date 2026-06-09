@@ -1,111 +1,201 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Drew from './Drew';
-import { transcribeAudio, speakText } from '@/lib/HermesAPI';
 
-type State = 'idle' | 'listening' | 'thinking' | 'speaking';
+type VoiceState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
-export default function VoiceInterface() {
-  const [state, setState] = useState<State>('idle');
-  const [transcript, setTranscript] = useState('');
+export interface ConversationTurn {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+}
+
+interface VoiceInterfaceProps {
+  onTurnAdded?: (turn: ConversationTurn) => void;
+  history: ConversationTurn[];
+  onHistoryChange: (history: ConversationTurn[]) => void;
+}
+
+export default function VoiceInterface({ history, onHistoryChange }: VoiceInterfaceProps) {
+  const [state, setState] = useState<VoiceState>('idle');
   const [isListening, setIsListening] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
-  const audioPlaybackRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Track the active object URL so it can be revoked on interrupt or unmount
+  const activeBlobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    audioPlaybackRef.current = new Audio();
+    audioRef.current = new Audio();
+    return () => {
+      audioRef.current?.pause();
+      if (activeBlobUrlRef.current) {
+        URL.revokeObjectURL(activeBlobUrlRef.current);
+        activeBlobUrlRef.current = null;
+      }
+    };
   }, []);
 
-  const startListening = async () => {
+  const addTurn = useCallback(
+    (role: 'user' | 'assistant', content: string) => {
+      const turn: ConversationTurn = { role, content, timestamp: Date.now() };
+      onHistoryChange([...history, turn]);
+      return turn;
+    },
+    [history, onHistoryChange]
+  );
+
+  const handleRecordingStop = useCallback(async () => {
+    const stream = streamRef.current;
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+
+    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+    setError(null);
+
+    // Step 1: Transcribe
+    setState('thinking');
+    let userText = '';
     try {
-      console.log('[Drew] startListening called');
-      setIsListening(true);
-      setState('listening');
-      setTranscript('');
-      audioChunksRef.current = [];
-
-      console.log('[Drew] Requesting microphone access...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log('[Drew] Microphone access granted', stream);
-      streamRef.current = stream;
-
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      console.log('[Drew] MediaRecorder created');
-
-      mediaRecorder.ondataavailable = (event) => {
-        console.log('[Drew] Audio data available:', event.data.size);
-        audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        console.log('[Drew] Recording stopped');
-        stream.getTracks().forEach((track) => track.stop());
-
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        console.log('[Drew] Audio blob created:', audioBlob.size);
-
-        // Transcribe
-        setState('thinking');
-        console.log('[Drew] Transcribing...');
-        const userText = await transcribeAudio(audioBlob);
-        console.log('[Drew] Transcribed:', userText);
-        setTranscript(userText);
-
-        // Generate response (Phase 2: wire to real Hermes WebSocket)
-        if (userText.trim()) {
-          const responseText = `I heard: "${userText}". That's interesting!`;
-
-          setState('speaking');
-          console.log('[Drew] Speaking:', responseText);
-          const audioUrl = await speakText(responseText);
-          console.log('[Drew] TTS response:', audioUrl);
-
-          if (audioPlaybackRef.current && audioUrl) {
-            audioPlaybackRef.current.src = audioUrl;
-            await audioPlaybackRef.current.play();
-            audioPlaybackRef.current.onended = () => {
-              console.log('[Drew] Speaking finished');
-              setState('idle');
-              setIsListening(false);
-            };
-          } else {
-            console.warn('[Drew] No audio URL or audio element');
-            setState('idle');
-            setIsListening(false);
-          }
-        } else {
-          console.log('[Drew] No text to respond to');
-          setState('idle');
-          setIsListening(false);
-        }
-      };
-
-      mediaRecorder.onerror = (event) => {
-        console.error('[Drew] MediaRecorder error:', event.error);
-      };
-
-      console.log('[Drew] Starting recording...');
-      mediaRecorder.start();
-      console.log('[Drew] Recording started');
-    } catch (error) {
-      console.error('[Drew] Error accessing microphone:', error);
+      const fd = new FormData();
+      fd.append('file', audioBlob, 'audio.webm');
+      const res = await fetch('/api/voice/transcribe', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error ?? res.statusText);
+      }
+      const data = await res.json();
+      userText = data.text?.trim() ?? '';
+    } catch (err) {
+      setError(`Transcription failed: ${err instanceof Error ? err.message : String(err)}`);
       setState('idle');
       setIsListening(false);
-      alert(`Microphone error: ${error instanceof Error ? error.message : String(error)}`);
+      return;
     }
-  };
 
-  const stopListening = () => {
+    if (!userText) {
+      setState('idle');
+      setIsListening(false);
+      return;
+    }
+
+    // Add user turn (build the NEW history for the chat request)
+    const newHistory: ConversationTurn[] = [
+      ...history,
+      { role: 'user', content: userText, timestamp: Date.now() },
+    ];
+    onHistoryChange(newHistory);
+
+    // Step 2: Chat
+    let responseText = '';
+    try {
+      const apiHistory = newHistory.slice(-10).map((t) => ({ role: t.role, content: t.content }));
+      const res = await fetch('/api/voice/chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ message: userText, history: apiHistory.slice(0, -1) }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error ?? res.statusText);
+      }
+      const data = await res.json();
+      responseText = data.response?.trim() ?? '';
+    } catch (err) {
+      setError(`Chat failed: ${err instanceof Error ? err.message : String(err)}`);
+      setState('idle');
+      setIsListening(false);
+      return;
+    }
+
+    if (!responseText) {
+      setState('idle');
+      setIsListening(false);
+      return;
+    }
+
+    // Add assistant turn
+    onHistoryChange([
+      ...newHistory,
+      { role: 'assistant', content: responseText, timestamp: Date.now() },
+    ]);
+
+    // Step 3: Speak
+    setState('speaking');
+    try {
+      const res = await fetch('/api/voice/speak', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text: responseText }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error ?? res.statusText);
+      }
+      const audioBlob2 = await res.blob();
+      const url = URL.createObjectURL(audioBlob2);
+      // Revoke any previous URL before replacing
+      if (activeBlobUrlRef.current) {
+        URL.revokeObjectURL(activeBlobUrlRef.current);
+      }
+      activeBlobUrlRef.current = url;
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        await audioRef.current.play();
+        audioRef.current.onended = () => {
+          URL.revokeObjectURL(url);
+          activeBlobUrlRef.current = null;
+          setState('idle');
+          setIsListening(false);
+        };
+      }
+    } catch (err) {
+      setError(`TTS failed: ${err instanceof Error ? err.message : String(err)}`);
+      setState('idle');
+      setIsListening(false);
+    }
+  }, [history, onHistoryChange]);
+
+  const startListening = useCallback(async () => {
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      audioChunksRef.current = [];
+
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
+      recorder.onstop = handleRecordingStop;
+      recorder.start();
+
+      setIsListening(true);
+      setState('listening');
+    } catch (err) {
+      setError(`Mic error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [handleRecordingStop]);
+
+  const stopListening = useCallback(() => {
     if (mediaRecorderRef.current && isListening) {
       mediaRecorderRef.current.stop();
     }
-  };
+  }, [isListening]);
 
-  const handleDrewClick = () => {
+  const handleOrbClick = () => {
+    if (state === 'speaking') {
+      audioRef.current?.pause();
+      // Revoke the active object URL when playback is interrupted
+      if (activeBlobUrlRef.current) {
+        URL.revokeObjectURL(activeBlobUrlRef.current);
+        activeBlobUrlRef.current = null;
+      }
+      setState('idle');
+      setIsListening(false);
+      return;
+    }
     if (isListening) {
       stopListening();
     } else {
@@ -114,38 +204,24 @@ export default function VoiceInterface() {
   };
 
   return (
-    <div className="w-full h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center relative overflow-hidden">
-      {/* Background accents */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl" />
-
-      {/* Main content */}
-      <div className="relative z-10 flex flex-col items-center justify-center gap-8 h-full">
-        {/* Drew Avatar */}
-        <div onClick={handleDrewClick} className="cursor-pointer">
-          <Drew state={state} isActive={isListening} />
-        </div>
-
-        {/* Transcript display */}
-        <div className="max-w-lg text-center">
-          <div className="text-white/70 text-sm mb-2">
-            {state === 'idle' && 'Click Drew to start'}
-            {state === 'listening' && 'Listening...'}
-            {state === 'thinking' && 'Processing...'}
-            {state === 'speaking' && 'Drew is speaking...'}
-          </div>
-          {transcript && (
-            <div className="bg-white/10 backdrop-blur border border-white/20 rounded-lg p-4 text-white">
-              <p className="text-sm">{transcript}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Status info */}
-        <div className="text-white/50 text-xs mt-8">
-          State: {state} | Listening: {isListening ? 'Yes' : 'No'}
-        </div>
+    <>
+      {/* Fixed Drew orb — bottom right, always visible */}
+      <div onClick={handleOrbClick}>
+        <Drew state={state} isActive={isListening} />
       </div>
-    </div>
+
+      {/* Error toast */}
+      {error && (
+        <div className="fixed bottom-40 right-8 z-50 max-w-xs bg-red-900/90 border border-red-700 text-red-100 text-xs rounded-lg p-3 shadow-lg">
+          {error}
+          <button
+            className="ml-2 text-red-300 hover:text-white"
+            onClick={() => setError(null)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+    </>
   );
 }

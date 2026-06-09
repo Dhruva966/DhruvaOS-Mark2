@@ -4,14 +4,15 @@ version: 1.0.0
 tier: 1
 outbound: false
 requires_approval: false
-description: "Daily: fetch arxiv + HN RSS, filter by relevance via phi4-mini, summarize keepers via Sonnet, save to brain/resources/papers/, post to #research."
+description: "Daily: fetch arxiv + HN RSS (capped 40 entries), filter by relevance via phi4-mini, summarize keepers via GPT-4o-mini, save to brain/resources/papers/, post to #research."
 schedule: "0 7 * * *"
+daily_token_budget: 15000
 author: dhruvaos
 platforms: [linux]
 prerequisites:
   env_vars:
     - EXA_API_KEY
-    - ANTHROPIC_API_KEY
+    - OPENAI_API_KEY
     - DISCORD_RESEARCH_CHANNEL_ID
 gbrain:
   reads: []
@@ -27,8 +28,9 @@ metadata:
 Triggered by Hermes cron at 7am Pacific daily, or manually via `/papers` in any Discord channel.
 
 Fetches recent papers from arxiv (cs.AI, cs.LG, cs.CL, cs.NE) and Hacker News top stories.
+Hard cap: 8 entries per feed (40 total) — prevents output truncation.
 Filters by relevance to Dhruva's work using phi4-mini locally (free, no API cost).
-Summarizes keepers using Sonnet (Tier 1). Saves to brain. Posts digest to #research.
+Summarizes keepers using GPT-4o-mini (Tier 1). Saves to brain. Posts digest to #research.
 
 If 0 papers pass the relevance filter: stay silent. No Discord post.
 
@@ -106,11 +108,13 @@ def fetch_entries(url, source):
         })
     return entries
 
+PER_FEED_CAP = 8  # arxiv feeds can have 200+ entries/day; cap prevents output truncation
 all_entries = []
 for source, url in FEEDS.items():
-    all_entries.extend(fetch_entries(url, source))
+    entries = fetch_entries(url, source)
+    all_entries.extend(entries[:PER_FEED_CAP])
 
-print(f"[paper-monitor] Fetched {len(all_entries)} total entries from {len(FEEDS)} feeds")
+print(f"[paper-monitor] Fetched {len(all_entries)} entries (capped {PER_FEED_CAP}/feed) from {len(FEEDS)} feeds")
 ```
 
 If a feed fails: log a warning and continue — a single feed failure must not abort the run.
@@ -205,7 +209,7 @@ simple keyword filter. Log the fallback. Do not abort.
 
 ---
 
-## Step 3 — Sonnet Summarization (Tier 1)
+## Step 3 — GPT-4o-mini Summarization (Tier 1)
 
 For each keeper, call GPT-4o-mini (Tier 1) to generate a structured summary.
 
@@ -334,7 +338,7 @@ messaging.post(
 | phi4-mini offline | Keyword fallback or escalate to Tier 1 scoring; log fallback |
 | 0 keepers after filter | Stop silently — no Discord post |
 | Exa abstract fetch fails | Use RSS abstract (truncated is OK) |
-| Sonnet summarization fails for entry | Skip entry, log warning, continue |
+| GPT-4o-mini summarization fails for entry | Skip entry, log warning, continue |
 | Brain file write fails | Log error, continue to Discord post |
 | GBrain ingest fails | File write is durable — log, continue |
 | Discord post fails | Log to ~/.hermes/logs/skill-errors.log |

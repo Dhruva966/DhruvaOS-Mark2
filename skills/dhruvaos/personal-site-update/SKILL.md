@@ -16,6 +16,7 @@ prerequisites:
     - ANTHROPIC_API_KEY
     - GITHUB_TOKEN
     - DISCORD_CORRECTIONS_CHANNEL_ID
+    - DISCORD_ALLOWED_USER
     - SITE_REPO
     - SITE_BRANCH
 metadata:

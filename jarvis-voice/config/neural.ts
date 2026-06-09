@@ -1,74 +1,69 @@
 import type { BrainRegion, CortexModule } from '@/types'
 
 // ── Node / connection counts ─────────────────────────────────
-export const NODE_COUNT = 280
-export const MAX_CONNECTIONS = 640
-export const MAX_CONNECT_DIST = 10
-export const KNN_K = 5
+export const NODE_COUNT = 90
+export const MAX_CONNECTIONS = 200
+export const MAX_CONNECT_DIST = 8
+export const KNN_K = 4
 
 // ── Sphere distribution ──────────────────────────────────────
-// Camera z=16, fov=65 → viewport ±18.1 wide × ±10.2 tall at z=0
-// Sphere radius 9 fills ~88% of vertical height; from any angle it's a true sphere
 export const SPHERE_RADIUS = 9
 
 // ── Soma configuration ───────────────────────────────────────
-// Top N nodes by connection count become soma (cell bodies)
-export const SOMA_COUNT = 20
-export const SOMA_SCALE_MIN = 0.38
-export const SOMA_SCALE_MAX = 0.62
+export const SOMA_COUNT = 8
+export const SOMA_SCALE_MIN = 0.08
+export const SOMA_SCALE_MAX = 0.14
 
-// ── Biorealistic fluorescence colors ────────────────────────
-// Mirrors common fluorescent staining used in neuroscience microscopy:
-// GFP (green), CFP (cyan), YFP (yellow), RFP (red-orange), mCherry, etc.
+// ── Jarvis blue palette — all regions are blue/cyan variants ─
 export const BRAIN_REGIONS: BrainRegion[] = [
   {
-    id: 'cfp',
-    name: 'CFP',
-    color: '#00ddff',
-    hexColor: 0x00ddff,
-    zone: { xRange: [-9, 9], yRange: [4, 9] },   // top cap — cyan
+    id: 'b1',
+    name: 'B1',
+    color: '#0088ff',
+    hexColor: 0x0088ff,
+    zone: { xRange: [-9, 9], yRange: [4, 9] },
   },
   {
-    id: 'gfp_a',
-    name: 'GFP-A',
-    color: '#00ff66',
-    hexColor: 0x00ff66,
-    zone: { xRange: [-9, 0], yRange: [0, 4] },   // upper-left — GFP green
+    id: 'b2',
+    name: 'B2',
+    color: '#00aaff',
+    hexColor: 0x00aaff,
+    zone: { xRange: [-9, 0], yRange: [0, 4] },
   },
   {
-    id: 'yfp',
-    name: 'YFP',
-    color: '#ffee00',
-    hexColor: 0xffee00,
-    zone: { xRange: [0, 9], yRange: [0, 4] },    // upper-right — yellow
+    id: 'b3',
+    name: 'B3',
+    color: '#44ddff',
+    hexColor: 0x44ddff,
+    zone: { xRange: [0, 9], yRange: [0, 4] },
   },
   {
-    id: 'gfp_b',
-    name: 'GFP-B',
-    color: '#aaffcc',
-    hexColor: 0xaaffcc,
-    zone: { xRange: [-3, 3], yRange: [-2, 2] },  // center cluster — pale green
+    id: 'b4',
+    name: 'B4',
+    color: '#0055cc',
+    hexColor: 0x0055cc,
+    zone: { xRange: [-3, 3], yRange: [-2, 2] },
   },
   {
-    id: 'rfp',
-    name: 'RFP',
-    color: '#ff4422',
-    hexColor: 0xff4422,
-    zone: { xRange: [-9, 0], yRange: [-4, 0] },  // lower-left — red-orange
+    id: 'b5',
+    name: 'B5',
+    color: '#88aaff',
+    hexColor: 0x88aaff,
+    zone: { xRange: [-9, 0], yRange: [-4, 0] },
   },
   {
-    id: 'mag',
-    name: 'MAGENTA',
-    color: '#ee44ff',
-    hexColor: 0xee44ff,
-    zone: { xRange: [0, 9], yRange: [-4, 0] },   // lower-right — magenta
+    id: 'b6',
+    name: 'B6',
+    color: '#2266ee',
+    hexColor: 0x2266ee,
+    zone: { xRange: [0, 9], yRange: [-4, 0] },
   },
   {
-    id: 'org',
-    name: 'ORANGE',
-    color: '#ff8800',
-    hexColor: 0xff8800,
-    zone: { xRange: [-9, 9], yRange: [-9, -4] }, // bottom cap — orange
+    id: 'b7',
+    name: 'B7',
+    color: '#00ccff',
+    hexColor: 0x00ccff,
+    zone: { xRange: [-9, 9], yRange: [-9, -4] },
   },
 ]
 

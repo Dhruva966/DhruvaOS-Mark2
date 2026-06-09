@@ -10,7 +10,7 @@ author: dhruvaos
 platforms: [linux]
 prerequisites:
   env_vars:
-    - ANTHROPIC_API_KEY
+    - OPENAI_API_KEY
 gbrain:
   reads: ["*"]
   writes: ["*"]
@@ -37,6 +37,66 @@ It runs as background enrichment. Failures are logged, never reported to Discord
 
 ---
 
+## Step 0b — Guard: Check for Recent stale-fact-rewrite Run
+
+Before any file read or GBrain operation, check whether stale-fact-rewrite completed
+within the last 20 minutes. stale-fact-rewrite uses `gbrain forget_fact` + `extract_facts`
+which rewrites brain files destructively. Running connection-detector concurrently risks
+appending `## Connected concepts` to a file mid-rewrite, corrupting the content.
+
+Use `hermes_log_read` to fetch the last 200 lines of `~/.hermes/logs/gateway.log`.
+If `hermes_log_read` is unavailable, fall back to direct file read (tail 200 lines).
+
+```python
+import re
+from datetime import datetime, timedelta, timezone
+
+log_lines = """<LOG CONTENT>"""
+
+# Gateway log format: YYYY-MM-DD HH:MM:SS,mmm LEVEL module.name: message
+TIMESTAMP_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
+
+# Match stale-fact-rewrite completion markers
+SFR_COMPLETE_RE = re.compile(
+    r"stale[-_]fact[-_]rewrite.*(complete|finish|done|success|exit\s*0)",
+    re.IGNORECASE,
+)
+
+now = datetime.now(timezone.utc)
+guard_window = timedelta(minutes=20)
+stale_fact_recently_ran = False
+
+for line in reversed(log_lines.splitlines()):
+    ts_m = TIMESTAMP_RE.match(line)
+    if ts_m:
+        try:
+            line_ts = datetime.strptime(ts_m.group(1), "%Y-%m-%d %H:%M:%S").replace(
+                tzinfo=timezone.utc
+            )
+            if now - line_ts > guard_window:
+                break  # older than 20 min — stop scanning
+        except ValueError:
+            pass
+    if SFR_COMPLETE_RE.search(line):
+        stale_fact_recently_ran = True
+        break
+
+if stale_fact_recently_ran:
+    print(
+        "[connection-detector] GUARD: stale-fact-rewrite ran within last 20 min — "
+        "deferring to avoid concurrent GBrain brain-file modification. "
+        "Re-trigger this skill after the 20-minute window."
+    )
+    # Emit a sentinel that the skill executor checks
+    print("SKILL_EXIT=guard_triggered")
+    raise SystemExit(0)
+```
+
+If `stale_fact_recently_ran` is True: exit silently — no Discord message, no file modification.
+This skill is background enrichment; deferring is always safe.
+
+---
+
 ## Step 0 — Parse Input
 
 The brain file path is provided as either:
@@ -51,7 +111,7 @@ brain_file = args.get("brain_file") or discord_args.strip()
 
 if not brain_file:
     print("[connection-detector] ERROR: no brain file path provided")
-    stop()
+    raise SystemExit(0)
 
 brain_path = Path(brain_file).expanduser().resolve()
 
@@ -59,11 +119,11 @@ brain_path = Path(brain_file).expanduser().resolve()
 brain_root = Path.home() / "brain"
 if not str(brain_path).startswith(str(brain_root.resolve()) + "/"):
     print(f"[connection-detector] ERROR: path outside ~/brain/: {brain_path}")
-    stop()
+    raise SystemExit(0)
 
 if not brain_path.exists():
     print(f"[connection-detector] ERROR: file not found: {brain_path}")
-    stop()
+    raise SystemExit(0)
 
 print(f"[connection-detector] Processing: {brain_path}")
 ```
@@ -79,7 +139,7 @@ content = brain_path.read_text(encoding="utf-8")
 
 if "## Connected concepts" in content:
     print(f"[connection-detector] SKIP: '## Connected concepts' already exists in {brain_path.name}")
-    stop()
+    raise SystemExit(0)
 ```
 
 Do not append a second `## Connected concepts` section to an already-enriched file.
@@ -178,15 +238,15 @@ No connections to append → no file modification → no re-ingest needed.
 ```python
 if not deduped_candidates:
     print(f"[connection-detector] No related nodes found — skipping enrichment")
-    stop()
+    raise SystemExit(0)
 ```
 
 ---
 
-## Step 4 — Sonnet: Identify Top 3 Genuine Connections (Tier 1)
+## Step 4 — GPT-4o-mini: Identify Top 3 Genuine Connections (Tier 1)
 
 Call GPT-4o-mini (Tier 1) to evaluate the candidates and identify the 3 most meaningful
-connections. Sonnet must reject trivial keyword matches and prefer deep semantic links.
+connections. GPT-4o-mini must reject trivial keyword matches and prefer deep semantic links.
 
 **Connection quality prompt:**
 
@@ -229,7 +289,7 @@ connections = json.loads(synthesis_result)[:3]  # cap at 3
 print(f"[connection-detector] Identified {len(connections)} genuine connections")
 ```
 
-If Sonnet call fails: use top 2 candidates by score with a generic relationship note.
+If GPT-4o-mini call fails: use top 2 candidates by score with a generic relationship note.
 Never leave the file without any enrichment if candidates exist.
 
 ---
@@ -310,7 +370,7 @@ Connection-detector must not generate additional noise.
 | phi4-mini offline | Fallback to filename-based concept extraction |
 | All GBrain searches fail | Log and stop — no file modification |
 | No related nodes found | Log and stop — no file modification |
-| Sonnet call fails | Fallback to top 2 candidates by score |
+| GPT-4o-mini call fails | Fallback to top 2 candidates by score |
 | File append fails | Log error (silent — no Discord) |
 | GBrain re-ingest fails | Log warning — file append is durable |
 
@@ -320,10 +380,9 @@ All errors are logged to stdout/stderr (captured by Hermes). No Discord messages
 
 ## Done Condition
 
-Skill is complete when:
-1. Brain file validated (exists, within ~/brain/, no existing Connected concepts)
-2. Key concepts extracted via phi4-mini
-3. GBrain searched for each concept
-4. Top 3 genuine connections identified via Sonnet
-5. `## Connected concepts` section appended to brain file
-6. Brain file re-ingested into GBrain
+Skill is complete when ONE of:
+
+1. **Guard triggered** (stale-fact-rewrite ran < 20 min ago): silent exit, no file modification
+2. **Skip** (file not found, path outside ~/brain/, or Connected concepts already exists): silent exit
+3. **Enrichment complete**: brain file validated → concepts extracted → GBrain searched →
+   top 3 connections identified → `## Connected concepts` appended → brain file re-ingested

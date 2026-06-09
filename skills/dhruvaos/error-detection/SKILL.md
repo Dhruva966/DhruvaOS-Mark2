@@ -5,7 +5,7 @@ tier: 0
 outbound: false
 requires_approval: false
 description: "Scan Hermes gateway log every 6h; alert #alerts if any skill errors or GBrain failures detected"
-schedule: null
+schedule: "0 */6 * * *"
 gbrain:
   reads: []
   writes: []
@@ -252,3 +252,8 @@ Skill is complete when:
 ```bash
 hermes cron create "0 */6 * * *" "Error Detection" --skill error-detection --deliver discord
 ```
+
+**Companion skill:** `failure-backlog` runs at `5 */6 * * *` (5 min later) and reads the
+same gateway log to fingerprint errors, deduplicate against GBrain history, and alert on
+REPEATED failures. These two skills are deliberately independent — no sub-skill dispatch
+needed. failure-backlog handles failure memory; this skill handles real-time alerting.

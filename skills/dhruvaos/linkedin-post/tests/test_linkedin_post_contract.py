@@ -21,38 +21,33 @@ def test_linkedin_post_approval_is_replay_resistant():
 
 
 def test_linkedin_post_hard_stop_before_browser():
-    # Approval gate must appear BEFORE Browserbase session creation in the document
+    # Approval gate must appear BEFORE actual Playwright browser launch (chromium.launch)
+    # Note: sync_playwright import check is in Step 0 prereqs (before drafting) — that's correct
     approval_pos = TEXT.find("HARD STOP")
-    browserbase_pos = TEXT.find("browserbase_create_session")
+    chromium_launch_pos = TEXT.find("chromium.launch")
     assert approval_pos != -1, "HARD STOP must be documented"
-    assert browserbase_pos != -1, "browserbase_create_session must be documented"
-    assert approval_pos < browserbase_pos, \
-        "Approval gate must come before browser automation"
+    assert chromium_launch_pos != -1, "chromium.launch must be documented"
+    assert approval_pos < chromium_launch_pos, \
+        "Approval gate must come before browser launch"
 
 
-def test_linkedin_post_requires_browserbase_env_vars():
-    assert "BROWSERBASE_API_KEY" in TEXT
-    assert "BROWSERBASE_PROJECT_ID" in TEXT
-
-
-# ──────────────────────────────────────── Browserbase integration
-
-def test_linkedin_post_uses_browserbase_create_session():
-    assert "browserbase_create_session" in TEXT
+def test_linkedin_post_uses_local_playwright():
+    # Browserbase was permanently dropped 2026-06-07; skill uses local Playwright on Omen
+    assert "sync_playwright" in TEXT
+    assert "linkedin_cookies.json" in TEXT
+    assert "BROWSERBASE_API_KEY" not in TEXT
+    assert "BROWSERBASE_PROJECT_ID" not in TEXT
+    assert "browserbase_create_session" not in TEXT
 
 
 def test_linkedin_post_verifies_login_before_posting():
     # Must check login state before attempting to post
-    assert "not authenticated" in TEXT or "not logged in" in TEXT.lower() or "login form" in TEXT
+    assert "not authenticated" in TEXT or "not logged in" in TEXT.lower() \
+        or "authwall" in TEXT or "session_key" in TEXT
 
 
-def test_linkedin_post_always_closes_session():
-    assert "browserbase_close_session" in TEXT
-    assert "Always close" in TEXT or "always close" in TEXT.lower()
-
-
-def test_linkedin_post_takes_screenshot_for_verification():
-    assert "browserbase_screenshot" in TEXT
+def test_linkedin_post_always_closes_browser():
+    assert "browser.close()" in TEXT
 
 
 def test_linkedin_post_does_not_retry_silently():
@@ -75,6 +70,5 @@ def test_linkedin_post_no_hardcoded_credentials():
 
 
 def test_linkedin_post_setup_instructions_present():
-    assert "config.yaml" in TEXT
-    assert "browserbase" in TEXT
+    assert "playwright" in TEXT.lower()
     assert "Authenticate LinkedIn" in TEXT or "log in" in TEXT.lower()

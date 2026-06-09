@@ -28,10 +28,10 @@ export default function BrainCanvas() {
     }
   }, [micActive, startMicrophone, stopMicrophone])
 
-  // VAD processing — use effect to avoid side-effects during render
+  // VAD processing — run whenever energy changes, not on every render
   useEffect(() => {
     if (energy > 0) processAudioEnergy(energy)
-  })
+  }, [energy, processAudioEnergy])
 
   const handleModuleUpdate = useCallback(
     (overrides: Partial<Record<string, ModuleStatus>>) => {
@@ -48,18 +48,18 @@ export default function BrainCanvas() {
   })
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#0a0a1a]">
+    <div className="relative h-screen w-screen overflow-hidden bg-[#000008]">
       {/* Three.js canvas */}
       <Canvas
         className="absolute inset-0"
-        camera={{ position: [0, 0, 16], fov: 65, near: 0.1, far: 200 }}
+        camera={{ position: [0, 0, 11], fov: 70, near: 0.1, far: 200 }}
         gl={{
           antialias: true,
           alpha: false,
           powerPreference: 'high-performance',
         }}
         dpr={[1, 2]}
-        style={{ background: '#0a0a1a' }}
+        style={{ background: '#000008' }}
       >
         <Suspense fallback={null}>
           <BrainScene

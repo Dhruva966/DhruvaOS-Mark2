@@ -1,7 +1,14 @@
 # ADR-010: Three-layer browser stack — Lightpanda + AgentQL + Browserbase
 
 **Date:** 2026-06-04
-**Status:** accepted
+**Status:** superseded — see decision below
+
+> **SUPERSEDED (2026-06-07):** Browserbase layer permanently dropped. Replaced by local
+> Playwright on Omen (open source, headless Chromium). Rationale: Omen is always-on, so the
+> cloud browser's main benefit (run when machine is off) doesn't apply; $20/month cost avoided.
+> All Phase 5 outbound skills use `~/.hermes/linkedin_cookies.json` + local Chromium.
+> BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID are no longer required.
+> Layers 1 and 2 (Lightpanda + AgentQL for scraping/research) are unchanged.
 
 ## Context
 
@@ -72,7 +79,7 @@ Three-layer browser stack, each layer matched to cost and complexity:
 browser:
   backend: lightpanda
   endpoint: "ws://127.0.0.1:9222"
-  fallback_backend: browserbase  # for critical tasks if lightpanda crashes
+  # fallback: local Playwright (Chromium) for auth-required tasks (Browserbase dropped 2026-06-07)
 
 # PM2
 pm2 start "lightpanda --host 127.0.0.1 --port 9222" --name lightpanda
@@ -101,13 +108,14 @@ with sync_playwright() as p:
 
 | Variable | When | Source |
 |---|---|---|
-| `AGENTQL_API_KEY` | Phase 3 | https://agentql.com (free tier) |
-| `BROWSERBASE_PROJECT_ID` | Phase 5 | Browserbase dashboard |
+| `AGENTQL_API_KEY` | Phase 3 (optional) | https://agentql.com (free tier) |
+
+> ~~`BROWSERBASE_PROJECT_ID`~~ — no longer needed (Browserbase dropped 2026-06-07).
 
 ## Consequences
 
 - research-synthesis skill (Phase 3): use AgentQL for all source extraction
 - Charlie monitoring (Phase 5+): use Lightpanda, zero cloud cost
-- LinkedIn skill (Phase 5): use Browserbase, Stagehand SDK
+- LinkedIn skill (Phase 5): use local Playwright + `~/.hermes/linkedin_cookies.json` (Browserbase dropped)
 - All browser skills: never pass raw HTML to Tier 2. Always query first.
 - Firecrawl stays as a fallback env var but is no longer primary extraction tool.

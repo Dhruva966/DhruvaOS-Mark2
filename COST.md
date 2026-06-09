@@ -25,7 +25,7 @@ still meaningfully reduces repeated system/context cost; keep it enabled before 
 | OpenRouter (Year 2 fallback) | 1 | DeepSeek V3 | $0.23 | $0.34 | **$3–8** |
 | Anthropic | 2 | claude-sonnet-4-6 | $3.00 | $15.00 | **$12–25** |
 | Anthropic | 3 | claude-opus-4-8 | $15.00 | $75.00 | **$3–8** |
-| **Gemini (temp fallback)** | 2 | gemini-2.0-flash | **$0** | **$0** | **$0** (free tier: 15 RPM, 1M TPD) |
+| **Gemini (temp fallback)** | 2 | gemini-3.1-flash-lite | **$0.025** | **$0.10** | **~$0** at Hermes cron volume (verify pricing at ai.google.dev) |
 | Exa | — | search | $7/1k queries | — | **$0** (free 1k/mo tier) |
 | Structured extractor | — | optional future | varies | — | **$0–6** if added |
 | **API total (Anthropic on)** | | | | | **$12–30/mo** |
@@ -73,29 +73,48 @@ When Hermes key is depleted: switch to Gemini free tier (see below). When Claude
 
 ---
 
-## Gemini Free Tier Fallback
+## Gemini Fallback
 
 **When to use:** Anthropic Hermes credits depleted. Switch until credits replenished.
 
-**How:** Already configured (June 7 2026):
+> **⚠️ ACTIVE ISSUE (as of 2026-06-08):** Config was set to `gemini-2.0-flash` on June 7.
+> Gemini 2.0 shut down 2026-06-01. Hermes will fail all API calls until this is corrected.
+> Run the fix below immediately.
+
+**Fix live Omen config (run now if not done):**
+```bash
+ssh dhruva@100.119.229.11
+export PATH="/home/dhruva/.bun/bin:/home/dhruva/.local/bin:/home/dhruva/.hermes/bin:$PATH"
+# Verify model ID first — Gemini models change frequently:
+# https://ai.google.dev/gemini-api/docs/models
+sed -i "s/gemini-2.0-flash/gemini-3.1-flash-lite/g" ~/.hermes/config.yaml
+systemctl --user restart hermes-gateway
+hermes status | grep provider
+```
+
+**Current Gemini fallback model:** `gemini-3.1-flash-lite`
+Key: `GOOGLE_API_KEY` in `~/.hermes/.env`.
+
+> **⚠️ Model name rule:** Never set a Gemini model from memory. Gemini 2.0 shut down 2026-06-01.
+> Always verify current model ID at https://ai.google.dev/gemini-api/docs/models before configuring.
+
+**Config shape when on Gemini:**
 ```yaml
 # ~/.hermes/config.yaml
 model:
-  default: gemini-2.0-flash
+  default: gemini-3.1-flash-lite
   provider: google
 ```
-Key: `GOOGLE_API_KEY` in `~/.hermes/.env`.
 
-**Limits:** 15 RPM, 1,500 RPD, 1M tokens/day. Enough for all Hermes crons at current cadence.
-
-**Quality note:** Gemini 2.0 Flash is a strong model but differs from Sonnet in writing style and reasoning depth. For casual tasks (briefings, research, triage) — fine. For outbound writing and high-stakes decisions — top up Anthropic and switch back.
+**Quality note:** Gemini 3.1 Flash Lite differs from Sonnet in writing style and reasoning depth. For casual tasks (briefings, research, triage) — acceptable. For outbound writing and high-stakes decisions — top up Anthropic and switch back.
 
 **Switching back to Anthropic:**
 ```bash
 ssh dhruva@100.119.229.11
-sed -i "s/  default: gemini-2.0-flash/  default: claude-sonnet-4-6/" ~/.hermes/config.yaml
-sed -i "s/  provider: google/  provider: anthropic/" ~/.hermes/config.yaml
+sed -i "s/gemini-3.1-flash-lite/claude-sonnet-4-6/" ~/.hermes/config.yaml
+sed -i "s/provider: google/provider: anthropic/" ~/.hermes/config.yaml
 systemctl --user restart hermes-gateway
+hermes status | grep provider
 ```
 
 ---

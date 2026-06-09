@@ -16,6 +16,7 @@ prerequisites:
     - NOTION_API_KEY
     - NOTION_TASKS_DB_ID
     - DISCORD_TASKS_CHANNEL_ID
+    - OPENAI_API_KEY
 metadata:
   hermes:
     tags: [Tasks, Notion, GBrain, Discord, Daily]
