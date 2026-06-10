@@ -21,6 +21,54 @@ Purpose: Discord channel definitions, routing rules, and message conventions for
 
 ---
 
+## Model Override — Explicit Model Selection from Discord
+
+Dhruva can invoke any model explicitly from any Discord channel using the `@model` prefix.
+Hermes routes the message to that model regardless of task type.
+
+```
+# Anthropic
+@fable    → claude-fable-5          (idea generation, system improvement, high-stakes decisions)
+@opus     → claude-opus-4-8         (orchestration, architecture, complex planning)
+@sonnet   → claude-sonnet-4-6       (default, outbound writing, code review)
+@haiku    → claude-haiku-4-5        (fast, cheap — summaries, formatting, quick lookups)
+
+# OpenAI
+@gpt4o    → gpt-4o                  (heavy OpenAI reasoning, multimodal, long context)
+@mini     → gpt-4o-mini             (research, analysis, fast tasks)
+
+# Google
+@gemini   → gemini-3.1-flash-lite   (fallback when Anthropic credits low; verify ID at ai.google.dev)
+
+# Other
+@deepseek → deepseek/deepseek-v3    (cheap Tier 1 fallback via OpenRouter)
+@local    → phi4-mini               (local Ollama, triage/classification, no API cost)
+```
+
+Examples:
+```
+@fable what's the smartest way to evolve the skill loop this month?
+@fable should we switch from PGLite to Qdrant?
+@opus plan out the next 3 phases of DhruvaOS build
+@sonnet draft a reply to this email: [paste]
+@haiku summarize this document in 5 bullets
+@gpt4o analyze this chart image and extract the key numbers
+@mini what's the current state of Hermes versioning?
+@gemini quick — what's the cheapest way to do X?
+@deepseek research alternatives to Tailscale for remote access
+@local is this message spam?
+```
+
+**`@fable` behavior:**
+- Scout (Sonnet 4.6) runs automatically first — gathers current system state + context
+- Scout produces a CONTEXT BRIEF
+- Fable 5 receives the brief + Dhruva's message, responds
+- No raw context dump to Fable — always pre-digested
+
+**No prefix = default routing** (Hermes assigns tier based on task complexity as normal).
+
+---
+
 ## Allowed Patterns ✅
 
 ```

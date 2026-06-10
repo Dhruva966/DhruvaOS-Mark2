@@ -7,11 +7,141 @@
 | 0 | phi4-mini | Ollama (local) | $0 | $0 | Triage, formatting, parsing, classification — **internal only** |
 | 1 | gpt-4o-mini-2024-07-18 | OpenAI direct (platform credits) | $0.15 | $0.60 | Research, task planning, data analysis, mid-complexity |
 | 1 fallback | deepseek/deepseek-v3 | OpenRouter (own billing) | $0.23 | $0.34 | Same as Tier 1 after OpenAI credits < $50 |
-| 2 | claude-sonnet-4-6 | Anthropic | $3 | $15 | **ALL outbound writing**, reasoning, code review, complex analysis |
+| 2a | claude-haiku-4-5 | Anthropic | $0.80 | $4 | Fast cheap tasks: summaries, formatting, quick lookups, structured extraction |
+| 2b | claude-sonnet-4-6 | Anthropic | $3 | $15 | **ALL outbound writing**, reasoning, code review, complex analysis. Also **scout** for Tier 4. |
+| 2c | gpt-4o | OpenAI direct | $2.50 | $10 | Multimodal (image/chart analysis), long context, OpenAI-specific capabilities |
 | 3 | claude-opus-4-8 | Anthropic | $15 | $75 | Orchestration, architecture decisions, high-stakes planning |
-| Gemini fallback | gemini-3.1-flash-lite | Google (GOOGLE_API_KEY) | $0.25 | $1.50 | **TEMPORARY default when Anthropic credits depleted.** Use `provider: google`. Verify current model ID at ai.google.dev before configuring — Gemini models deprecate frequently. Gemini 2.0 shut down June 1, 2026. |
+| 4 | claude-fable-5 | Anthropic | $10 | $50 | System improvement, idea generation, highest-stakes decisions. Scout-first always. |
+| Gemini fallback | gemini-3.1-flash-lite | Google (GOOGLE_API_KEY) | $0.25 | $1.50 | **TEMPORARY default when Anthropic credits depleted.** Use `provider: google`. Verify current model ID at ai.google.dev — Gemini models deprecate frequently. Gemini 2.0 shut down June 1, 2026. |
+
+---
+
+## Discord Model Override — Full Palette
+
+Prefix any Discord message with `@alias` to route to that model explicitly.
+Works from any channel. Overrides all automatic tier routing.
+
+| Alias | Model ID | Provider | Best for |
+|-------|----------|----------|----------|
+| `@fable` | claude-fable-5 | Anthropic | System improvement ideas, high-stakes decisions (scout runs first) |
+| `@opus` | claude-opus-4-8 | Anthropic | Architecture, orchestration, complex multi-step planning |
+| `@sonnet` | claude-sonnet-4-6 | Anthropic | Default workhorse — writing, reasoning, code review |
+| `@haiku` | claude-haiku-4-5 | Anthropic | Fast cheap tasks — summaries, formatting, extraction |
+| `@gpt4o` | gpt-4o | OpenAI | Image/chart analysis, long context, OpenAI-specific tasks |
+| `@mini` | gpt-4o-mini-2024-07-18 | OpenAI | Research, analysis, task planning |
+| `@gemini` | gemini-3.1-flash-lite | Google | Quick cheap fallback (verify model ID at ai.google.dev first) |
+| `@deepseek` | deepseek/deepseek-v3 | OpenRouter | Cheap research + analysis when OpenAI credits low |
+| `@local` | phi4-mini | Ollama | Local only, zero cost, triage + classification |
+
+No prefix = Hermes auto-routes by task complexity as normal.
+
+> **Fable 5 pricing note:** $10/$50 per 1M in/out — 2x Opus 4.8 ($5/$25). Prompt caching gives 90% input discount on cached tokens (same as other Anthropic tiers). Available on standard Anthropic API since June 9, 2026.
 
 > **⚠️ Model name rule:** Never set a Gemini model name from memory. Fetch https://ai.google.dev/gemini-api/docs/models and confirm the ID exists before writing it to config.yaml.
+
+---
+
+## Tier 4 Rules — Claude Fable 5 (Minimal Use)
+
+**Fable 5 is Dhruva's strategic thinking partner for making DhruvaOS better.**
+Primary use: idea generation and system improvement — "how do we make this smarter?"
+Secondary use: reasoning through high-stakes decisions before committing.
+It never fires automatically. Always a deliberate invoke by Dhruva.
+
+### Two ways to invoke Fable 5
+
+**1. From any Discord channel — explicit model override (preferred for decisions):**
+```
+@fable should we migrate GBrain from PGLite to Qdrant?
+@fable [question or decision to reason through]
+```
+Hermes routes the message to `claude-fable-5`. Scout runs automatically first (see below).
+Works from #briefings, #research, #tasks, or any channel.
+
+**2. From Claude Code — skill or direct model flag:**
+```
+/model fable [task description]
+```
+Or prefix any prompt with `USE FABLE:` to force Tier 4 routing.
+
+### When to invoke Fable 5
+
+**Primary — system improvement and idea generation:**
+- "How should we evolve DhruvaOS over the next month?"
+- "What's the smartest way to improve the skill loop?"
+- "What capabilities is this system missing?"
+- "How do we make GBrain/Hermes/Drew smarter based on how we actually operate?"
+- Any session where Dhruva wants Fable to reason over the full system state and generate ideas
+
+**Secondary — high-stakes decisions:**
+- Irreversible architecture changes (new core subsystem, removing GBrain, replacing Hermes)
+- Security model changes (quality firewall logic, approval gates, allowlist)
+- Major provider or dependency switches (permanent LLM tier change, new vector DB)
+- Decisions that would take >1 week to reverse if wrong
+
+**Always qualifies:**
+- Any time Dhruva explicitly invokes `@fable` — intent overrides all routing rules
+
+**Not Fable (use Tier 3):**
+- Implementation tasks, new skills, debugging, code review, refactoring
+- Research that doesn't require strategic synthesis
+- Day-to-day planning
+
+### Scout → Decide pattern (mandatory before every Tier 4 call)
+
+**Never call Fable 5 cold.** Every Tier 4 call is preceded by a Tier 2 (Sonnet 4.6) scout run.
+This happens automatically when Dhruva invokes `@fable` or `/model fable`.
+
+```
+1. SCOUT (Tier 2 — Sonnet 4.6):
+   Read the relevant system state and produce a CONTEXT BRIEF for Fable.
+   For idea generation / system improvement sessions, include:
+     - Current system architecture snapshot (what exists, what's working, what's weak)
+     - Recent activity: last 7-14 days of commits, skill invocations, Discord patterns
+     - Known gaps, friction points, and things Dhruva has flagged or complained about
+     - Current BUILD_PLAN.md phases + what's in progress
+     - GBrain learnings from recent sessions (search "improvement" "friction" "idea")
+     - Any relevant external research (fetch if needed)
+   For decision sessions, also include:
+     - Options considered with tradeoffs
+     - Prior ADRs relevant to this decision
+     - Reversibility assessment
+
+   Output: a structured CONTEXT BRIEF — dense, no filler, max 800 tokens.
+   Never dump raw files. Synthesize.
+
+2. THINK (Tier 4 — Fable 5):
+   - Receives only the CONTEXT BRIEF
+   - For idea generation: proposes improvements, new capabilities, smarter patterns
+     based on how the system actually operates — not generic advice
+   - For decisions: reasons through options, validates tradeoffs, makes the call
+   - Output: specific, actionable ideas or decision + rationale
+
+3. LOG (for decisions only):
+   - Write an ADR to decisions/ capturing: decision, brief summary, Fable 5 rationale
+   - Log Tier 4 invocation to GBrain with timestamp
+```
+
+### Hermes config for Tier 4
+
+```yaml
+  tier_4:
+    model: "claude-fable-5"
+    provider: "anthropic"
+    max_tokens: 16384
+    temperature: 0.3
+    use_cases:
+      - irreversible_architecture
+      - security_model_changes
+      - permanent_provider_switches
+      - high_consequence_decisions
+    outbound_allowed: false
+    requires_approval: true
+    approval_channel: "corrections"
+    scout_required: true              # Tier 2 scout brief must precede every call
+    min_scout_tokens: 500             # reject if brief is too thin
+    auto_escalate: false              # NEVER auto-escalate to Tier 4 — manual only
+```
 
 ---
 
@@ -123,6 +253,22 @@ models:
     outbound_allowed: true
     requires_approval: true
     approval_channel: "corrections"
+
+  tier_4:
+    model: "claude-fable-5"
+    provider: "anthropic"
+    max_tokens: 16384
+    temperature: 0.3
+    use_cases:
+      - irreversible_architecture
+      - security_model_changes
+      - permanent_provider_switches
+      - high_consequence_decisions
+    outbound_allowed: false
+    requires_approval: true
+    approval_channel: "corrections"
+    scout_required: true              # Tier 2 scout brief must precede every call
+    auto_escalate: false              # NEVER auto-escalate to Tier 4 — manual invoke only
 
 routing:
   quality_firewall:
