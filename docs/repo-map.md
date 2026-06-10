@@ -32,6 +32,7 @@ This map is generated from tracked repository files to make orientation faster.
 | `.codex/` | Tracked repository item. |
 | `archive/` | Tracked repository item. |
 | `brain/` | Tracked repository item. |
+| `brain-updates/` | Tracked repository item. |
 | `decisions/` | Project documentation and notes. |
 | `discord/` | Tracked repository item. |
 | `docs/` | Project documentation and notes. |
