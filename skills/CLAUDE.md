@@ -115,10 +115,35 @@ hermes cron create "0 8 * * *" "Morning briefing" --skill morning-briefing --del
 | What | Where |
 |------|-------|
 | Old stubs (reference) | `skills/*.yaml` |
-| Phase 2-3 skills (deployed) | `skills/dhruvaos/*/SKILL.md` |
-| Phase 5 stubs (not active) | `skills/dhruvaos/linkedin-post/`, `skills/dhruvaos/github-update/` |
+| Phase 2-5 skills (deployed) | `skills/dhruvaos/*/SKILL.md` |
 | Live skills (runtime) | `~/.hermes/skills/dhruvaos/` |
+| Runtime config (all tunables) | `~/brain/config/` on Omen — read by skills via `gbrain_search("config <area>")` |
 | Charlie stub | `skills/charlie-monitoring.yaml` (NOT IMPLEMENTED) |
+
+---
+
+## Dynamic Config Pattern (June 2026)
+
+All tunables (counts, thresholds, formats, model names) live in `~/brain/config/` — never hardcoded in skill files.
+
+**Reading config in a skill:**
+```python
+config = gbrain_search("config content-goals")   # returns ~/brain/config/content-goals.md
+# parse the returned text; fall back to a safe default if empty
+```
+
+**Updating config from Discord** — use the `config-update` skill:
+> Drew, change my X posting goal to 4 threads per week
+
+The `config-update` skill (`~/.hermes/skills/dhruvaos/config-update/SKILL.md`) locates the correct `~/brain/config/` file, rewrites the value, and re-ingests it into GBrain. No code change required.
+
+**Judgment over mechanics** — as of June 2026, ~25 skills were rewritten to use agent judgment instead of rigid mechanical counts:
+- `morning-briefing` / `evening-briefing`: surfaces what matters, not a fixed-N form
+- `x-thread-draft`, `linkedin-post`: judgment-based structure, no rigid tweet/word counts
+- `paper-monitor`: genuine relevance reasoning, not 0–10 scoring
+- `content-idea-engine`: zero ideas if nothing qualifies — quality over quantity
+
+These skills have version bumps: v2.0 (first judgment rewrite) or v3.0 (config-aware + judgment).
 
 ---
 
@@ -182,6 +207,10 @@ headers = {"Authorization": "Bearer sk-proj-abc123..."}
 5. **Never promote a runtime-authored skill without reviewing the trust gate decision.**
    For any skill with `outbound: true` or shell commands, verify the Discord approval DM
    actually arrived and was reviewed before the skill runs in production.
+
+6. **Never hardcode tunables (counts, thresholds, timeouts, model names) in a skill body.**
+   All config belongs in `~/brain/config/`. Read it at runtime via `gbrain_search("config <area>")`.
+   Use a safe in-code default only as a fallback when the brain returns nothing.
 
 ---
 

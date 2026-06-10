@@ -46,9 +46,14 @@ LOG_FILE = pathlib.Path.home() / ".gbrain" / "stale-fact-rewrites.jsonl"
 # ~/.gbrain/ is persistent and survives across reboots).
 # This prevents stale-fact-rewrite from running concurrently with gbrain dream or embed.
 LOCK_FILE = pathlib.Path.home() / ".gbrain" / "gbrain-write.lock"
-MAX_FACTS = 50          # cap per run; keeps runtime under 5 min
-OLLAMA_TIMEOUT = 90     # seconds per LLM call
-INTER_CALL_SLEEP = 0.3  # pause between gbrain calls to avoid hammering
+# No hard cap — process however many stale facts exist, within reason.
+# Set MAX_FACTS env var to a positive integer to impose a limit when needed.
+_max_facts_env = os.environ.get("MAX_FACTS", "").strip()
+MAX_FACTS: int | None = int(_max_facts_env) if _max_facts_env.isdigit() and int(_max_facts_env) > 0 else None
+
+# Configurable via env vars so Omen-specific tuning doesn't require a code edit.
+OLLAMA_TIMEOUT: int = int(os.environ.get("OLLAMA_TIMEOUT", "90"))    # seconds per LLM call
+INTER_CALL_SLEEP: float = float(os.environ.get("STALE_FACT_SLEEP", "0.3"))  # pause between gbrain calls
 
 
 def load_hermes_env() -> dict[str, str]:
@@ -252,8 +257,10 @@ def _run(dry_run: bool, mode_label: str, _lock_fd) -> None:
         sys.exit(1)
 
     # 1. Get active facts
+    # If MAX_FACTS is set, cap the recall; otherwise fetch all active facts.
+    recall_args: dict = {"limit": MAX_FACTS} if MAX_FACTS is not None else {}
     try:
-        result = gbrain_call("recall", {"limit": MAX_FACTS}, env)
+        result = gbrain_call("recall", recall_args, env)
         facts = result.get("facts", [])
     except Exception as e:
         msg = f"ERROR fetching facts: {e}"

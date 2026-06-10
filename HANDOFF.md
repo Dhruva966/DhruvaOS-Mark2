@@ -315,6 +315,32 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 
 ---
 
+## Dynamic Config System (added June 2026)
+
+All previously hardcoded thresholds and configuration values are now in `~/brain/config/` on Omen:
+
+| File | Controls |
+|------|----------|
+| `content-goals.md` | X: 3/wk, LinkedIn: 2/wk, Blog: 1/mo |
+| `approval-timeouts.md` | Default approval window (10 min) |
+| `contact-thresholds.md` | Outreach cadence (30/60/90 days) |
+| `tweet-format.md` | Thread structure (judgment-based, not rigid counts) |
+| `content-format.md` | Word count ranges per format |
+| `cost-alerts.md` | Alert thresholds ($2/$30) |
+| `monitoring.md` | Error rates, escalation percentage targets |
+| `gbrain-settings.md` | Similarity thresholds for search |
+| `model-routing.md` | Tier → model name mapping |
+| `README.md` | Explains the config system to Drew |
+
+Skills read config at runtime via `gbrain_search("config <area>")` and fall back to safe defaults if the brain entry is missing.
+
+Drew can update any value from Discord without a code change:
+> "change my X goal to 4 threads/week"
+
+The **config-update** skill (`~/.hermes/skills/dhruvaos/config-update/SKILL.md`) handles these changes — it finds the relevant config file in `~/brain/config/`, rewrites the value, and ingests the updated file into GBrain.
+
+---
+
 ## Known Issues
 
 | Issue | Status | Fix |
@@ -345,6 +371,7 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 | **Vercel proxy bypass (jarvis-voice)** | ⚠️ Remaining | `jarvis-voice-umber.vercel.app` directly accessible without auth. drew-ui middleware only gates `/jarvis/*` on the proxy — direct Vercel URL bypasses it. Fix: add `middleware.ts` to jarvis-voice with password check, or enable Vercel password protection on that deployment. |
 | **auth cookie = raw SITE_PASSWORD** | ⚠️ Remaining | Cookie stores the plaintext password. httpOnly+secure mitigates for personal use. Full fix: generate a session token on login, store hash server-side. |
 | Anthropic credit watchdog blind to Claude Code usage | ⚠️ Structural | balance-check.sh (every 2h) mitigates. Root fix: separate API keys (done). Spend limit on platform.anthropic.com recommended. |
+| **Hardcoded thresholds in ~25 skills** | ✅ Resolved June 2026 | Full un-hardcoding pass complete. All config now in `~/brain/config/`. Skills use `gbrain_search("config <area>")` + safe defaults. See Dynamic Config System section above. |
 
 **Phase V — Visual + Voice Layer (June 8, 2026):**
 
@@ -374,7 +401,8 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
   - AUDIO_BANDS singleton (zero React batching delay) drives soma emissive + signal rate
   - PR: https://github.com/Dhruva966/DhruvaOS-Mark2/pull/6
 - [ ] Cloudflare Zero Trust Access on `api.dhruvavutukury.org` + `gbrain.dhruvavutukury.org` (currently open internet)
-- [ ] Phase 5 skills deployed to Omen: `linkedin-post`, `personal-site-update`, `youtube-video-create`
+- [x] Phase 5 skills deployed to Omen: `linkedin-post` (v3.0 judgment-based rewrite), `github-update` (v2.0) ✅ June 2026
+- [ ] Phase 5 skills remaining: `personal-site-update`, `youtube-video-create`
 - [ ] P3.3 quality firewall gate test (manual — Discord `/test-outbound`)
 - [ ] GBrain braindump ingested (`wiki/braindump-questions.md`)
 - [ ] Knowledge graph: `gbrain extract links --source db`
