@@ -18,6 +18,7 @@ acting on anything high-stakes.
 | Tier 1 model | GPT-4o-mini (direct OpenAI API — burns platform.openai.com credits) |
 | Tier 2 model | Claude Sonnet 4.6 (Anthropic — ALL outbound writing) |
 | Tier 3 model | Claude Opus 4.8 (Anthropic — orchestration + high-stakes) |
+| Tier 4 model | `claude-fable-5` (Anthropic — **minimal use, highest-stakes decisions only, scout-first required**. $10/$50 per 1M in/out.) |
 | Gemini fallback | `gemini-3.1-flash-lite` via `provider: google` — used when Anthropic credits depleted. **Always verify current model ID at ai.google.dev before configuring.** Gemini 2.0 shut down 2026-06-01. |
 | Process management | Hermes: systemd user service. GBrain: PM2 daemon (`gbrain-mcp`, HTTP mode port 3131). Ollama: systemd system service. |
 | Remote access | Tailscale SSH primary; Cloudflare Tunnel only for future authenticated HTTP surfaces |
@@ -68,14 +69,18 @@ DhruvaOS Mark 2/
 |-----------|-------|------|
 | Internal triage, formatting, parsing, classification | phi4-mini (Ollama) | 0 |
 | Research, task planning, data analysis, mid-complexity | GPT-4o-mini (OpenAI direct) | 1 |
-| ALL outbound writing, reasoning, code review | Claude Sonnet 4.6 | 2 |
-| Orchestration, architecture, high-stakes decisions | Claude Opus 4.8 | 3 |
+| ALL outbound writing, reasoning, code review. Also: **scout runs before Tier 4 calls** | Claude Sonnet 4.6 | 2 |
+| Orchestration, architecture, high-stakes planning | Claude Opus 4.8 | 3 |
+| **System improvement, idea generation, high-stakes decisions — manual invoke via `@fable`, scout-first always** | claude-fable-5 | 4 |
 
 **QUALITY FIREWALL (absolute, no override):** Any text that another human will read goes through
 Tier 2+ AND requires Dhruva's explicit Discord approval before send. Cost never overrides this.
 
+**TIER 4 RULE (absolute):** Fable 5 never fires automatically. Never called cold. Every Tier 4
+call requires a Sonnet 4.6 scout run first that produces a structured DECISION BRIEF. See MODEL_ROUTING.md.
+
 Escalate only when lower tier fails with a clear reasoning gap. Promote permanently when a skill
-escalates >30% of runs in a week.
+escalates >30% of runs in a week. **Tier 4 is never auto-promoted into — manual only.**
 
 ## Omen SSH Access (every new chat needs this)
 
