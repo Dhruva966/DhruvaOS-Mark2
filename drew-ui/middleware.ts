@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Page routes that require auth (redirect to login on failure)
-const PROTECTED_PAGES = ['/drew', '/content', '/jarvis'];
+// Public paths — exempt from auth. Everything else is gated by default.
+const PUBLIC_PAGES = new Set<string>(['/login']);
+const PUBLIC_API_PATHS = new Set<string>(['/api/auth']);
 
-// API routes that require auth (return 401 JSON on failure)
-// /api/auth is intentionally excluded — it IS the login endpoint
-const PROTECTED_API_PREFIXES = [
-  '/api/voice/',
-  '/api/drew/',
+// File extensions served as static assets — pass through unauthenticated.
+const STATIC_EXTENSIONS = [
+  '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif',
+  '.ico', '.txt', '.xml', '.json', '.woff', '.woff2', '.ttf', '.css', '.js', '.map',
 ];
+
+function isStaticAsset(pathname: string): boolean {
+  return STATIC_EXTENSIONS.some((ext) => pathname.endsWith(ext));
+}
+
+function isPublicPath(pathname: string): boolean {
+  if (PUBLIC_PAGES.has(pathname)) return true;
+  if (PUBLIC_API_PATHS.has(pathname)) return true;
+  if (isStaticAsset(pathname)) return true;
+  return false;
+}
 
 function isAuthenticated(request: NextRequest): boolean {
   const auth = request.cookies.get('site-auth');
@@ -19,38 +30,22 @@ function isAuthenticated(request: NextRequest): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check protected API routes first — return 401, never redirect
-  const isProtectedApi = PROTECTED_API_PREFIXES.some((p) =>
-    pathname.startsWith(p)
-  );
-  if (isProtectedApi) {
-    if (!isAuthenticated(request)) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-    }
-    return NextResponse.next();
+  if (isPublicPath(pathname)) return NextResponse.next();
+  if (isAuthenticated(request)) return NextResponse.next();
+
+  // API routes → JSON 401, never redirect.
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  // Check protected page routes — redirect to login
-  const isProtectedPage = PROTECTED_PAGES.some(
-    (p) => pathname === p || pathname.startsWith(p + '/')
-  );
-  if (!isProtectedPage) return NextResponse.next();
-
-  if (isAuthenticated(request)) {
-    return NextResponse.next();
-  }
-
+  // Pages → redirect to /login with original path preserved.
   const loginUrl = new URL('/login', request.url);
   loginUrl.searchParams.set('redirect', pathname);
   return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
-  matcher: [
-    '/drew/:path*',
-    '/content/:path*',
-    '/jarvis/:path*',
-    '/api/voice/:path*',
-    '/api/drew/:path*',
-  ],
+  // Match everything except Next internals + favicon. Static files outside _next
+  // are filtered by isStaticAsset() above.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
