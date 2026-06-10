@@ -100,7 +100,7 @@ XPosterOS is live. Phase 5 skills (linkedin-post, personal-site-update, youtube-
 - **Voice pipeline** — real STT→LLM→TTS wired: Whisper (`/api/voice/transcribe`), Claude Sonnet 4.6 (`/api/voice/chat`), ElevenLabs w/ OpenAI TTS fallback (`/api/voice/speak`). Multi-turn conversation history in-session.
 - **Conversation transcript** — scrolling chat panel shows full session history; clear button resets.
 - **Jarvis screensaver** — 90s idle → Jarvis 3D brain fills the screen as iframe; click to return.
-- **Auth** — middleware.ts guards `/drew`, `/jarvis`, `/content`; 30-day cookie.
+- **Auth** — middleware.ts default-gates every route; only `/login`, `/api/auth`, static assets public; 30-day cookie. ✅ Full lockdown deployed June 10.
 
 **Pending (lower priority):**
 - [ ] **GBrain braindump ingest** — `wiki/braindump-questions.md` answers; `gbrain import`

@@ -355,6 +355,7 @@ Headless OAuth via stored refresh token. Test: `set -a; source ~/.hermes/.env; s
 - [x] Tunnel systemd user service: `~/.config/systemd/user/cloudflared-dhruvaos.service`, linger enabled ✅
 - [x] `dhruvavutukury.org` landing page deployed (Vercel, drew-ui project) ✅
 - [x] `dhruvavutukury.org/drew` — Drew voice interface, password-gated ✅
+- [x] `dhruvavutukury.org/` (root) and all routes — full lockdown, default-protect middleware deployed June 10 ✅
 - [x] `dhruvavutukury.org/content` → XPosterOS web (proxied via Next.js rewrite) ✅
 - [x] `dhruvavutukury.org/jarvis` → Jarvis 3D neural voice (proxied) ✅
 - [x] Drew persona `~/.hermes/SOUL.md` deployed, loaded every message ✅

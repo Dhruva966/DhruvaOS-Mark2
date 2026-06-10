@@ -94,7 +94,13 @@ pm2 start npm --name drew-ui -- start
 
 ## Auth
 
-All `/drew`, `/jarvis`, `/content` routes protected by `middleware.ts`. Login at `/login`. Cookie: `site-auth`, 30-day, httpOnly.
+Every route is password-gated by default (`middleware.ts`). Only `/login`, `/api/auth`, and static assets are public. Login at `/login`. Cookie: `site-auth`, 30-day, httpOnly, secure. After login the device stays authenticated for 30 days — no re-login needed.
+
+**Public paths:** `/login`, `/api/auth`, static asset extensions (`.svg`, `.png`, `.ico`, etc.), Next.js internals (`/_next/*`).
+**Unauthenticated page request:** redirects to `/login?redirect=<original_path>`.
+**Unauthenticated API request:** returns `401 { "error": "unauthorized" }`.
+
+**Note:** Next.js 16 deprecates `middleware.ts` — rename to `proxy.ts` at next convenient opportunity.
 
 ## Voice Flow
 
