@@ -18,7 +18,7 @@ This backlog is generated from tracked TODO/FIXME/XXX markers.
 - `archive/todo-backlog.md:16` - TODO
 - `archive/todo-backlog.md:17` - TODO
 - `decisions/README.md:16` - items (→ BUILD_PLAN.md or Discord #tasks)
-- `discord/CLAUDE.md:54` - ", add it to tasks not research
+- `discord/CLAUDE.md:102` - ", add it to tasks not research
 - `drew-ui/lib/HermesAPI.ts:3` - integrate real conversation)
 - `drew-ui/lib/HermesAPI.ts:7` - )
 - `jarvis-voice/components/NeuralBrain/SingleNeuron.tsx:213` - );
