@@ -65,6 +65,14 @@ skill-analytics (Sun 9pm, job `d34a842128f0`), tier-watchdog (6am, job `197e31b8
 
 ## Active / In-Progress Phases
 
+### Investing Intelligence System (new project)
+
+The investing/news system is tracked as an independent vertical-slice project inside this
+repository. Its phase definitions, standalone completion gates, source hierarchy, and upgrade
+rules live in [`INVESTING_BUILD_PLAN.md`](INVESTING_BUILD_PLAN.md). Phase 1 and Phase 2 are both
+manual, fully functioning systems; event monitoring and notification are deliberately deferred
+until those gates pass.
+
 ### Phase 5: Network Integration (Outbound) 🚧 PARTIAL
 
 XPosterOS is live. Phase 5 skills (linkedin-post, personal-site-update, youtube-video-create) are deployed to Omen but pending live credential verification and quality firewall gate.
